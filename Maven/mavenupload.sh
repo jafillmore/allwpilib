@@ -7,10 +7,10 @@ jar cf ../opencv-jni.jar ./
 popd
 
 #******TODO replace with the custom library under same name
-mkdir ~/maven-up/hal/linux/mau/shared -p
-cp -R /usr/local/wpilib/lib/libwpiHal.so ~/maven-up/hal/linux/mau/shared/libwpiHalMau.so
-pushd ~/maven-up/hal
-zip -r ../hal.zip ./
+mkdir ~/maven-up/hal-mau/linux/mau/shared -p
+cp -R /usr/local/wpilib/lib/libwpiHal.so ~/maven-up/hal-mau/linux/mau/shared/libwpiHalMau.so
+pushd ~/maven-up/hal-mau
+zip -r ../hal-mau.zip ./
 popd
 
 mkdir ~/maven-up/cscore/linux/mau/shared -p
@@ -43,8 +43,8 @@ popd
 pushd poms/opencv-jni
 sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/opencv-jni.jar -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
 popd
-pushd poms/hal
-sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/hal.zip -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
+pushd poms/hal-mau
+sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/hal-mau.zip -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
 popd
 pushd poms/cscore
 sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/cscore.zip -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
