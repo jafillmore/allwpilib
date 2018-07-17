@@ -31,12 +31,17 @@ pushd ~/maven-up/wpiutil
 zip -r ../wpiutil.zip ./
 popd
 
-
 mkdir ~/maven-up/opencv-cpp/linux/mau/shared -p
 cp -R /usr/lib/arm-linux-gnueabihf/libopencv_*.* ~/maven-up/opencv-cpp/linux/mau/shared
 cp -R /usr/local/share/OpenCV/java/libopencv_java*.so ~/maven-up/opencv-cpp/linux/mau/shared
 pushd ~/maven-up/opencv-cpp
 zip -r ../opencv-cpp.zip ./
+popd
+
+mkdir ~/maven-up/wpilibc/linux/mau/shared -p
+cp -R /usr/local/wpilib/lib/libwpilibc.so ~/maven-up/wpilibc/linux/mau/shared
+pushd ~/maven-up/wpilibc
+zip -r ../wpilibc.zip ./
 popd
 
 
@@ -57,6 +62,9 @@ sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/wpiutil.z
 popd
 pushd poms/opencv-cpp
 sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/opencv-cpp.zip -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
+popd
+pushd poms/wpilibc
+sudo mvn deploy:deploy-file -DpomFile=pom.xml -Dfile=/home/pi/maven-up/wpilibc.zip -DrepositoryId=kauailabs-maven-ftp -Durl=ftp://ftp.kauailabs.com/kauailabs.com/maven2
 popd
 
 rm -r ~/maven-up
