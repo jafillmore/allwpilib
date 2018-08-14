@@ -14,6 +14,8 @@ struct Mau_Channel {
     bool unsupported;
     bool isMXP;
 
+    ~Mau_Channel();
+
     VMXChannelIndex vmxIndex;
     VMXChannelCapability vmxAbility;
 
@@ -28,6 +30,8 @@ class Mau_ChannelGroup {
     Mau_Channel* channels;
 public:
     Mau_ChannelGroup(Mau_Channel* newChannels);
+    ~Mau_ChannelGroup();
+
     Mau_Channel* getChannel(int index);
 };
 
@@ -47,6 +51,7 @@ class Mau_ChannelMap {
     void setGroup(std::string target, Mau_ChannelGroup* group);
 public:
     Mau_ChannelMap();
+    ~Mau_ChannelMap();
     Mau_Channel* getChannel(std::string label, int index);
     VMXChannelInfo getChannelInfo(std::string label, int index);
 

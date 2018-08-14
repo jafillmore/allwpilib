@@ -1,3 +1,4 @@
+#include <VMXPi.h>
 #include <AHRS.h>
 #include <VMXIO.h>
 #include <VMXCAN.h>
@@ -20,4 +21,6 @@ namespace mau {
 
     extern Mau_ChannelMap* channelMap;
     extern Mau_EnumConverter* enumConverter;
+
+    void freeMau();
 }

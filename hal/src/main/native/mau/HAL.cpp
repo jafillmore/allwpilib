@@ -302,3 +302,22 @@ int64_t HAL_Report(int32_t resource, int32_t instanceNumber, int32_t context,
                    const char* feature) {
     return 0;  // Do nothing for now
 }
+
+void mau::freeMau() {
+    delete vmx;
+
+    mau::vmxIMU = nullptr;
+    mau::vmxIO = nullptr;
+    mau::vmxCAN = nullptr;
+    mau::vmxTime = nullptr;
+    mau::vmxPower = nullptr;
+    mau::vmxThread = nullptr;
+
+    delete mau::vmxError;
+    mau::vmxError = nullptr;
+    //TODO: Change vmxError to value, not pointer
+    delete mau::channelMap;
+    mau::channelMap = nullptr;
+    delete mau::enumConverter;
+    mau::enumConverter = nullptr;
+}

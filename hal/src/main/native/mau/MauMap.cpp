@@ -2,15 +2,23 @@
 
 // ----- Mau Channel ----- //
 
+Mau_Channel::~Mau_Channel() {
+    delete vmxResConfig;
+}
+
 VMXChannelInfo Mau_Channel::getInfo() {
     return VMXChannelInfo(vmxIndex, vmxAbility);
 }
 
 VMXResourceIndex Mau_Channel::getResourceIndex() {
-    return EXTRACT_VMX_RESOURCE_INDEX(*vmxResHandle);
+    return EXTRACT_VMX_RESOURCE_INDEX(vmxResHandle);
 }
 
 // ----- Hal Channel Group ----- //
+
+Mau_ChannelGroup::~Mau_ChannelGroup() {
+    delete[] channels;
+}
 
 Mau_ChannelGroup::Mau_ChannelGroup(Mau_Channel* newChannels) {
     channels = newChannels;
@@ -47,6 +55,24 @@ Mau_ChannelMap::Mau_ChannelMap() {
     groups["SPI"] = NULL;
     groups["I2C"] = NULL;
     groups["Serial"] = NULL;
+}
+
+Mau_ChannelMap::~Mau_ChannelMap() {
+    delete groups["DIO"];
+    delete groups["Interrupt"];
+    delete groups["AnalogOutput"];
+    delete groups["AnalogInput"];
+    delete groups["AnalogTrigger"];
+    delete groups["Relay"];
+    delete groups["PWM"];
+    delete groups["DigitalPWM"];
+    delete groups["Counter"];
+    delete groups["FPGAEncoder"];
+    delete groups["Encoder"];
+    delete groups["SPI"];
+    delete groups["I2C"];
+    delete groups["Serial"];
+    groups.clear();
 }
 
 // ----- Mau Map: Friend Creators ----- //

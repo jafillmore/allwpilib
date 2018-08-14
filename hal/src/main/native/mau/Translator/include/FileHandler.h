@@ -52,8 +52,6 @@ public:
     Mau_EnumConverter* getEnumConverter();
     Mau_FileHandler();
     ~Mau_FileHandler();
-
-
 };
 
 

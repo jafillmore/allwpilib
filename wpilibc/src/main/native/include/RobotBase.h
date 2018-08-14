@@ -14,6 +14,7 @@
 
 #include "Base.h"
 
+
 namespace frc {
 
 class DriverStation;
@@ -73,7 +74,7 @@ class RobotBase {
 
  protected:
   RobotBase();
-  virtual ~RobotBase() = default;
+  virtual ~RobotBase();
 
   RobotBase(const RobotBase&) = delete;
   RobotBase& operator=(const RobotBase&) = delete;

@@ -12,6 +12,8 @@
 #include <HAL/HAL.h>
 #include <networktables/NetworkTableInstance.h>
 
+#include <MauInternal.h>
+
 #include "CameraServerShared.h"
 #include "DriverStation.h"
 #include "HLUsageReporting.h"
@@ -104,6 +106,10 @@ RobotBase::RobotBase() : m_ds(DriverStation::GetInstance()) {
       .SetBoolean(false);
 
   LiveWindow::GetInstance()->SetEnabled(false);
+}
+
+RobotBase::~RobotBase() {
+  mau::freeMau();
 }
 
 /**

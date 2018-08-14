@@ -1,0 +1,871 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="main"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="main">
+				<Option output="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/main" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Filters"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/interfaces"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Internal"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/LiveWindow"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard"/>
+					<Add directory="/home/dylanlamarca/vmx/vmx-pi/hal/hal_cpp/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 main"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="main/fast">
+				<Option output="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/main" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Filters"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/interfaces"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Internal"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/LiveWindow"/>
+					<Add directory="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard"/>
+					<Add directory="/home/dylanlamarca/vmx/vmx-pi/hal/hal_cpp/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/x86_64-pc-linux-gnu"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/../../../../include/c++/8.2.0/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-pc-linux-gnu/8.2.0/include-fixed"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 main/fast"/>
+					<CompileFile command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j4 -f &quot;/home/dylanlamarca/allwpilib/wpilibc/src/main/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ADXL345_I2C.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ADXL345_SPI.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ADXL362.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ADXRS450_Gyro.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogAccelerometer.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogGyro.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogInput.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogOutput.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogPotentiometer.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogTrigger.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/AnalogTriggerOutput.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/BuiltInAccelerometer.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/Button.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/ButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/CancelButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/HeldButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/InternalButton.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/JoystickButton.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/NetworkButton.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/PressedButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/ReleasedButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/ToggleButtonScheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Buttons/Trigger.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/CAN.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/Command.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/CommandGroup.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/CommandGroupEntry.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/ConditionalCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/InstantCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/PIDCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/PIDSubsystem.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/PrintCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/Scheduler.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/StartCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/Subsystem.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/TimedCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/WaitCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/WaitForChildren.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Commands/WaitUntilCommand.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Compressor.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ControllerPower.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Counter.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DMC60.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DigitalGlitchFilter.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DigitalInput.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DigitalOutput.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DoubleSolenoid.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Drive/DifferentialDrive.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Drive/KilloughDrive.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Drive/MecanumDrive.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Drive/RobotDriveBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Drive/Vector2d.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/DriverStation.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Encoder.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Error.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/ErrorBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Filters/Filter.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Filters/LinearDigitalFilter.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/GamepadBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/GearTooth.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/GenericHID.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/GyroBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/HLUsageReporting.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/I2C.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Internal/HardwareHLReporting.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/InterruptableSensorBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/IterativeRobot.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/IterativeRobotBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Jaguar.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Joystick.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/JoystickBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/LiveWindow/LiveWindow.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/LiveWindow/LiveWindowSendable.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/MotorSafetyHelper.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/NidecBrushless.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Notifier.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PIDBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PIDController.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PIDSource.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PWM.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PWMSpeedController.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PWMTalonSRX.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PWMVictorSPX.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/PowerDistributionPanel.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Preferences.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Relay.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Resource.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/RobotBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/RobotController.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/RobotDrive.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/RobotState.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SD540.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SPI.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SafePWM.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SampleRobot.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SensorUtil.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SerialPort.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Servo.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SmartDashboard/NamedSendable.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SmartDashboard/SendableBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SmartDashboard/SendableBuilderImpl.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SmartDashboard/SendableChooserBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SmartDashboard/SmartDashboard.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Solenoid.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SolenoidBase.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Spark.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SpeedControllerGroup.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/SynchronousPID.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Talon.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Threads.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/TimedRobot.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Timer.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Ultrasonic.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Utility.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/Victor.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/VictorSP.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/XboxController.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/cpp/interfaces/Potentiometer.cpp">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ADXL345_I2C.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ADXL345_SPI.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ADXL362.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ADXRS450_Gyro.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogAccelerometer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogGyro.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogInput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogOutput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogPotentiometer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogTrigger.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogTriggerOutput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/AnalogTriggerType.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Base.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/BuiltInAccelerometer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/Button.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/ButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/CancelButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/HeldButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/InternalButton.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/JoystickButton.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/NetworkButton.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/PressedButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/ReleasedButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/ToggleButtonScheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Buttons/Trigger.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/CAN.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/Command.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/CommandGroup.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/CommandGroupEntry.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/ConditionalCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/InstantCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/PIDCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/PIDSubsystem.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/PrintCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/Scheduler.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/StartCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/Subsystem.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/TimedCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/WaitCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/WaitForChildren.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Commands/WaitUntilCommand.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Compressor.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Controller.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ControllerPower.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Counter.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/CounterBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DMC60.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DigitalGlitchFilter.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DigitalInput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DigitalOutput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DigitalSource.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DoubleSolenoid.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive/DifferentialDrive.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive/KilloughDrive.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive/MecanumDrive.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive/RobotDriveBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Drive/Vector2d.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/DriverStation.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Encoder.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Error.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/ErrorBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Filters/Filter.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Filters/LinearDigitalFilter.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/GamepadBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/GearTooth.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/GenericHID.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/GyroBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/HLUsageReporting.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/I2C.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Internal/HardwareHLReporting.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/InterruptableSensorBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/IterativeRobot.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/IterativeRobotBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Jaguar.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Joystick.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/JoystickBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/LiveWindow/LiveWindow.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/LiveWindow/LiveWindowSendable.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/MotorSafety.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/MotorSafetyHelper.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/NidecBrushless.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Notifier.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PIDBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PIDController.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PIDInterface.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PIDOutput.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PIDSource.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PWM.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PWMSpeedController.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PWMTalonSRX.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PWMVictorSPX.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/PowerDistributionPanel.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Preferences.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Relay.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Resource.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/RobotBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/RobotController.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/RobotDrive.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/RobotState.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SD540.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SPI.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SafePWM.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SampleRobot.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SensorUtil.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SerialPort.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Servo.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/NamedSendable.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/Sendable.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SendableBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SendableBuilder.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SendableBuilderImpl.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SendableChooser.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SendableChooserBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SmartDashboard/SmartDashboard.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Solenoid.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SolenoidBase.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Spark.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SpeedController.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SpeedControllerGroup.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/SynchronousPID.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Talon.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Threads.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/TimedRobot.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Timer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Ultrasonic.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Utility.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/Victor.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/VictorSP.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/WPIErrors.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/WPILib.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/WPILibVersion.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/XboxController.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/circular_buffer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/interfaces/Accelerometer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/interfaces/Gyro.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/native/include/interfaces/Potentiometer.h">
+			<Option target="main"/>
+		</Unit>
+		<Unit filename="/home/dylanlamarca/allwpilib/wpilibc/src/main/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
