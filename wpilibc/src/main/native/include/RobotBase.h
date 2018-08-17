@@ -74,7 +74,7 @@ class RobotBase {
 
  protected:
   RobotBase();
-  virtual ~RobotBase();
+  virtual ~RobotBase() = default;
 
   RobotBase(const RobotBase&) = delete;
   RobotBase& operator=(const RobotBase&) = delete;

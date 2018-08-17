@@ -108,10 +108,6 @@ RobotBase::RobotBase() : m_ds(DriverStation::GetInstance()) {
   LiveWindow::GetInstance()->SetEnabled(false);
 }
 
-RobotBase::~RobotBase() {
-  mau::freeMau();
-}
-
 /**
  * Determine if the Robot is currently enabled.
  *
