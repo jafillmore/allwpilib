@@ -21,6 +21,4 @@ namespace mau {
 
     extern Mau_ChannelMap* channelMap;
     extern Mau_EnumConverter* enumConverter;
-
-    void freeMau();
 }

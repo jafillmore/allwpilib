@@ -20,6 +20,7 @@
 #include "MauInternal.h"
 #include "Translator/include/FileHandler.h"
 #include "MauTime.h"
+#include "MauDeleter.h"
 #include <VMXPi.h>
 
 using namespace hal;
@@ -39,20 +40,24 @@ VMXErrorCode* mau::vmxError;
 Mau_ChannelMap* mau::channelMap;
 Mau_EnumConverter* mau::enumConverter;
 
+mau::Deleter deleter;
+
 
 namespace hal {
     namespace init {
         void InitializeHAL() {
             fileHandler = new Mau_FileHandler();
             Mau_EnumConverter* enums = fileHandler->getEnumConverter();
-            Mau_ChannelMap* maps = fileHandler->readChannelMap();
-
             mau::enumConverter = enums;
+            deleter.addMauEnums(enums);
+            Mau_ChannelMap* maps = fileHandler->readChannelMap();
             mau::channelMap = maps;
+            deleter.addMauMap(maps);
 
             bool realtime = false;
             uint8_t hertz = 50;
             vmx = new VMXPi(realtime, hertz);
+            deleter.addVMXPi(vmx);
 
             mau::vmxIMU = &vmx->ahrs;
             mau::vmxIO = &vmx->io;
@@ -301,23 +306,4 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
 int64_t HAL_Report(int32_t resource, int32_t instanceNumber, int32_t context,
                    const char* feature) {
     return 0;  // Do nothing for now
-}
-
-void mau::freeMau() {
-    delete vmx;
-
-    mau::vmxIMU = nullptr;
-    mau::vmxIO = nullptr;
-    mau::vmxCAN = nullptr;
-    mau::vmxTime = nullptr;
-    mau::vmxPower = nullptr;
-    mau::vmxThread = nullptr;
-
-    delete mau::vmxError;
-    mau::vmxError = nullptr;
-    //TODO: Change vmxError to value, not pointer
-    delete mau::channelMap;
-    mau::channelMap = nullptr;
-    delete mau::enumConverter;
-    mau::enumConverter = nullptr;
 }
