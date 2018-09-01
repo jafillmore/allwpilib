@@ -11,18 +11,14 @@
 #include "HAL/handles/HandlesInternal.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
-#include "VMXPointers.h"
+#include "MauInternal.h"
 #include <VMXIO.h>
 
 using namespace hal;
 
-static VMXIO* vmxIO;
-
 namespace hal {
     namespace init {
-        void InitializeAnalogInput(VMXIO* io) {
-            vmxIO = io;
-        }
+        void InitializeAnalogInput() {}
     }
 }
 
@@ -103,7 +99,9 @@ extern "C" {
             return 0;
         }
 
-    //    return SimAnalogInData[port->channel].GetAverageBits();
+    //    return SimAnalogInData[port->channel].GetAverageBits()
+        // TODO: ALL DYLAN! ALL!!!!
+        return 0;
     }
 
     void HAL_SetAnalogOversampleBits(HAL_AnalogInputHandle analogPortHandle, int32_t bits, int32_t* status) {
@@ -124,6 +122,8 @@ extern "C" {
         }
 
     //    return SimAnalogInData[port->channel].GetOversampleBits();
+        // TODO: ALL DYLAN! ALL!!!!
+        return 0;
     }
 
     int32_t HAL_GetAnalogValue(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -135,6 +135,8 @@ extern "C" {
 
     //    double voltage = SimAnalogInData[port->channel].GetVoltage();
     //    return HAL_GetAnalogVoltsToValue(analogPortHandle, voltage, status);
+        // TODO: ALL DYLAN! ALL!!!!
+        return 0;
     }
 
     int32_t HAL_GetAnalogAverageValue(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -167,6 +169,8 @@ extern "C" {
         }
 
     //    return SimAnalogInData[port->channel].GetVoltage();
+        // TODO: ALL DYLAN! ALL!!!!
+        return 0;
     }
 
     double HAL_GetAnalogAverageVoltage(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -179,6 +183,8 @@ extern "C" {
         // No averaging supported
     //    double voltage = SimAnalogInData[port->channel].GetVoltage();
 //        return voltage;
+        // TODO: ALL DYLAN! ALL!!!!
+        return 0;
     }
 
     int32_t HAL_GetAnalogLSBWeight(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {

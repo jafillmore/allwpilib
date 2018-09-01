@@ -25,20 +25,20 @@ namespace hal {
         extern void InitializeAnalogGyro();
         extern void InitializeAnalogInput();
         extern void InitializeAnalogInternal();
-        extern void InitializeAnalogOutput();  //DNE
+        extern void InitializeAnalogOutput();
         extern void InitializeCAN();
         extern void InitializeCompressor();
         extern void InitializeConstants();
         extern void InitializeCounter();
         extern void InitializeDigitalInternal();
         extern void InitializeDIO();
-        extern void InitializeDriverStation();  //DNE
+        extern void InitializeDriverStation();
         extern void InitializeEncoder();
         extern void InitializeExtensions();
         extern void InitializeHAL();
         extern void InitializeI2C();
         extern void InitializeInterrupts();
-        extern void InitializeMockHooks();
+        extern void InitializeMauClock();
         extern void InitializeNotifier();
         extern void InitializeOSSerialPort();
         extern void InitializePDP();
@@ -51,5 +51,5 @@ namespace hal {
         extern void InitializeSPI();
         extern void InitializeThreads();
 
-    }  // namespace init
-}  // namespace hal
+    }
+}

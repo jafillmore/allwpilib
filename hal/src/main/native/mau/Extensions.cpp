@@ -15,7 +15,9 @@
 #if defined(WIN32) || defined(_WIN32)
 #include <windows.h>
 #else
+
 #include <dlfcn.h>
+
 #endif
 
 #if defined(WIN32) || defined(_WIN32)
@@ -34,37 +36,37 @@
 #endif
 
 namespace hal {
-namespace init {
-void InitializeExtensions() {}
-}  // namespace init
+    namespace init {
+        void InitializeExtensions() {}
+    }  // namespace init
 }  // namespace hal
 
 extern "C" {
 
 int HAL_LoadOneExtension(const char* library) {
-  int rc = 1;  // It is expected and reasonable not to find an extra simulation
-  HTYPE handle = DLOPEN(library);
-#if !defined(WIN32) && !defined(_WIN32)
-  if (!handle) {
-    wpi::SmallString<128> libraryName("lib");
-    libraryName += library;
-#if defined(__APPLE__)
-    libraryName += ".dylib";
-#else
-    libraryName += ".so";
-#endif
-    handle = DLOPEN(libraryName.c_str());
-  }
-#endif
-  if (!handle) return rc;
-
-  auto init = reinterpret_cast<halsim_extension_init_func_t*>(
-      DLSYM(handle, "HALSIM_InitExtension"));
-
-  if (init) rc = (*init)();
-
-  if (rc != 0) DLCLOSE(handle);
-  return rc;
+    int rc = 1;  // It is expected and reasonable not to find an extra simulation
+//    HTYPE handle = DLOPEN(library);
+//#if !defined(WIN32) && !defined(_WIN32)
+//    if (!handle) {
+//        wpi::SmallString<128> libraryName("lib");
+//        libraryName += library;
+//#if defined(__APPLE__)
+//        libraryName += ".dylib";
+//#else
+//        libraryName += ".so";
+//#endif
+//        handle = DLOPEN(libraryName.c_str());
+//    }
+//#endif
+//    if (!handle) return rc;
+//
+//    auto init = reinterpret_cast<halsim_extension_init_func_t*>(
+//            DLSYM(handle, "HALSIM_InitExtension"));
+//
+//    if (init) rc = (*init)();
+//
+//    if (rc != 0) DLCLOSE(handle);
+    return rc;
 }
 
 /**
@@ -72,18 +74,18 @@ int HAL_LoadOneExtension(const char* library) {
  * environment variable.
  */
 int HAL_LoadExtensions(void) {
-  int rc = 1;
-  wpi::SmallVector<wpi::StringRef, 2> libraries;
-  const char* e = std::getenv("HALSIM_EXTENSIONS");
-  if (!e) return rc;
-  wpi::StringRef env{e};
-  env.split(libraries, DELIM, -1, false);
-  for (auto& libref : libraries) {
-    wpi::SmallString<128> library(libref);
-    rc = HAL_LoadOneExtension(library.c_str());
-    if (rc < 0) break;
-  }
-  return rc;
+    int rc = 1;
+//    wpi::SmallVector<wpi::StringRef, 2> libraries;
+//    const char* e = std::getenv("HALSIM_EXTENSIONS");
+//    if (!e) return rc;
+//    wpi::StringRef env{e};
+//    env.split(libraries, DELIM, -1, false);
+//    for (auto& libref : libraries) {
+//        wpi::SmallString<128> library(libref);
+//        rc = HAL_LoadOneExtension(library.c_str());
+//        if (rc < 0) break;
+//    }
+    return rc;
 }
 
 }  // extern "C"
