@@ -6,7 +6,7 @@ cd ~
 git clone https://github.com/kauailabs/allwpilib.git
 
 cd allwpilib/
-git checkout Mau.DylanLaMarca
+git checkout master
 git checkout
 
 #Select from here until next comment for rebuilding the .so's
