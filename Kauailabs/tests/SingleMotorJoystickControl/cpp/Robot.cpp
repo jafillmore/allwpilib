@@ -10,6 +10,11 @@
 #include <Talon.h>
 #include <Victor.h>
 #include <Jaguar.h>
+#include <SD540.h>
+#include <DMC60.h>
+#include <VictorSP.h>
+#include <PWMTalonSRX.h>
+#include <PWMVictorSPX.h>
 #include <Servo.h>
 #include <Timer.h>
 
@@ -38,6 +43,11 @@ public:
 		m_motor1.Set(m_stick.GetX());
 		m_motor2.Set(m_stick.GetX());
 		m_motor3.Set(m_stick.GetX());
+		m_motor4.Set(m_stick.GetX());
+		m_motor5.Set(m_stick.GetX());
+		m_motor6.Set(m_stick.GetX());
+		m_motor7.Set(m_stick.GetX());
+		m_motor8.Set(m_stick.GetX());
 		m_servo.Set((m_stick.GetX()+1.0)/2.0);
 		Wait(0.005);
 	}
@@ -48,6 +58,11 @@ private:
 	Talon m_motor1{0};
 	Victor m_motor2{1};
 	Jaguar m_motor3{2};
+	SD540 m_motor4{3};
+	DMC60 m_motor5{4};
+	VictorSP m_motor6{5};
+	PWMTalonSRX m_motor7{6};
+	PWMVictorSPX m_motor8{7};
 	Servo m_servo{21};
 
 	Joystick m_stick{0};
