@@ -35,7 +35,7 @@ namespace hal {
         extern void InitializeDriverStation();
         extern void InitializeEncoder();
         extern void InitializeExtensions();
-        extern void InitializeHAL();
+        extern bool InitializeHAL();
         extern void InitializeI2C();
         extern void InitializeInterrupts();
         extern void InitializeMauClock();

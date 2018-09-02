@@ -43,7 +43,7 @@ Mau_EnumConverter* mau::enumConverter;
 
 namespace hal {
     namespace init {
-        void InitializeHAL() {
+        bool InitializeHAL() {
         	Mau_DriveData::initializeDriveData();
 
             fileHandler = new Mau_FileHandler();
@@ -56,6 +56,12 @@ namespace hal {
             bool realtime = true;
             uint8_t hertz = 50;
             vmx = new VMXPi(realtime, hertz);
+
+            if (!vmx->IsOpen()) {
+		delete vmx;
+		vmx = 0;
+            	return false;
+            }
 
             mau::vmxIMU = &vmx->ahrs;
             mau::vmxIO = &vmx->io;
@@ -93,6 +99,8 @@ namespace hal {
             InitializeSolenoid();
             InitializeSPI();
             InitializeThreads();
+
+            return true;
         }
     }
 }
@@ -288,7 +296,9 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
     // Second check in case another thread was waiting
     if (initialized) return true;
 
-    hal::init::InitializeHAL();
+    if (!hal::init::InitializeHAL()) {
+    	return false;
+    }
 
     hal::init::HAL_IsInitialized.store(true);
 
