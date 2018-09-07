@@ -24,6 +24,8 @@ namespace hal {
     }
 }
 
+static const uint16_t dutyCycleTicks = 5000;
+
 extern "C" {
 HAL_DigitalHandle HAL_InitializePWMPort(HAL_PortHandle portHandle, int32_t* status) {
     hal::init::CheckInit();
@@ -71,8 +73,22 @@ HAL_DigitalHandle HAL_InitializePWMPort(HAL_PortHandle portHandle, int32_t* stat
     HAL_SetPWMConfig(handle, 2.0, 1.501, 1.5, 1.499, 1.0, status);
 
     PWMGeneratorConfig vmxConfig(200 /* Frequency in Hz */);
-    vmxConfig.SetMaxDutyCycleValue(5000); /* Update Duty Cycle Range to match WPI Library cycle resolution (1 us/tick) */
-    mau::vmxIO->ActivateSinglechannelResource(mauChannel->getInfo(), &vmxConfig, mauChannel->vmxResHandle, mau::vmxError);
+    vmxConfig.SetMaxDutyCycleValue(dutyCycleTicks); /* Update Duty Cycle Range to match WPI Library cycle resolution (1 us/tick) */
+    if (!mau::vmxIO->ActivateSinglechannelResource(mauChannel->getInfo(), &vmxConfig, mauChannel->vmxResHandle, mau::vmxError)) {
+    	if (*mau::vmxError == VMXERR_IO_NO_UNALLOCATED_COMPATIBLE_RESOURCES) {
+			VMXResourceHandle resourceWithAvailablePort;
+			bool allocated;
+    		if (mau::vmxIO->GetResourceHandleWithAvailablePortForChannel(
+    				PWMGenerator, mauChannel->vmxIndex, mauChannel->vmxAbility, resourceWithAvailablePort, allocated, mau::vmxError)) {
+    			if (mau::vmxIO->RouteChannelToResource(mauChannel->vmxIndex, resourceWithAvailablePort, mau::vmxError)) {
+    				mauChannel->vmxResHandle = resourceWithAvailablePort;
+    				return handle;
+    			}
+    		}
+    	}
+    	// TODO:  Log VMX Error Code Description
+    	return HAL_kInvalidHandle;
+    }
 
     return handle;
 }
@@ -95,7 +111,12 @@ void HAL_FreePWMPort(HAL_DigitalHandle pwmPortHandle, int32_t* status) {
         bool isShared;
         mau::vmxIO->IsResourceAllocated(vmxResource, allocated, isShared, mau::vmxError);
         if (allocated) {
-            mau::vmxIO->DeactivateResource(vmxResource, mau::vmxError);
+	    uint8_t num_routed_channels = 0;
+	    mau::vmxIO->GetNumChannelsRoutedToResource(vmxResource, num_routed_channels, mau::vmxError);
+	    if (num_routed_channels == 0) {
+	            mau::vmxIO->DeactivateResource(vmxResource, mau::vmxError);
+		mauChannel->vmxResHandle = 0;
+	    }
         }
     }
 
@@ -322,8 +343,18 @@ int32_t HAL_GetPWMRaw(HAL_DigitalHandle pwmPortHandle, int32_t* status) {
         return 0;
     }
 
-    // TODO: ALL DYLAN! ALL!!!!
-    return 0;
+    std::string vmxLabel = mau::enumConverter->getHandleLabel(HAL_HandleEnum::PWM);
+    Mau_Channel* mauChannel = mau::channelMap->getChannel(vmxLabel, port->channel);
+    VMXResourcePortIndex portIndex = 0;
+    if (mauChannel->vmxAbility == VMXChannelCapability::PWMGeneratorOutput2) {
+    	portIndex = 1;
+    }
+    uint16_t currDutyCycleValue;
+    if (mau::vmxIO->PWMGenerator_GetDutyCycle(mauChannel->vmxResHandle, portIndex, &currDutyCycleValue, mau::vmxError)) {
+    	return int32_t(currDutyCycleValue);
+    } else {
+    	return 0;
+    }
 }
 
 /**
@@ -343,12 +374,27 @@ double HAL_GetPWMSpeed(HAL_DigitalHandle pwmPortHandle, int32_t* status) {
         return 0;
     }
 
-//    double speed = SimPWMData[port->channel].GetSpeed();
-//    if (speed > 1) speed = 1;
-//    if (speed < -1) speed = -1;
-//    return speed;
-    // TODO: ALL DYLAN! ALL!!!!
-    return 0;
+    int32_t currDutyCycle = HAL_GetPWMRaw(pwmPortHandle, status);
+    if (currDutyCycle == 0) {
+    	return 0.0f;
+    } else {
+        double speed;
+        if (currDutyCycle <= port->minPwm) {
+            speed = -1.0f;
+        } else if (currDutyCycle >= port->maxPwm) {
+            speed = 1.0f;
+        } else {
+        	if ((currDutyCycle >= port->deadbandMinPwm) &&
+        		(currDutyCycle <= port->deadbandMaxPwm)) {
+        		speed = 0.0f;
+        	} else {
+            	double speedPerDutyCycleTick = 2.0 / (port->maxPwm - port->minPwm);
+            	speed = -1.0f + (speedPerDutyCycleTick * (currDutyCycle - port->minPwm));
+        	}
+        }
+
+    	return speed;
+    }
 }
 
 /**
@@ -368,11 +414,28 @@ double HAL_GetPWMPosition(HAL_DigitalHandle pwmPortHandle, int32_t* status) {
         return 0;
     }
 
-//    double position = SimPWMData[port->channel].GetPosition();
-//    if (position > 1) position = 1;
-//    if (position < 0) position = 0;
-//    return position;
-    // TODO: ALL DYLAN! ALL!!!!
+    int32_t currDutyCycle = HAL_GetPWMRaw(pwmPortHandle, status);
+    if (currDutyCycle == 0) {
+    	return 0.5f;
+    } else {
+        double speed;
+        if (currDutyCycle <= port->minPwm) {
+            speed = 0.0f;
+        } else if (currDutyCycle >= port->maxPwm) {
+            speed = 1.0f;
+        } else {
+        	if ((currDutyCycle >= port->deadbandMinPwm) &&
+        		(currDutyCycle <= port->deadbandMaxPwm)) {
+        		speed = 0.5f;
+        	} else {
+            	double speedPerDutyCycleTick = 1.0 / (port->maxPwm - port->minPwm);
+            	speed = 0.0f + (speedPerDutyCycleTick * (currDutyCycle - port->minPwm));
+        	}
+        }
+
+    	return speed;
+    }
+
     return 0;
 }
 
@@ -382,9 +445,9 @@ void HAL_LatchPWMZero(HAL_DigitalHandle pwmPortHandle, int32_t* status) {
         *status = HAL_HANDLE_ERROR;
         return;
     }
-
-//    SimPWMData[port->channel].SetZeroLatch(true);
-//    SimPWMData[port->channel].SetZeroLatch(false);
+    // NOTE:  The purpose of latching of PWM Zero is not currently understood.
+    // This is invoked from the constructors of the various PWM Motor Controller.
+    // At this time, it is not implemented.
 }
 
 /**

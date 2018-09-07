@@ -35,7 +35,8 @@ VMXTime* mau::vmxTime;
 VMXPower* mau::vmxPower;
 VMXThread* mau::vmxThread;
 
-VMXErrorCode* mau::vmxError;
+static VMXErrorCode vmxErrCode;
+VMXErrorCode* mau::vmxError = &vmxErrCode;
 
 Mau_ChannelMap* mau::channelMap;
 Mau_EnumConverter* mau::enumConverter;

@@ -90,7 +90,13 @@ void Mau_DriveData::updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes
     memLock.lock();
     joysticks[joyNumber].joyAxes.count = axisCount;
     for (int index = 0; index < axisCount; index++) {
-        joysticks[joyNumber].joyAxes.axes[index] = ((float)axes[index]) / 127;
+    	float joystickValue = ((float)axes[index]) / 127;
+    	if (joystickValue < -1.0f) {
+    		joystickValue = -1.0f;
+    	} else if (joystickValue > 1.0f) {
+    		joystickValue = 1.0f;
+    	}
+        joysticks[joyNumber].joyAxes.axes[index] = joystickValue;
     }
     unlockAndSignal();
 }
