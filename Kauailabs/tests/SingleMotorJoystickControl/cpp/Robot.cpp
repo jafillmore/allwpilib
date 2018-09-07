@@ -48,7 +48,24 @@ public:
 		m_motor6.Set(m_stick.GetX());
 		m_motor7.Set(m_stick.GetX());
 		m_motor8.Set(m_stick.GetX());
-		m_servo.Set((m_stick.GetX()+1.0)/2.0);
+		m_motor9.Set(m_stick.GetX());
+		m_servo1.Set((m_stick.GetX()+1.0)/2.0);
+		m_servo2.Set((m_stick.GetX()+1.0)/2.0);
+
+		double servoSpeed1 = m_servo1.GetPosition();
+		double servoSpeed2 = m_servo2.GetPosition();
+		double motorSpeed1 = m_motor1.GetSpeed();
+		double motorSpeed2 = m_motor9.GetSpeed();
+		char currServo1Val[10];
+		sprintf(currServo1Val, "%0.2f", servoSpeed1);
+		char currServo2Val[10];
+		sprintf(currServo2Val, "%0.2f", servoSpeed2);
+		char currMotor1Val[10];
+		sprintf(currMotor1Val, "%0.2f", motorSpeed1);
+		char currMotor2Val[10];
+		sprintf(currMotor2Val, "%0.2f", motorSpeed2);
+		wpi::outs() << "Hardware state:  HCDIO Servo:  " << currServo1Val << ", FlexDIO Servo:  " << currServo2Val <<
+				", HCDIO MC:  " << currMotor1Val << ", FlexDIO MC:  " << currMotor2Val << "\n";
 		Wait(0.005);
 	}
 
@@ -56,6 +73,7 @@ public:
 
 private:
 	Talon m_motor1{0};
+	Talon m_motor1Duplicate{0}; // PWM Motor Conroller already allocated above.
 	Victor m_motor2{1};
 	Jaguar m_motor3{2};
 	SD540 m_motor4{3};
@@ -63,7 +81,9 @@ private:
 	VictorSP m_motor6{5};
 	PWMTalonSRX m_motor7{6};
 	PWMVictorSPX m_motor8{7};
-	Servo m_servo{21};
+	Talon m_motor9{20};
+	Servo m_servo1{8};
+	Servo m_servo2{21};
 
 	Joystick m_stick{0};
 };
