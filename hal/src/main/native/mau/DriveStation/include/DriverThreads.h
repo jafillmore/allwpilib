@@ -24,7 +24,7 @@ namespace mau {
         extern std::mutex runLock;
         extern bool isRunning;
         extern std::thread udpThread;
-		  extern std::thread tcpThread;
+		extern std::thread tcpThread;
 
         void tcpProcess();
         void udpProcess();

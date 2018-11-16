@@ -16,7 +16,6 @@ void Mau_DriveData::unlockAndSignal() {
     memLock.unlock();
 }
 
-
  void Mau_DriveData::initializeDriveData() {
 	infoEventName[0] = 0;
 	matchInfo.eventName = infoEventName;

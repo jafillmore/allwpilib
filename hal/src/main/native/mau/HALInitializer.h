@@ -39,6 +39,7 @@ namespace hal {
         extern void InitializeI2C();
         extern void InitializeInterrupts();
         extern void InitializeMauClock();
+        extern void InitializeMauRioLog();
         extern void InitializeNotifier();
         extern void InitializeOSSerialPort();
         extern void InitializePDP();
