@@ -8,25 +8,73 @@
 #pragma once
 
 #include <stdint.h>
+#include "HAL/handles/HandlesInternal.h"
+#include <VMXChannel.h>
+
+/* NOTE:  The VMX-pi HAL provides differing numbers of various channel and resource types than athena. */
+
+/* NOTE:  These values need to be synchronized with the Mau Channel Map.  It is possible in the future */
+/*        that these values will be dynamic (based upon the current Mau Channel Map.                   */
 
 namespace hal {
-    constexpr int32_t kNumAccumulators = 2;
-    constexpr int32_t kNumAnalogTriggers = 8;
-    constexpr int32_t kNumAnalogInputs = 8;
-    constexpr int32_t kNumAnalogOutputs = 2;
-    constexpr int32_t kNumCounters = 8;
-    constexpr int32_t kNumDigitalHeaders = 10;
-    constexpr int32_t kNumPWMHeaders = 10;
-    constexpr int32_t kNumDigitalChannels = 26;
-    constexpr int32_t kNumPWMChannels = 22;
-    constexpr int32_t kNumDigitalPWMOutputs = 6;
-    constexpr int32_t kNumEncoders = 8;
-    constexpr int32_t kNumInterrupts = 8;
-    constexpr int32_t kNumRelayChannels = 8;
-    constexpr int32_t kNumRelayHeaders = kNumRelayChannels / 2;
+
+	constexpr int32_t kNumDigitalHeaders = 10;				/* FlexDIO [0-9] */
+	constexpr int32_t kNumDigitalExtraHeaders = 2;			/* FlexDIO [10-11] */
+	constexpr int32_t kNumFlexDIOChannels =
+						kNumDigitalHeaders +
+						kNumDigitalExtraHeaders;
+
+	constexpr int32_t kNumHiCurrDIOChannels = 10;
+	constexpr int32_t kNumPWMHeaders = kNumHiCurrDIOChannels;
+
+	constexpr int32_t kNumCommDIOInputCapableChannels = 4;	/* I2C SDA/SCL, UART RX, SPI MISO */
+	constexpr int32_t kNumCommDIOOutputCapableChannels = 6;	/* I2C SDA/SCL, UART TX, SPI CLK/CS/MOSI */
+	constexpr int32_t kNumCommDIOChannels = 8;				/* I2C SDA/SCL, UART RX/TX, SPI CLK/CS/MOSI/MISO */
+
+    constexpr int32_t kNumAccumulators = 4;					/* Accumulators implemented in VMX-pi firmware */
+    constexpr int32_t kNumAnalogTriggers = 4;				/* Triggers implemented in VMX-pi firmware */
+    constexpr int32_t kNumAnalogInputs = 4;					/* VMX-pi Analog Input Header */ /* Ref'd by wpilibc/j/SensorUtil */
+    constexpr int32_t kNumAnalogOutputs = 0;				/* Not supported on VMX-pi */ /* Ref'd by wpilibc/j/SensorUtil */
+    constexpr int32_t kNumCounters = 6;						/* VMX-pi InputCapture Resources (Future: extend to RPI DIOs) */
+    constexpr int32_t kNumEncoders = 5;						/* VMX-pi Encoder Resources (Future:  extend to RPI DIOs) */
+    constexpr int32_t kNumDigitalChannels =
+    					kNumDigitalHeaders +
+						kNumDigitalExtraHeaders +
+						kNumPWMHeaders +
+						kNumCommDIOChannels; 				/* 30.  Ref'd by wpilibc/j/SensorUtil */
+    constexpr int32_t kNumPWMChannels =
+    					kNumPWMHeaders +
+    					kNumDigitalHeaders;					/* 20.  Ref'd by wpilibc/j/SensorUtil */
+    constexpr int32_t kNumDigitalPWMOutputs =
+    					kNumDigitalExtraHeaders +
+						kNumCommDIOOutputCapableChannels;	/* 8.  PWM Outputs not including in kNumPWMChannels */
+    constexpr int32_t kNumInterrupts =
+    					kNumDigitalHeaders +
+						kNumDigitalExtraHeaders +
+						kNumPWMHeaders +
+						kNumCommDIOInputCapableChannels +
+						kNumAnalogTriggers;					/* 30.  */
+    constexpr int32_t kNumRelayChannels = 8;				/* Note:  NOT Dedicated (shared w/PWM Headers) (Dynamic - may be 0 if Jumper set to 'input' */
+    constexpr int32_t kNumRelayHeaders = kNumRelayChannels / 2; /* Accessors:  wpilibj/SensorUtil */
+
+    /* The following are limited by CAN addressing, */
+    /* rather than by VMX IO/Resource constraints.  */
     constexpr int32_t kNumPCMModules = 63;
     constexpr int32_t kNumSolenoidChannels = 8;
     constexpr int32_t kNumPDPModules = 63;
     constexpr int32_t kNumPDPChannels = 16;
     constexpr int32_t kNumCanTalons = 63;
+
+    enum class HAL_ChannelAddressDomain {
+    	DIO,		/* kNumDigitalChannels */
+		PWM,		/* kNumPWMChannels */
+		Relay,		/* kNumRelayChannels */
+		AnalogInput,/* kNumAnalogInputs */
+    };
+
+    constexpr VMXChannelIndex kMaxValidVMXChannelIndex = kNumDigitalChannels + kNumAnalogInputs - 1;
+
+    bool isWPILibChannelValid(HAL_ChannelAddressDomain channelDomain, int32_t wpiLibDigitalChannel);
+    VMXChannelIndex getVMXChannelIndexAndVMXChannelInfo(HAL_HandleEnum handleType, int32_t wpiLibChannel, VMXChannelInfo& vmx_chan_info, int32_t *status);
+    VMXChannelIndex getVMXChannelIndexForWPILibChannel(HAL_ChannelAddressDomain channelDomain, int32_t wpiLibDigitalChannel);
 }

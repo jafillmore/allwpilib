@@ -9,6 +9,7 @@
 
 #include "HAL/AnalogInput.h"
 #include "PortsInternal.h"
+#include "MauInternal.h"
 
 namespace hal {
     IndexedHandleResource<HAL_AnalogInputHandle, hal::AnalogPort, kNumAnalogInputs,
@@ -24,4 +25,57 @@ namespace hal {
             analogInputHandles = &aiH;
         }
     }
+
+    HAL_AnalogInputHandle getAnalogInputHandleForVMXChannelIndex(VMXChannelIndex index) {
+    	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels) - 1;
+    	constexpr int32_t kLastAnalogInChannelIndex = kFirstAnalogInChannelIndex + kNumAnalogInputs - 1;
+    	if (index < kFirstAnalogInChannelIndex) {
+    		return HAL_kInvalidHandle;
+    	} else if ((index >= kLastAnalogInChannelIndex) && (index <= kLastAnalogInChannelIndex)) {
+    		return index - kFirstAnalogInChannelIndex;
+    	} else {
+    		return HAL_kInvalidHandle;
+    	}
+    }
+
+    std::shared_ptr<AnalogPort> allocateAnalogInputPort(HAL_AnalogInputHandle anInHandle, int32_t *status)
+    {
+    	auto handle =
+    			analogInputHandles->Allocate(anInHandle, status);
+
+    	if (HAL_kInvalidHandle == handle) {
+    		return nullptr;
+    	}
+
+    	auto port = analogInputHandles->Get(handle);
+    	if (port == nullptr) {  // would only occur on thread issue.
+    		*status = HAL_HANDLE_ERROR;
+    		return nullptr;
+    	}
+
+    	return port;
+    }
+
+    std::shared_ptr<AnalogPort> allocateAnalogInputHandleAndInitializedPort(int32_t wpi_channel, HAL_AnalogInputHandle& anInHandle, int32_t *status)
+    {
+    	VMXChannelInfo vmx_chan_info;
+    	VMXChannelIndex vmx_chan_index = getVMXChannelIndexAndVMXChannelInfo(HAL_HandleEnum::AnalogInput, wpi_channel, vmx_chan_info, status);
+    	if (INVALID_VMX_CHANNEL_INDEX == vmx_chan_index) {
+    		return nullptr;
+    	}
+
+    	anInHandle = getAnalogInputHandleForVMXChannelIndex(vmx_chan_index);
+    	if (anInHandle == HAL_kInvalidHandle) {
+    		return nullptr;
+    	}
+
+    	auto port = allocateAnalogInputPort(anInHandle, status);
+    	if (port != nullptr) {
+    		port->vmx_chan_info = vmx_chan_info;
+    		port->channel = wpi_channel;
+    	}
+
+    	return port;
+    }
+
 }

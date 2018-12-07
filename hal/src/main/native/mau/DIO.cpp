@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include "HAL/DIO.h"
+#include "HAL/PWM.h"
 
 #include <cmath>
 
@@ -15,22 +16,90 @@
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
+#include "DigitalFilterShared.h"
+#include "PWMShared.h"
 #include <VMXIO.h>
 #include <VMXResource.h>
 
 using namespace hal;
 using namespace mau;
 
-static LimitedHandleResource<HAL_DigitalPWMHandle, uint8_t, kNumDigitalPWMOutputs, HAL_HandleEnum::DigitalPWM>*
+struct DigitalPWMGenerator {
+	PWMGeneratorConfig config;						// Current/pending configuration of DIO in PWMGenerator Mode
+	bool active = false;							// true if PWMGenerator is currently active, output channel is assigned
+	HAL_DigitalHandle assigned_output_channel = HAL_kInvalidHandle;
+	bool output_channel_previously_active = false;	// true if the digital handle was allocated before it was assigned to this pwm generator
+	bool output_channel_input = false;				// stores state of digital output channel before assigned to ths pwm generator
+};
+
+constexpr double kDefPwmGeneratorRate = 200.0;
+static double digPwmGeneratorRate = kDefPwmGeneratorRate;
+
+static LimitedHandleResource<HAL_DigitalPWMHandle, DigitalPWMGenerator, kNumDigitalPWMOutputs, HAL_HandleEnum::DigitalPWM>*
         digitalPWMHandles;
+
+uint64_t digFilterPeriodNanoseconds[kNumDigitalFilters] = {0,0,0,0};
+
+constexpr uint64_t kNumNanosecondsPerFPGACycle = 100;
+
+void HAL_Internal_SetDigitalFilterPeriodNanoseconds(uint8_t digFilterIndex, uint64_t period_nanoseconds)
+{
+	if (digFilterIndex < kNumDigitalFilters) {
+		digFilterPeriodNanoseconds[digFilterIndex] = period_nanoseconds;
+	}
+}
+
+uint64_t HAL_Internal_SetDigitalFilterPeriodNanoseconds(uint8_t digFilterIndex)
+{
+	if (digFilterIndex < kNumDigitalFilters) {
+		return digFilterPeriodNanoseconds[digFilterIndex];
+	}
+	return 0;
+}
 
 namespace hal {
     namespace init {
         void InitializeDIO() {
-            static LimitedHandleResource<HAL_DigitalPWMHandle, uint8_t, kNumDigitalPWMOutputs, HAL_HandleEnum::DigitalPWM> dpH;
+            static LimitedHandleResource<HAL_DigitalPWMHandle, DigitalPWMGenerator, kNumDigitalPWMOutputs, HAL_HandleEnum::DigitalPWM> dpH;
             digitalPWMHandles = &dpH;
         }
     }
+}
+
+static bool AllocateVMXPiDIO(std::shared_ptr<DigitalPort> digPort, bool input, int32_t* status) {
+	if (input) {
+		if (mau::vmxIO->ChannelSupportsCapability(digPort->vmx_chan_info.index, VMXChannelCapability::DigitalInput)) {
+			digPort->dio_config.SetInput(true);
+			digPort->dio_config.SetInputMode(DIOConfig::InputMode::PULLUP);
+		} else {
+			*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+			return false;
+		}
+	} else {
+		if (mau::vmxIO->ChannelSupportsCapability(digPort->vmx_chan_info.index, VMXChannelCapability::DigitalOutput)) {
+			digPort->dio_config.SetInput(false);
+			digPort->dio_config.SetOutputMode(DIOConfig::OutputMode::PUSHPULL);
+		} else {
+			*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+			return false;
+		}
+	}
+
+	if (!mau::vmxIO->ActivateSinglechannelResource(digPort->vmx_chan_info, &digPort->dio_config, digPort->vmx_res_handle, status)) {
+		return false;
+	}
+
+	return true;
+}
+
+/* Can be used to deallocate either a DigitalIO or a PWMGenerator VMXPi Resource. */
+static void DeallocateVMXPiDIO(std::shared_ptr<DigitalPort> digPort, bool& isActive) {
+	isActive = false;
+	mau::vmxIO->IsResourceActive(digPort->vmx_res_handle, isActive, mau::vmxError);
+	if (isActive) {
+		mau::vmxIO->DeallocateResource(digPort->vmx_res_handle, mau::vmxError);
+	}
+	digPort->vmx_res_handle = 0;
 }
 
 extern "C" {
@@ -41,43 +110,41 @@ extern "C" {
         hal::init::CheckInit();
         if (*status != 0) return HAL_kInvalidHandle;
 
-        int16_t channel = getPortHandleChannel(portHandle);
-        if (channel == InvalidHandleIndex) {
+        int16_t wpi_digital_channel = getPortHandleChannel(portHandle);
+        if (wpi_digital_channel == InvalidHandleIndex) {
             *status = PARAMETER_OUT_OF_RANGE;
             return HAL_kInvalidHandle;
         }
 
-        auto handle =
-                digitalChannelHandles->Allocate(channel, HAL_HandleEnum::DIO, status);
-
-        if (*status != 0)
-            return HAL_kInvalidHandle;  // failed to allocate. Pass error back.
-
-        auto port = digitalChannelHandles->Get(handle, HAL_HandleEnum::DIO);
-        if (port == nullptr) {  // would only occur on thread issue.
-            *status = HAL_HANDLE_ERROR;
+        HAL_DigitalHandle digHandle;
+        auto port = allocateDigitalHandleAndInitializedPort(HAL_HandleEnum::PWM, wpi_digital_channel, digHandle, status);
+        if (port == nullptr) {
             return HAL_kInvalidHandle;
         }
 
-        port->channel = static_cast<uint8_t>(channel);
+        /* Set configuration to defaults */
+        port->dio_config = DIOConfig();
+        if (!AllocateVMXPiDIO(port, input ? true : false, status)) {
+            digitalChannelHandles->Free(digHandle, HAL_HandleEnum::DIO);
+        	return HAL_kInvalidHandle;
+        }
 
-//        SimDIOData[channel].SetInitialized(true);
-////
-//        SimDIOData[channel].SetIsInput(input);
-
-        return handle;
+        return digHandle;
     }
 
     HAL_Bool HAL_CheckDIOChannel(int32_t channel) {
-        return channel < kNumDigitalChannels && channel >= 0;
+		return isWPILibChannelValid(HAL_ChannelAddressDomain::DIO, channel);
     }
 
     void HAL_FreeDIOPort(HAL_DigitalHandle dioPortHandle) {
         auto port = digitalChannelHandles->Get(dioPortHandle, HAL_HandleEnum::DIO);
+        if (port == nullptr) return;
+
+        bool active;
+        DeallocateVMXPiDIO(port, active);
+
         // no status, so no need to check for a proper free.
         digitalChannelHandles->Free(dioPortHandle, HAL_HandleEnum::DIO);
-        if (port == nullptr) return;
-//        SimDIOData[port->channel].SetInitialized(true);
     }
 
     /**
@@ -93,14 +160,17 @@ extern "C" {
             return HAL_kInvalidHandle;
         }
 
-        auto id = digitalPWMHandles->Get(handle);
-        if (id == nullptr) {  // would only occur on thread issue.
+        auto digPwmGen = digitalPWMHandles->Get(handle);
+        if (digPwmGen == nullptr) {  // would only occur on thread issue.
             *status = HAL_HANDLE_ERROR;
             return HAL_kInvalidHandle;
         }
-        *id = static_cast<uint8_t>(getHandleIndex(handle));
 
-//        SimDigitalPWMData[*id].SetInitialized(true);
+        // Mau Note:  Each DIO channel with "output capability" may
+        // have the corresponding VMX-pi "PWMGen" resource allocated
+        // for it.  This allocation does not occur until later; at that
+        // time, the corresponding DigitalIO resource will be released,
+        // and replaced with an allocated PWMGen resource instead.
 
         return handle;
     }
@@ -112,31 +182,38 @@ extern "C" {
      * allocateDigitalPWM()
      */
     void HAL_FreeDigitalPWM(HAL_DigitalPWMHandle pwmGenerator, int32_t* status) {
-        auto port = digitalPWMHandles->Get(pwmGenerator);
-        digitalPWMHandles->Free(pwmGenerator);
-        if (port == nullptr) return;
-        int32_t id = *port;
-//        SimDigitalPWMData[id].SetInitialized(false);
-    }
+
+        auto digPwmGen = digitalPWMHandles->Get(pwmGenerator);
+        if (digPwmGen == nullptr) {
+        	return;
+        }
+
+        if (digPwmGen->active) {
+            auto port = digitalChannelHandles->Get(digPwmGen->assigned_output_channel, HAL_HandleEnum::DIO);
+            if (port == nullptr) return;
+            bool active;
+            DeallocateVMXPiDIO(port, active);
+            digPwmGen->active = false;
+
+            // Restore previous digital channel allocation
+            if (digPwmGen->output_channel_previously_active) {
+            	AllocateVMXPiDIO(port, digPwmGen->output_channel_input, status);
+            }
+        }
+
+    	digitalPWMHandles->Free(pwmGenerator);
+   }
 
     /**
      * Change the frequency of the DO PWM generator.
      *
      * The valid range is from 0.6 Hz to 19 kHz.  The frequency resolution is
-     * logarithmic.
+     * logarithmic (this sentence applies to athena, not Mau).
      *
      * @param rate The frequency to output all digital output PWM signals.
      */
     void HAL_SetDigitalPWMRate(double rate, int32_t* status) {
-        // Currently rounding in the log rate domain... heavy weight toward picking a
-        // higher freq.
-        // TODO: Round in the linear rate domain.
-        // uint8_t pwmPeriodPower = static_cast<uint8_t>(
-        //    std::log(1.0 / (kExpectedLoopTiming * 0.25E-6 * rate)) /
-        //        std::log(2.0) +
-        //    0.5);
-        // TODO(THAD) : Add a case to set this in the simulator
-        // digitalSystem->writePWMPeriodPower(pwmPeriodPower, status);
+    	digPwmGeneratorRate = rate;
     }
 
     /**
@@ -146,15 +223,21 @@ extern "C" {
      * @param dutyCycle The percent duty cycle to output [0..1].
      */
     void HAL_SetDigitalPWMDutyCycle(HAL_DigitalPWMHandle pwmGenerator, double dutyCycle, int32_t* status) {
-        auto port = digitalPWMHandles->Get(pwmGenerator);
-        if (port == nullptr) {
+        auto digPwmGen = digitalPWMHandles->Get(pwmGenerator);
+        if (digPwmGen == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return;
         }
-        int32_t id = *port;
         if (dutyCycle > 1.0) dutyCycle = 1.0;
         if (dutyCycle < 0.0) dutyCycle = 0.0;
-//        SimDigitalPWMData[id].SetDutyCycle(dutyCycle);
+
+        if (digPwmGen->active) {
+            auto port = digitalChannelHandles->Get(digPwmGen->assigned_output_channel, HAL_HandleEnum::DIO);
+            if (port == nullptr) return;
+            HAL_SetPWMSpeed(digPwmGen->assigned_output_channel, dutyCycle, status);
+        } else {
+        	*status = INCOMPATIBLE_STATE;
+        }
     }
 
     /**
@@ -164,17 +247,37 @@ extern "C" {
      * @param channel The Digital Output channel to output on
      */
     void HAL_SetDigitalPWMOutputChannel(HAL_DigitalPWMHandle pwmGenerator, int32_t channel, int32_t* status) {
-        auto port = digitalPWMHandles->Get(pwmGenerator);
-        if (port == nullptr) {
+        auto pwmGenPort = digitalPWMHandles->Get(pwmGenerator);
+        if (pwmGenPort == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return;
         }
-        int32_t id = *port;
-//        SimDigitalPWMData[id].SetPin(channel);
+
+        VMXChannelInfo vmx_chan_info;
+        HAL_DigitalHandle dioPortHandle =
+        		getDigitalHandleAndVMXChannelInfo(HAL_HandleEnum::DIO, channel, vmx_chan_info, status);
+        if (dioPortHandle == HAL_kInvalidHandle) {
+        	return;
+        }
+
+        auto dioPort = digitalChannelHandles->Get(dioPortHandle, HAL_HandleEnum::DIO);
+        if (dioPort == nullptr) return;
+        bool input = (HAL_GetDIODirection(dioPortHandle, status) ? false : true);
+        // Disassociate the digital IO handle from any DIO resource
+        bool active;
+        DeallocateVMXPiDIO(dioPort, active);
+
+        if (!HAL_Internal_ActivatePWMGenerator(dioPortHandle, status)) {
+        	return;
+        }
+        pwmGenPort->active = true;
+        pwmGenPort->assigned_output_channel = dioPortHandle;
+        pwmGenPort->output_channel_previously_active = active;
+        pwmGenPort->output_channel_input = input;
     }
 
     /**
-     * Write a digital I/O bit to the FPGA.
+     * Write a digital I/O bit to VMX-pi.
      * Set a single value on a digital I/O channel.
      *
      * @param channel The Digital I/O channel
@@ -191,24 +294,58 @@ extern "C" {
             if (value != 0) value = 1;
         }
 
-//        VMXResourceHandle handle = HAL_DIOToVMXHandle(dioPortHandle);
-//        vmxIO->DIO_Set(handle, (bool)value, vmxError);
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return;
+        }
+
+    	mau::vmxIO->DIO_Set(port->vmx_res_handle, value ? true : false, status);
     }
 
     /**
-     * Set direction of a DIO channel.
+     * Set (or change) direction of a DIO channel.
      *
      * @param channel The Digital I/O channel
      * @param input true to set input, false for output
      */
     void HAL_SetDIODirection(HAL_DigitalHandle dioPortHandle, HAL_Bool input, int32_t* status) {
+
+		// NOTE:  This HAL API function not appear to be invoked from anywhere in wpilibc.
+
         auto port = digitalChannelHandles->Get(dioPortHandle, HAL_HandleEnum::DIO);
         if (port == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return;
         }
 
-//        SimDIOData[port->channel].SetIsInput(input);
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return;
+        }
+
+    	/* Only take action iIf direction already matches the current channel configuration */
+    	if (port->dio_config.GetInput() == (input ? true : false)) {
+    		return;
+    	}
+
+    	/* Determine if channel supports the requested direction */
+		if (input) {
+			if (!(port->vmx_chan_info.capabilities & VMXChannelCapability::DigitalInput)) {
+				*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+				return;
+			}
+		} else {
+			if (!(port->vmx_chan_info.capabilities & VMXChannelCapability::DigitalOutput)) {
+				*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+				return;
+			}
+		}
+
+		/* Deallocate the channel if it is already allocated. */
+        bool active;
+        DeallocateVMXPiDIO(port, active);
+
+        AllocateVMXPiDIO(port, input ? true : false, status);
     }
 
     /**
@@ -225,10 +362,14 @@ extern "C" {
             return false;
         }
 
-//        bool value;
-//        VMXResourceHandle handle = HAL_DIOToVMXHandle(dioPortHandle);
-//        return mau::vmxIO->DIO_Get(handle, value, vmxError);
-        return true;
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return false;
+        }
+
+    	bool high = true;
+    	mau::vmxIO->DIO_Get(port->vmx_res_handle, high, status);
+    	return high;
     }
 
     /**
@@ -245,14 +386,12 @@ extern "C" {
             return false;
         }
 
-//        vmxIO
-//
-//        HAL_Bool value = SimDIOData[port->channel].GetIsInput();
-//        if (value > 1) value = 1;
-//        if (value < 0) value = 0;
-//        return value;
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return false;
+        }
+
+		return (port->dio_config.GetInput() ? 0 : 1);
     }
 
     /**
@@ -263,6 +402,7 @@ extern "C" {
      * @param channel The Digital Output channel that the pulse should be output on
      * @param pulseLength The active length of the pulse (in seconds)
      */
+	// NOTE:  This does not appear to be invoked from anywhere in wpilibc.
     void HAL_Pulse(HAL_DigitalHandle dioPortHandle, double pulseLength,
                    int32_t* status) {
         auto port = digitalChannelHandles->Get(dioPortHandle, HAL_HandleEnum::DIO);
@@ -270,7 +410,18 @@ extern "C" {
             *status = HAL_HANDLE_ERROR;
             return;
         }
-        // TODO (Thad) Add this
+
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return;
+        }
+
+    	/* We assume here that all pulses are "active high", since interestingly */
+    	/* the active state is not provided in the parameters to this function. */
+    	uint32_t num_microseconds = static_cast<uint32_t>(pulseLength / 1.0e6);
+    	if (!mau::vmxIO->DIO_Pulse(port->vmx_res_handle, true /*high*/, num_microseconds, status)) {
+    		return;
+        }
     }
 
     /**
@@ -278,14 +429,25 @@ extern "C" {
      *
      * @return A pulse is in progress
      */
+	// NOTE:  This does not appear to be invoked from anywhere in wpilibc.
     HAL_Bool HAL_IsPulsing(HAL_DigitalHandle dioPortHandle, int32_t* status) {
         auto port = digitalChannelHandles->Get(dioPortHandle, HAL_HandleEnum::DIO);
         if (port == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return false;
         }
-        return false;
-        // TODO (Thad) Add this
+
+        if (EXTRACT_VMX_RESOURCE_TYPE(port->vmx_res_handle) == VMXResourceType::PWMGenerator) {
+        	*status = MAU_DIO_ASSIGNED_TO_PWMGEN;
+        	return false;
+        }
+
+    	bool is_pulsing;
+        if (!mau::vmxIO->DIO_IsPulsing(port->vmx_res_handle, is_pulsing, status)) {
+        	return false;
+        }
+
+        return is_pulsing;
     }
 
     /**
@@ -293,8 +455,11 @@ extern "C" {
      *
      * @return A pulse on some line is in progress
      */
+	// NOTE:  This does not appear to be invoked from anywhere in wpilibc.
     HAL_Bool HAL_IsAnyPulsing(int32_t* status) {
-        return false;  // TODO(Thad) Figure this out
+        uint8_t num_pulsing = 0;
+    	mau::vmxIO->DIO_GetNumPulsing(num_pulsing);
+    	return (num_pulsing > 0);
     }
 
     /**
@@ -311,8 +476,20 @@ extern "C" {
             *status = HAL_HANDLE_ERROR;
             return;
         }
+        if (filterIndex >= kNumDigitalFilters) {
+        	*status = PARAMETER_OUT_OF_RANGE;
+        	return;
+        }
 
-        // TODO(Thad) Figure this out
+        port->digFilterIndex = filterIndex;
+
+    	// TODO:  If previously configured for PWMGeneration mode, this should fail with a
+    	// "DIO currently configured in PWM Generation Mode" message...
+
+        // TODO:  If configured as a DigitalOutput-only capable channel, should this
+        // return a failure status?
+
+        // TODO:  Apply the filter to the digital channel
     }
 
     /**
@@ -329,8 +506,8 @@ extern "C" {
             *status = HAL_HANDLE_ERROR;
             return 0;
         }
-        return 0;
-        // TODO(Thad) Figure this out
+
+        return port->digFilterIndex;
     }
 
     /**
@@ -344,8 +521,11 @@ extern "C" {
      * @param value The number of cycles that the signal must not transition to be
      * counted as a transition.
      */
-    void HAL_SetFilterPeriod(int32_t filterIndex, int64_t value, int32_t* status) {
-        // TODO(Thad) figure this out
+    void HAL_SetFilterPeriod(int32_t filterIndex, int64_t value_cycles, int32_t* status) {
+    	if (value_cycles < 0) return;
+    	// FPGA cycles are 100 nanoseconds
+    	uint64_t num_nanoseconds = static_cast<uint64_t>(value_cycles) * kNumNanosecondsPerFPGACycle;
+    	HAL_Internal_SetDigitalFilterPeriodNanoseconds(filterIndex, num_nanoseconds);
     }
 
     /**
@@ -361,6 +541,8 @@ extern "C" {
      * counted as a transition.
      */
     int64_t HAL_GetFilterPeriod(int32_t filterIndex, int32_t* status) {
-        return 0;  // TODO(Thad) figure this out
+    	uint64_t num_nanoseconds = HAL_Internal_GetDigitalFilterPeriodNanoseconds(filterIndex);
+    	int64_t num_cycles = num_nanoseconds / kNumNanosecondsPerFPGACycle;
+    	return num_cycles;
     }
 }

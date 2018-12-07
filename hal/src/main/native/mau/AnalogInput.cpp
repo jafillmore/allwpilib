@@ -22,60 +22,75 @@ namespace hal {
     }
 }
 
+static bool AllocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, int32_t* status) {
+	/* Use the default accumulator configuration */
+	if (mau::vmxIO->ChannelSupportsCapability(anPort->vmx_chan_info.index, VMXChannelCapability::AccumulatorInput)) {
+		*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+		return false;
+	}
+
+	if (!mau::vmxIO->ActivateSinglechannelResource(anPort->vmx_chan_info, &anPort->vmx_config, anPort->vmx_res_handle, status)) {
+		return false;
+	}
+
+	return true;
+}
+
+/* Can be used to deallocate either a DigitalIO or a PWMGenerator VMXPi Resource. */
+static void DeallocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, bool& isActive) {
+	isActive = false;
+	mau::vmxIO->IsResourceActive(anPort->vmx_res_handle, isActive, mau::vmxError);
+	if (isActive) {
+		mau::vmxIO->DeallocateResource(anPort->vmx_res_handle, mau::vmxError);
+	}
+	anPort->vmx_res_handle = 0;
+}
+
+
 extern "C" {
     HAL_AnalogInputHandle HAL_InitializeAnalogInputPort(HAL_PortHandle portHandle, int32_t* status) {
         hal::init::CheckInit();
-        int16_t channel = getPortHandleChannel(portHandle);
-        if (channel == InvalidHandleIndex) {
+        int16_t wpi_analogin_channel = getPortHandleChannel(portHandle);
+        if (wpi_analogin_channel == InvalidHandleIndex) {
             *status = PARAMETER_OUT_OF_RANGE;
             return HAL_kInvalidHandle;
         }
 
-        HAL_AnalogInputHandle handle = analogInputHandles->Allocate(channel, status);
-
-        if (*status != 0)
-            return HAL_kInvalidHandle;  // failed to allocate. Pass error back.
-
-        // Initialize port structure
-        auto analog_port = analogInputHandles->Get(handle);
-        if (analog_port == nullptr) {  // would only error on thread issue
-            *status = HAL_HANDLE_ERROR;
+        HAL_AnalogInputHandle handle;
+        auto port = allocateAnalogInputHandleAndInitializedPort(wpi_analogin_channel, handle, status);
+        if (port == nullptr) {
             return HAL_kInvalidHandle;
         }
 
-        analog_port->channel = static_cast<uint8_t>(channel);
-    //    if (HAL_IsAccumulatorChannel(handle, status)) {
-    //        analog_port->isAccumulator = true;
-    //    } else {
-    //        analog_port->isAccumulator = false;
-    //    }
-
-    //    SimAnalogInData[channel].SetInitialized(true);
-    //    SimAnalogInData[channel].SetAccumulatorInitialized(false);
+        port->vmx_config = AccumulatorConfig();
+        return (AllocateVMXAnalogIn(port, status) ? handle : HAL_kInvalidHandle);
+        if (!AllocateVMXAnalogIn(port, status)) {
+        	analogInputHandles->Free(handle);
+        	return HAL_kInvalidHandle;
+        }
 
         return handle;
     }
 
     void HAL_FreeAnalogInputPort(HAL_AnalogInputHandle analogPortHandle) {
         auto port = analogInputHandles->Get(analogPortHandle);
-        // no status, so no need to check for a proper free.
-        analogInputHandles->Free(analogPortHandle);
-        if (port == nullptr) return;
+        if (port != nullptr) {
 
-    //    vmxIO->DeactivateResource();
+            bool active;
+            DeallocateVMXAnalogIn(port, active);
 
-    //    SimAnalogInData[port->channel].SetInitialized(false);
-    //    SimAnalogInData[port->channel].SetAccumulatorInitialized(false);
+        	analogInputHandles->Free(analogPortHandle);
+        }
     }
 
     HAL_Bool HAL_CheckAnalogModule(int32_t module) { return module == 1; }
 
     HAL_Bool HAL_CheckAnalogInputChannel(int32_t channel) {
-        return channel < kNumAnalogInputs && channel >= 0;
+   		return isWPILibChannelValid(HAL_ChannelAddressDomain::AnalogInput, channel);
     }
 
     void HAL_SetAnalogSampleRate(double samplesPerSecond, int32_t* status) {
-        // No op
+        // No op; the VMX-pi sample rate is fixed currently, just like athena.
     }
 
     double HAL_GetAnalogSampleRate(int32_t* status) {
@@ -89,7 +104,10 @@ extern "C" {
             return;
         }
 
-    //    SimAnalogInData[port->channel].SetAverageBits(bits);
+        bool active;
+        DeallocateVMXAnalogIn(port, active);
+        port->vmx_config.SetNumAverageBits(uint8_t(bits));
+        AllocateVMXAnalogIn(port,status);
     }
 
     int32_t HAL_GetAnalogAverageBits(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -99,9 +117,7 @@ extern "C" {
             return 0;
         }
 
-    //    return SimAnalogInData[port->channel].GetAverageBits()
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return static_cast<int32_t>(port->vmx_config.GetNumAverageBits());
     }
 
     void HAL_SetAnalogOversampleBits(HAL_AnalogInputHandle analogPortHandle, int32_t bits, int32_t* status) {
@@ -111,7 +127,10 @@ extern "C" {
             return;
         }
 
-    //    SimAnalogInData[port->channel].SetOversampleBits(bits);
+        bool active;
+        DeallocateVMXAnalogIn(port, active);
+        port->vmx_config.SetNumOversampleBits(uint8_t(bits));
+        AllocateVMXAnalogIn(port,status);
     }
 
     int32_t HAL_GetAnalogOversampleBits(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -121,9 +140,7 @@ extern "C" {
             return 0;
         }
 
-    //    return SimAnalogInData[port->channel].GetOversampleBits();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return static_cast<int32_t>(port->vmx_config.GetNumOversampleBits());
     }
 
     int32_t HAL_GetAnalogValue(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -132,16 +149,25 @@ extern "C" {
             *status = HAL_HANDLE_ERROR;
             return 0;
         }
-
-    //    double voltage = SimAnalogInData[port->channel].GetVoltage();
-    //    return HAL_GetAnalogVoltsToValue(analogPortHandle, voltage, status);
-        // TODO: ALL DYLAN! ALL!!!!
+        uint32_t instantaneousValue;
+    	if (mau::vmxIO->Accumulator_GetInstantaneousValue(port->vmx_res_handle, instantaneousValue, status)) {
+    		return static_cast<int32_t>(instantaneousValue);
+    	}
         return 0;
     }
 
+    /* Returns value in ADC counts after Oversample/Average engine output */
     int32_t HAL_GetAnalogAverageValue(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
-        // No averaging supported
-        return HAL_GetAnalogValue(analogPortHandle, status);
+        auto port = analogInputHandles->Get(analogPortHandle);
+        if (port == nullptr) {
+            *status = HAL_HANDLE_ERROR;
+            return 0;
+        }
+        uint32_t averageValue;
+    	if (mau::vmxIO->Accumulator_GetAverageValue(port->vmx_res_handle, averageValue, status)) {
+    		return static_cast<int32_t>(averageValue);
+    	}
+        return 0;
     }
 
     int32_t HAL_GetAnalogVoltsToValue(HAL_AnalogInputHandle analogPortHandle, double voltage, int32_t* status) {
@@ -162,15 +188,7 @@ extern "C" {
 
     double HAL_GetAnalogVoltage(HAL_AnalogInputHandle analogPortHandle,
                                 int32_t* status) {
-        auto port = analogInputHandles->Get(analogPortHandle);
-        if (port == nullptr) {
-            *status = HAL_HANDLE_ERROR;
-            return 0.0;
-        }
-
-    //    return SimAnalogInData[port->channel].GetVoltage();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return HAL_GetAnalogAverageVoltage(analogPortHandle,status);
     }
 
     double HAL_GetAnalogAverageVoltage(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
@@ -180,18 +198,25 @@ extern "C" {
             return 0.0;
         }
 
-        // No averaging supported
-    //    double voltage = SimAnalogInData[port->channel].GetVoltage();
-//        return voltage;
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        float averageVoltage;
+    	if (mau::vmxIO->Accumulator_GetAverageVoltage(port->vmx_res_handle, averageVoltage, status)) {
+    		return static_cast<double>(averageVoltage);
+    	}
+        return 0.0f;
     }
 
     int32_t HAL_GetAnalogLSBWeight(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
-        return 1220703;
+		float full_scale_voltage = 5.0;
+		constexpr int32_t kNanovoltsPerVolt = 1000000000;
+    	mau::vmxIO->Accumulator_GetFullScaleVoltage(full_scale_voltage, status);
+		double full_scale_nanovolts = static_cast<double>(full_scale_voltage) * kNanovoltsPerVolt;
+		return static_cast<int32_t>(full_scale_nanovolts);
     }
 
+    /* Returns the amount of ADC offset voltage, in units of nanovolts */
     int32_t HAL_GetAnalogOffset(HAL_AnalogInputHandle analogPortHandle, int32_t* status) {
+    	// TODO:  This is not currently supported by VMX-pi.  Once it is, update
+    	// this HAL API Function to return a factory-calibrated offset value.
         return 0;
     }
 }

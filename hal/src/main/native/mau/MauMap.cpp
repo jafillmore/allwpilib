@@ -67,7 +67,11 @@ Mau_Channel* Mau_ChannelMap::getChannel(std::string label, int index) {
 
 VMXChannelInfo Mau_ChannelMap::getChannelInfo(std::string label, int index) {
     Mau_Channel* channel = getChannel(label, index);
-    return VMXChannelInfo(channel->vmxIndex, channel->vmxAbility);
+    if (channel == nullptr) {
+    	return VMXChannelInfo();
+    } else {
+    	return VMXChannelInfo(channel->vmxIndex, channel->vmxAbility);
+    }
 }
 
 // ----- Mau Map: Setters ----- //

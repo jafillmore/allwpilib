@@ -48,11 +48,10 @@ extern "C" {
             return;
         }
 
-        VMXErrorCode vmxerr;
-        int16_t index = getHandleIndex(analogPortHandle);
+        /*int16_t index = getHandleIndex(analogPortHandle);*/
 
-        VMXChannelIndex first;
-        VMXResourceHandle accHandles[4];
+        VMXChannelIndex first = 0;
+        /*VMXResourceHandle accHandles[4];*/
 
         for ( uint8_t inCount = first; inCount < first + kNumAnalogInputs; inCount++) {
             // TODO: ALL DYLAN! ALL!!!!

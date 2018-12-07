@@ -17,6 +17,7 @@
 #include "HAL/handles/DigitalHandleResource.h"
 #include "HAL/handles/HandlesInternal.h"
 #include "PortsInternal.h"
+#include "MauInternal.h"
 
 namespace hal {
 /**
@@ -58,8 +59,11 @@ constexpr float kDefaultPwmCenter = 1.5;
 constexpr int32_t kDefaultPwmStepsDown = 1500;
 constexpr int32_t kPwmDisabled = 0;
 
+constexpr uint32_t kPwmFrequencyHz = 200;
+constexpr uint16_t kDutyCycleTicks = 5000;
+
 struct DigitalPort {
-  uint8_t channel;
+  int32_t channel;
   bool configSet = false;
   bool eliminateDeadband = false;
   int32_t maxPwm = 0;
@@ -67,11 +71,33 @@ struct DigitalPort {
   int32_t centerPwm = 0;
   int32_t deadbandMinPwm = 0;
   int32_t minPwm = 0;
+  uint8_t digFilterIndex = 0;
+  VMXChannelInfo vmx_chan_info;
+  VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
+  /* The following configuration objects hold configuration before resource has been activated. */
+  /* (after activation, the active configuration can be retrieved from the VMX Resource. */
+  DIOConfig dio_config;
+  PWMGeneratorConfig pwmgen_config;
+  InterruptConfig interrupt_config;
+  InputCaptureConfig inputcap_config;
+  PWMCaptureConfig pwmcap_config;
+  EncoderConfig encoder_config;
 };
 
+constexpr HAL_DigitalHandle kMaxValidDigitalHandleIndex = kNumDigitalChannels-1;
+
 extern DigitalHandleResource<HAL_DigitalHandle, DigitalPort,
-                             kNumDigitalChannels + kNumPWMHeaders>*
+                             kNumDigitalChannels>*
     digitalChannelHandles;
+
+/* FlexDIO Channels:  [ 0-11] */
+/* HiCrDIO Channels:  [12-21] */
+/* CommDIO Channels:  [22-29] */
+
+HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index);
+HAL_DigitalHandle getDigitalHandleAndVMXChannelInfo(HAL_HandleEnum handleType, int32_t wpiLibPwmChannel, VMXChannelInfo& info, int32_t *status);
+std::shared_ptr<DigitalPort> allocateDigitalPort(HAL_DigitalHandle digHandle, HAL_HandleEnum handleType, int32_t *status);
+std::shared_ptr<DigitalPort> allocateDigitalHandleAndInitializedPort(HAL_HandleEnum handleType, int32_t wpiLibChannel, HAL_DigitalHandle& digHandle, int32_t *status);
 
 bool remapDigitalSource(HAL_Handle digitalSourceHandle,
                         HAL_AnalogTriggerType analogTriggerType,

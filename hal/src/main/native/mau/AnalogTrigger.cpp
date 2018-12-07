@@ -14,55 +14,86 @@
 #include "HAL/handles/LimitedHandleResource.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
+#include "MauInternal.h"
 
-namespace {
-    struct AnalogTrigger {
-        HAL_AnalogInputHandle analogHandle;
-        uint8_t index;
-        HAL_Bool trigState;
-    };
-}
+struct AnalogTriggerResource {
+	VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
+	AnalogTriggerConfig vmx_config;
+	HAL_AnalogInputHandle analogInputHandle = HAL_kInvalidHandle;
+	int16_t index = hal::InvalidHandleIndex;
+	HAL_Bool trigState = false;
+};
 
 using namespace hal;
 
-static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTrigger,
+static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTriggerResource,
         kNumAnalogTriggers, HAL_HandleEnum::AnalogTrigger>*
         analogTriggerHandles;
 
 namespace hal {
     namespace init {
         void InitializeAnalogTrigger() {
-            static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTrigger,
+            static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTriggerResource,
                     kNumAnalogTriggers,
                     HAL_HandleEnum::AnalogTrigger>
                     atH;
             analogTriggerHandles = &atH;
         }
     }
+
+    int32_t GetAnalogTriggerInputIndex(HAL_AnalogTriggerHandle handle, int32_t* status) {
+        auto trigger = analogTriggerHandles->Get(handle);
+        if (trigger == nullptr) {
+            *status = HAL_HANDLE_ERROR;
+            return -1;
+        }
+
+        auto analog_port = analogInputHandles->Get(trigger->analogInputHandle);
+        if (analog_port == nullptr) {
+            *status = HAL_HANDLE_ERROR;
+            return -1;
+        }
+
+        return analog_port->channel;
+    }
 }
 
-int32_t hal::GetAnalogTriggerInputIndex(HAL_AnalogTriggerHandle handle, int32_t* status) {
-    auto trigger = analogTriggerHandles->Get(handle);
-    if (trigger == nullptr) {
-        *status = HAL_HANDLE_ERROR;
-        return -1;
-    }
+static bool AllocateVMXAnalogTrigger(HAL_AnalogInputHandle anInHandle, std::shared_ptr<AnalogTriggerResource> port, int32_t* status) {
+	VMXResourceHandle vmx_res_handle;
+	VMXResourceIndex vmx_res_index = static_cast<VMXResourceIndex>(port->index);
+	if (!mau::vmxIO->GetResourceHandle(VMXResourceType::AnalogTrigger, vmx_res_index, vmx_res_handle, status)) {
+		return false;
+	}
 
-    auto analog_port = analogInputHandles->Get(trigger->analogHandle);
-    if (analog_port == nullptr) {
-        *status = HAL_HANDLE_ERROR;
-        return -1;
-    }
+	if (!mau::vmxIO->AllocateResource(vmx_res_handle, status)) {
+		return false;
+	}
 
-    return analog_port->channel;
+	if (!mau::vmxIO->ActivateResource(vmx_res_handle, status)) {
+		return false;
+	}
+
+	port->vmx_res_handle = vmx_res_handle;
+
+	return true;
+}
+
+/* Can be used to deallocate either a DigitalIO or a PWMGenerator VMXPi Resource. */
+static void DeallocateVMXAnalogTrigger(std::shared_ptr<AnalogTriggerResource> port, bool& isActive) {
+	isActive = false;
+	mau::vmxIO->IsResourceActive(port->vmx_res_handle, isActive, mau::vmxError);
+	if (isActive) {
+		mau::vmxIO->DeallocateResource(port->vmx_res_handle, mau::vmxError);
+	}
+	port->vmx_res_handle = 0;
 }
 
 extern "C" {
-    HAL_AnalogTriggerHandle HAL_InitializeAnalogTrigger(HAL_AnalogInputHandle portHandle, int32_t* index,
+    HAL_AnalogTriggerHandle HAL_InitializeAnalogTrigger(HAL_AnalogInputHandle anInHandle, int32_t* index,
                                                         int32_t* status) {
         hal::init::CheckInit();
         // ensure we are given a valid and active AnalogInput handle
-        auto analog_port = analogInputHandles->Get(portHandle);
+        auto analog_port = analogInputHandles->Get(anInHandle);
         if (analog_port == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return HAL_kInvalidHandle;
@@ -77,24 +108,32 @@ extern "C" {
             *status = HAL_HANDLE_ERROR;
             return HAL_kInvalidHandle;
         }
-        trigger->analogHandle = portHandle;
-        trigger->index = static_cast<uint8_t>(getHandleIndex(handle));
-        *index = trigger->index;
+        // TODO:  Review whether the default VMXPi analog trigger thresholds are appropriate here
+        *trigger.get() = AnalogTriggerResource();
+        trigger->analogInputHandle = anInHandle;
+        trigger->index = getHandleIndex(anInHandle);
 
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetInitialized(true);
-
-        trigger->trigState = false;
-
-        return handle;
+        if (AllocateVMXAnalogTrigger(anInHandle, trigger, status)) {
+        	return handle;
+        } else {
+            *trigger.get() = AnalogTriggerResource();
+            analogTriggerHandles->Free(handle);
+            return HAL_kInvalidHandle;
+        }
     }
 
+    // Note:  caller owns the analog input handle, even after the trigger is freed.
     void HAL_CleanAnalogTrigger(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
-        analogTriggerHandles->Free(analogTriggerHandle);
         if (trigger == nullptr) return;
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetInitialized(false);
-        // caller owns the analog input handle.
+        bool active;
+        DeallocateVMXAnalogTrigger(trigger, active);
+        *trigger.get() = AnalogTriggerResource();
+        analogTriggerHandles->Free(analogTriggerHandle);
     }
+
+    static double GetAnalogValueToVoltage(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t value,
+                                              int32_t* status) __attribute__((unused));
 
     static double GetAnalogValueToVoltage(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t value,
                                           int32_t* status) {
@@ -105,6 +144,15 @@ extern "C" {
         return voltage;
     }
 
+    /**
+     * Set the upper and lower limits of the analog trigger.
+     *
+     * The limits are given in ADC codes.  If oversampling is used, the units must
+     * be scaled appropriately.
+     *
+     * @param lower The lower limit of the trigger in ADC codes (12-bit values).
+     * @param upper The upper limit of the trigger in ADC codes (12-bit values).
+     */
     void HAL_SetAnalogTriggerLimitsRaw(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t lower, int32_t upper,
                                        int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
@@ -116,32 +164,30 @@ extern "C" {
             *status = ANALOG_TRIGGER_LIMIT_ORDER_ERROR;
         }
 
-        double trigLower =
-                GetAnalogValueToVoltage(trigger->analogHandle, lower, status);
-        if (status != 0) return;
-        double trigUpper =
-                GetAnalogValueToVoltage(trigger->analogHandle, upper, status);
-        if (status != 0) return;
-
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetTriggerUpperBound(trigUpper);
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetTriggerLowerBound(trigLower);
+        bool active;
+        DeallocateVMXAnalogTrigger(trigger, active);
+        trigger->vmx_config.SetThresholdLow(static_cast<uint16_t>(lower));
+        trigger->vmx_config.SetThresholdHigh(static_cast<uint16_t>(upper));
+        AllocateVMXAnalogTrigger(trigger->analogInputHandle, trigger, status);
     }
 
-    void HAL_SetAnalogTriggerLimitsVoltage(HAL_AnalogTriggerHandle analogTriggerHandle, double lower, double upper,
+    void HAL_SetAnalogTriggerLimitsVoltage(HAL_AnalogTriggerHandle analogTriggerHandle, double lower_volts, double upper_volts,
                                            int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
         if (trigger == nullptr) {
             *status = HAL_HANDLE_ERROR;
             return;
         }
-        if (lower > upper) {
+        if (lower_volts > upper_volts) {
             *status = ANALOG_TRIGGER_LIMIT_ORDER_ERROR;
         }
+        int32_t lower = HAL_GetAnalogVoltsToValue(trigger->analogInputHandle,lower_volts,status);
+        int32_t upper = HAL_GetAnalogVoltsToValue(trigger->analogInputHandle,upper_volts,status);
 
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetTriggerUpperBound(upper);
-    //    SimAnalogTriggerData[trigger->wpiIndex].SetTriggerLowerBound(lower);
+        HAL_SetAnalogTriggerLimitsRaw(analogTriggerHandle, lower, upper, status);
     }
 
+    // TODO:  Implement AnalogTrigger Averaging (using output from Oversample/Avg engine).
     void HAL_SetAnalogTriggerAveraged(HAL_AnalogTriggerHandle analogTriggerHandle, HAL_Bool useAveragedValue,
                                       int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
@@ -162,6 +208,10 @@ extern "C" {
     //    triggerData->SetTriggerMode(setVal);
     }
 
+    // TODO:  Implement AnalogTrigger Filtering.
+    // The analog trigger will operate with a 3 point average rejection filter. This
+    // is designed to help with 360 degree pot applications for the period where
+    // the pot crosses through zero.
     void HAL_SetAnalogTriggerFiltered(HAL_AnalogTriggerHandle analogTriggerHandle, HAL_Bool useFilteredValue,
                                       int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
@@ -182,19 +232,6 @@ extern "C" {
     //    triggerData->SetTriggerMode(setVal);
     }
 
-    static double GetTriggerValue(AnalogTrigger* trigger, int32_t* status) {
-        auto analogIn = analogInputHandles->Get(trigger->analogHandle);
-        if (analogIn == nullptr) {
-            // Returning HAL Handle Error, but going to ignore lower down
-            *status = HAL_HANDLE_ERROR;
-            return 0.0;
-        }
-
-    //    return SimAnalogInData[analogIn->channel].GetVoltage();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
-    }
-
     HAL_Bool HAL_GetAnalogTriggerInWindow(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t* status) {
         auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
         if (trigger == nullptr) {
@@ -202,19 +239,12 @@ extern "C" {
             return false;
         }
 
-        double voltage = GetTriggerValue(trigger.get(), status);
-        if (*status == HAL_HANDLE_ERROR) {
-            // Don't error if analog has been destroyed
-            *status = 0;
-            return false;
+        VMXIO::AnalogTriggerState analog_trigger_state;
+        if (!mau::vmxIO->AnalogTrigger_GetState(trigger->vmx_res_handle, analog_trigger_state, status)) {
+        	return false;
         }
 
-    //    auto trigUpper = SimAnalogTriggerData[trigger->wpiIndex].GetTriggerUpperBound();
-    //    auto trigLower = SimAnalogTriggerData[trigger->wpiIndex].GetTriggerLowerBound();
-    //
-    //    return voltage >= trigLower && voltage <= trigUpper;
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return (analog_trigger_state == VMXIO::AnalogTriggerState::InWindow);
     }
 
     HAL_Bool HAL_GetAnalogTriggerTriggerState(HAL_AnalogTriggerHandle analogTriggerHandle, int32_t* status) {
@@ -224,27 +254,12 @@ extern "C" {
             return false;
         }
 
-        double voltage = GetTriggerValue(trigger.get(), status);
-        if (*status == HAL_HANDLE_ERROR) {
-            // Don't error if analog has been destroyed
-            *status = 0;
-            return false;
+        VMXIO::AnalogTriggerState analog_trigger_state;
+        if (!mau::vmxIO->AnalogTrigger_GetState(trigger->vmx_res_handle, analog_trigger_state, status)) {
+        	return false;
         }
 
-    //    auto trigUpper = SimAnalogTriggerData[trigger->wpiIndex].GetTriggerUpperBound();
-    //    auto trigLower = SimAnalogTriggerData[trigger->wpiIndex].GetTriggerLowerBound();
-    //
-    //    if (voltage < trigLower) {
-    //        trigger->trigState = false;
-    //        return false;
-    //    }
-    //    if (voltage > trigUpper) {
-    //        trigger->trigState = true;
-    //        return true;
-    //    }
-    //    return trigger->trigState;
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return (analog_trigger_state == VMXIO::AnalogTriggerState::AboveThreshold);
     }
 
     HAL_Bool HAL_GetAnalogTriggerOutput(HAL_AnalogTriggerHandle analogTriggerHandle, HAL_AnalogTriggerType type,

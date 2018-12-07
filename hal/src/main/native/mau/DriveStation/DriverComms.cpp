@@ -101,7 +101,7 @@ void mau::comms::decodeTcpPacket(char* data, int length) {
             int nb_i = i;
             i += name_length;
             uint8_t axis_count = data[i++];
-            uint8_t axis_types[16];
+            //uint8_t axis_types[16];
             int at_i = i;
             i += axis_count;
             uint8_t button_count = data[i++];
@@ -179,7 +179,7 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
             for (int pv = 0; pv < joy->pov_count; pv++) {
                 uint8_t a1 = data[b + 1 + (pv * 2)];
                 uint8_t a2 = data[b + 1 + (pv * 2) + 1];
-                if (a2 < 0) a2 = 256 + a2;
+                /*if (a2 < 0) a2 = 256 + a2;*/  /* ??? a2 is unsigned so can never be negative! */
                 joy->pov[pv] = (uint16_t) (a1 << 8 | a2);
             }
             joy->has_update = true;

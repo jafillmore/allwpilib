@@ -13,18 +13,25 @@
 
 #include "HAL/Ports.h"
 #include "HAL/handles/IndexedHandleResource.h"
+#include "HAL/handles/HandlesInternal.h"
 #include "PortsInternal.h"
+#include <VMXPiConstants.h>
+#include <VMXResource.h>
+#include <VMXResourceConfig.h>
 
 namespace hal {
     constexpr int32_t kTimebase = 40000000;  ///< 40 MHz clock
     constexpr int32_t kDefaultOversampleBits = 0;
     constexpr int32_t kDefaultAverageBits = 7;
-    constexpr double kDefaultSampleRate = 50000.0;
-    static constexpr uint32_t kAccumulatorChannels[] = {0, 1};
+    constexpr double kDefaultSampleRate = double(VMXPI_ADC_SAMPLE_RATE_HZ);
+    static constexpr int32_t kAccumulatorChannels[] = {0, 1};
 
     struct AnalogPort {
-        uint8_t channel;
-        bool isAccumulator;
+    	VMXChannelInfo vmx_chan_info;
+    	VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
+    	AccumulatorConfig vmx_config;
+        int32_t channel;		/* WPI Library Channel Number (in Analog Channel Address Domain) */
+        bool isAccumulator;		/* Analog Accumulator is assigned to this Analog Input */
     };
 
     extern IndexedHandleResource<HAL_AnalogInputHandle, hal::AnalogPort,
@@ -32,4 +39,5 @@ namespace hal {
             analogInputHandles;
 
     int32_t GetAnalogTriggerInputIndex(HAL_AnalogTriggerHandle handle, int32_t *status);
+    std::shared_ptr<AnalogPort> allocateAnalogInputHandleAndInitializedPort(int32_t wpi_channel, HAL_AnalogInputHandle& anInHandle, int32_t *status);
 }

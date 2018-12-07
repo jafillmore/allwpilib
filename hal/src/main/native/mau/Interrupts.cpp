@@ -115,6 +115,9 @@ void* HAL_CleanInterrupts(HAL_InterruptHandle interruptHandle,
 }
 
 static void ProcessInterruptDigitalSynchronous(const char* name, void* param,
+                                               const struct HAL_Value* value) __attribute__((unused));
+
+static void ProcessInterruptDigitalSynchronous(const char* name, void* param,
                                                const struct HAL_Value* value) {
     // void* is a SynchronousWaitDataHandle.
     // convert to uintptr_t first, then to handle
@@ -146,6 +149,9 @@ static double GetAnalogTriggerValue(HAL_Handle triggerHandle,
                                     int32_t* status) {
     return HAL_GetAnalogTriggerOutput(triggerHandle, type, status);
 }
+
+static void ProcessInterruptAnalogSynchronous(const char* name, void* param,
+                                              const struct HAL_Value* value) __attribute__((unused));
 
 static void ProcessInterruptAnalogSynchronous(const char* name, void* param,
                                               const struct HAL_Value* value) {
@@ -199,7 +205,7 @@ static int64_t WaitForInterruptDigital(HAL_InterruptHandle handle,
 
     int32_t status = 0;
 
-    int32_t digitalIndex = GetDigitalInputChannel(interrupt->portHandle, &status);
+    /*int32_t digitalIndex = */ GetDigitalInputChannel(interrupt->portHandle, &status);
 
     if (status != 0) return WaitResult::Timeout;
 
@@ -270,7 +276,7 @@ static int64_t WaitForInterruptAnalog(HAL_InterruptHandle handle,
 
     if (status != 0) return WaitResult::Timeout;
 
-    int32_t analogIndex =
+    /* int32_t analogIndex = */
             GetAnalogTriggerInputIndex(interrupt->portHandle, &status);
 
     if (status != 0) return WaitResult::Timeout;
@@ -345,6 +351,9 @@ int64_t HAL_WaitForInterrupt(HAL_InterruptHandle interruptHandle,
 }
 
 static void ProcessInterruptDigitalAsynchronous(const char* name, void* param,
+                                                const struct HAL_Value* value) __attribute__((unused));
+
+static void ProcessInterruptDigitalAsynchronous(const char* name, void* param,
                                                 const struct HAL_Value* value) {
     // void* is a HAL handle
     // convert to uintptr_t first, then to handle
@@ -375,6 +384,9 @@ static void ProcessInterruptDigitalAsynchronous(const char* name, void* param,
     if (callback == nullptr) return;
     callback(mask, interrupt->callbackParam);
 }
+
+static void ProcessInterruptAnalogAsynchronous(const char* name, void* param,
+                                               const struct HAL_Value* value) __attribute__((unused));
 
 static void ProcessInterruptAnalogAsynchronous(const char* name, void* param,
                                                const struct HAL_Value* value) {
@@ -414,7 +426,7 @@ static void ProcessInterruptAnalogAsynchronous(const char* name, void* param,
 static void EnableInterruptsDigital(HAL_InterruptHandle handle,
                                     HAL_Interrupt* interrupt) {
     int32_t status = 0;
-    int32_t digitalIndex = GetDigitalInputChannel(interrupt->portHandle, &status);
+    /*int32_t digitalIndex = */GetDigitalInputChannel(interrupt->portHandle, &status);
     if (status != 0) return;
 
 //    interrupt->previousState = SimDIOData[digitalIndex].GetValue();
@@ -428,7 +440,7 @@ static void EnableInterruptsDigital(HAL_InterruptHandle handle,
 static void EnableInterruptsAnalog(HAL_InterruptHandle handle,
                                    HAL_Interrupt* interrupt) {
     int32_t status = 0;
-    int32_t analogIndex =
+    /*int32_t analogIndex = */
             GetAnalogTriggerInputIndex(interrupt->portHandle, &status);
     if (status != 0) return;
 
@@ -483,13 +495,13 @@ void HAL_DisableInterrupts(HAL_InterruptHandle interruptHandle,
     if (interrupt->isAnalog) {
         // Do analog
         int32_t status = 0;
-        int32_t analogIndex =
+        /*int32_t analogIndex = */
                 GetAnalogTriggerInputIndex(interrupt->portHandle, &status);
         if (status != 0) return;
 //        SimAnalogInData[analogIndex].CancelVoltageCallback(interrupt->callbackId);
     } else {
         int32_t status = 0;
-        int32_t digitalIndex =
+        /*int32_t digitalIndex = */
                 GetDigitalInputChannel(interrupt->portHandle, &status);
         if (status != 0) return;
 //        SimDIOData[digitalIndex].CancelValueCallback(interrupt->callbackId);

@@ -20,6 +20,7 @@
 #include "MauInternal.h"
 #include "Translator/include/FileHandler.h"
 #include "MauTime.h"
+#include "MauErrors.h"
 #include "DriveStation/include/MauDriveData.h"
 #include <VMXPi.h>
 
@@ -228,8 +229,15 @@ const char* HAL_GetErrorMessage(int32_t code) {
             return HAL_PWM_SCALE_ERROR_MESSAGE;
         case HAL_CAN_TIMEOUT:
             return HAL_CAN_TIMEOUT_MESSAGE;
+
+        /* Mau-specific errors */
+
+        case MAU_CHANNEL_MAP_ERROR:
+        	return MAU_CHANNEL_MAP_ERROR_MESSAGE;
+
         default:
-            return "Unknown error status";
+        	/* If no match was yet found, treat as a VMX HAL Library error code. */
+        	return GetVMXErrorString(code);
     }
 }
 

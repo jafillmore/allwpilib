@@ -15,18 +15,70 @@
 
 namespace hal {
 
-DigitalHandleResource<HAL_DigitalHandle, DigitalPort,
-                      kNumDigitalChannels + kNumPWMHeaders>*
+DigitalHandleResource<HAL_DigitalHandle, DigitalPort, kNumDigitalChannels>*
     digitalChannelHandles;
 
 namespace init {
 void InitializeDigitalInternal() {
-  static DigitalHandleResource<HAL_DigitalHandle, DigitalPort,
-                               kNumDigitalChannels + kNumPWMHeaders>
+  static DigitalHandleResource<HAL_DigitalHandle, DigitalPort, kNumDigitalChannels>
       dcH;
   digitalChannelHandles = &dcH;
 }
 }  // namespace init
+
+/* returns a contiguous, 0-based index for the (digital) VMXChannelIndex */
+HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index) {
+	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels) - 1;
+	constexpr int32_t kFirstCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs) - 1;
+	constexpr int32_t kLastCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs + kNumCommDIOChannels) - 1;
+	if (index < kFirstAnalogInChannelIndex) {
+		return index;
+	} else if ((index >= kFirstCommDIOChannelIndex) && (index <= kLastCommDIOChannelIndex)) {
+		return index - kNumAnalogInputs;
+	} else {
+		return HAL_kInvalidHandle;
+	}
+}
+
+std::shared_ptr<DigitalPort> allocateDigitalPort(HAL_DigitalHandle digHandle, HAL_HandleEnum handleType, int32_t *status)
+{
+	auto handle =
+        digitalChannelHandles->Allocate(digHandle, handleType, status);
+
+	if (HAL_kInvalidHandle == handle) {
+		return nullptr;
+	}
+
+	auto port = digitalChannelHandles->Get(handle, handleType);
+	if (port == nullptr) {  // would only occur on thread issue.
+		*status = HAL_HANDLE_ERROR;
+		return nullptr;
+	}
+
+	return port;
+}
+
+std::shared_ptr<DigitalPort> allocateDigitalHandleAndInitializedPort(HAL_HandleEnum type, int32_t wpi_channel, HAL_DigitalHandle& digHandle, int32_t *status)
+{
+	VMXChannelInfo vmx_chan_info;
+	VMXChannelIndex vmx_chan_index = getVMXChannelIndexAndVMXChannelInfo(type, wpi_channel, vmx_chan_info, status);
+	if (INVALID_VMX_CHANNEL_INDEX == vmx_chan_index) {
+		return nullptr;
+	}
+
+	digHandle = getDigitalHandleForVMXChannelIndex(vmx_chan_index);
+	if (digHandle == HAL_kInvalidHandle) {
+		return nullptr;
+	}
+
+	auto port = allocateDigitalPort(digHandle, type, status);
+	if (port != nullptr) {
+		port->vmx_chan_info = vmx_chan_info;
+		port->channel = wpi_channel;
+	}
+
+	return port;
+}
 
 /**
  * Map DIO channel numbers from their physical number (10 to 26) to their

@@ -56,19 +56,19 @@ void Mau_FileHandler::genHandleGroup(Mau_ChannelMap* mauMap, std::string label, 
 }
 
 void Mau_FileHandler::genEncoderChannel(Mau_ChannelMap* mauMap, std::string label, rapidjson::Document* doc) {
-    Mau_Channel channel;
+    //Mau_Channel channel;
 }
 
 void Mau_FileHandler::genSPIChannel(Mau_ChannelMap* mauMap, std::string label, rapidjson::Document* doc) {
-    Mau_Channel channel;
+    //Mau_Channel channel;
 }
 
 void Mau_FileHandler::genI2CChannel(Mau_ChannelMap* mauMap, std::string label, rapidjson::Document* doc) {
-    Mau_Channel channel;
+    //Mau_Channel channel;
 }
 
 void Mau_FileHandler::genSerialChannel(Mau_ChannelMap* mauMap, std::string label, rapidjson::Document* doc) {
-    Mau_Channel channel;
+    //Mau_Channel channel;
 }
 
 // -------- Readers -------- //
