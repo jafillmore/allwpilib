@@ -66,9 +66,9 @@ namespace hal {
     constexpr int32_t kNumCanTalons = 63;
 
     enum class HAL_ChannelAddressDomain {
+    	/* NOTE:  This enumeration does not contain Relay Channels */
     	DIO,		/* kNumDigitalChannels */
 		PWM,		/* kNumPWMChannels */
-		Relay,		/* kNumRelayChannels */
 		AnalogInput,/* kNumAnalogInputs */
     };
 
@@ -77,4 +77,5 @@ namespace hal {
     bool isWPILibChannelValid(HAL_ChannelAddressDomain channelDomain, int32_t wpiLibDigitalChannel);
     VMXChannelIndex getVMXChannelIndexAndVMXChannelInfo(HAL_HandleEnum handleType, int32_t wpiLibChannel, VMXChannelInfo& vmx_chan_info, int32_t *status);
     VMXChannelIndex getVMXChannelIndexForWPILibChannel(HAL_ChannelAddressDomain channelDomain, int32_t wpiLibDigitalChannel);
+    VMXChannelIndex getVMXChannelIndexForWpiLibRelay(int32_t wpiLibRelayChannel, bool fwd);
 }

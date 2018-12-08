@@ -30,8 +30,7 @@ VMXChannelIndex getVMXChannelIndexAndVMXChannelInfo(HAL_HandleEnum handleType, i
 		*status = MAU_CHANNEL_MAP_ERROR;
 	} else {
 		/* Verify the required Channel IO direction matches the HiCurrDIO input/output mode setting. */
-		if ((HAL_HandleEnum::PWM == handleType) ||
-			(HAL_HandleEnum::Relay == handleType)) {
+		if (HAL_HandleEnum::PWM == handleType) {
 			if (!(vmx_chan_info.capabilities & VMXChannelCapability::DigitalOutput)) {
 				*status = MAU_HICURRDIO_OUTPUTMODE_NOT_ENABLED;
 				vmx_chan_index = INVALID_VMX_CHANNEL_INDEX;
@@ -58,10 +57,6 @@ VMXChannelIndex getVMXChannelIndexForWPILibChannel(HAL_ChannelAddressDomain chan
 	case HAL_ChannelAddressDomain::DIO:
 		vmxpi_digital_channel = wpiLibChannel;
 		break;
-	case HAL_ChannelAddressDomain::Relay:
-		vmxpi_digital_channel = wpiLibChannel + kNumFlexDIOChannels;
-		break;
-	}
 	case HAL_ChannelAddressDomain::AnalogInput:
 		vmxpi_digital_channel = kNumFlexDIOChannels + kNumHiCurrDIOChannels + wpiLibChannel;
 		break;
@@ -71,6 +66,15 @@ VMXChannelIndex getVMXChannelIndexForWPILibChannel(HAL_ChannelAddressDomain chan
 	} else {
 		return vmxpi_digital_channel;
 	}
+}
+
+VMXChannelIndex getVMXChannelIndexForWpiLibRelay(int32_t wpiLibRelayChannel, bool fwd)
+{
+	VMXChannelIndex vmxpi_digital_channel = INVALID_VMX_CHANNEL_INDEX;
+	if ((wpiLibRelayChannel < kNumRelayHeaders) && (wpiLibRelayChannel >= 0)) {
+		vmxpi_digital_channel = kNumFlexDIOChannels + (wpiLibRelayChannel * 2) + (fwd ? 0 : 1);
+	}
+	return vmxpi_digital_channel;
 }
 
 }  // namespace hal
