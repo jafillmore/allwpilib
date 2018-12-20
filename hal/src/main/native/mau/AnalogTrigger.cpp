@@ -15,23 +15,17 @@
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
-
-struct AnalogTriggerResource {
-	VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
-	AnalogTriggerConfig vmx_config;
-	HAL_AnalogInputHandle analogInputHandle = HAL_kInvalidHandle;
-	int16_t index = hal::InvalidHandleIndex;
-	HAL_Bool trigState = false;
-};
+#include "AnalogTriggerInternal.h"
 
 using namespace hal;
 
-static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTriggerResource,
+namespace hal {
+
+	LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTriggerResource,
         kNumAnalogTriggers, HAL_HandleEnum::AnalogTrigger>*
         analogTriggerHandles;
 
-namespace hal {
-    namespace init {
+	namespace init {
         void InitializeAnalogTrigger() {
             static LimitedHandleResource<HAL_AnalogTriggerHandle, AnalogTriggerResource,
                     kNumAnalogTriggers,

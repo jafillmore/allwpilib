@@ -48,12 +48,15 @@ namespace hal {
     constexpr int32_t kNumDigitalPWMOutputs =
     					kNumDigitalExtraHeaders +
 						kNumCommDIOOutputCapableChannels;	/* 8.  PWM Outputs not including in kNumPWMChannels */
-    constexpr int32_t kNumInterrupts =
-    					kNumDigitalHeaders +
-						kNumDigitalExtraHeaders +
+    constexpr int32_t kNumInterrupts = 8;					/* 8.  Note that VMX-pi supports 30 interrupts, however this is    */
+    														/*     artificially limited to 8 here to match the limit which is  */
+    													    /*     imposed by the existing HAL API.                            */
+    														/*     (see discussion on "mask" in Interrupts.cpp)                */
+    constexpr int32_t kNumVMXPiInterrupts =
+    					kNumFlexDIOChannels +
 						kNumPWMHeaders +
-						kNumCommDIOInputCapableChannels +
-						kNumAnalogTriggers;					/* 30.  */
+						kNumAnalogTriggers +
+						kNumCommDIOInputCapableChannels;	/* 30. This respresents the underlying number of VMX-pi interrupts. */
     constexpr int32_t kNumRelayChannels = 8;				/* Note:  NOT Dedicated (shared w/PWM Headers) (Dynamic - may be 0 if Jumper set to 'input' */
     constexpr int32_t kNumRelayHeaders = kNumRelayChannels / 2; /* Accessors:  wpilibj/SensorUtil */
 
