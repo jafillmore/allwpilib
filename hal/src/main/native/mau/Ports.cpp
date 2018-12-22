@@ -15,8 +15,6 @@
 using namespace hal;
 using namespace mau;
 
-// uint8_t VMXIO::GetNumResourcesByType(VMXResourceType resource_type)
-
 namespace hal {
     namespace init {
         void InitializePorts() {}

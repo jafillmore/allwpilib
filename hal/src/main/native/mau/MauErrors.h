@@ -53,6 +53,9 @@
 #define MAU_COUNTER_DUAL_INPUTS_REQUIRED_MESSAGE		"VMX-pi Counters in External Direction mode require two input sources"
 #define MAU_COUNTER_DUAL_INPUTS_REQUIRED				-21014
 
+#define MAU_ANALOG_OUTPUTS_UNSUPPORTED_MESSAGE			"VMX-pi does not currently support Analog Outputs"
+#define MAU_ANALOG_OUTPUTS_UNSUPPORTED					-21015
+
 // Mau error codes are negative values <= MAU_ERRNO_CODE_BASE
 #define MAU_ERRNO_CODE_BASE	MAU_CHANNEL_MAP_ERROR
 

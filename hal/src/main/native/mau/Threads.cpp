@@ -6,6 +6,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include "HAL/Threads.h"
+#include "HAL/Errors.h"
+
+#include <pthread.h>
 
 namespace hal {
     namespace init {
@@ -14,17 +17,50 @@ namespace hal {
 }
 
 int32_t HAL_GetThreadPriority(NativeThreadHandle handle, HAL_Bool* isRealTime, int32_t* status) {
-    return 0;
+	// NativeThreadHandle is const pthread_t*
+	int policy;
+	struct sched_param schedparam;
+	*isRealTime = false;
+	if (!pthread_getschedparam(*handle, &policy, &schedparam)) {
+		*isRealTime = (policy == SCHED_FIFO);
+		return schedparam.__sched_priority;
+	} else {
+		*status = HAL_THREAD_PRIORITY_ERROR;
+	}
+	return 0;
 }
 
 int32_t HAL_GetCurrentThreadPriority(HAL_Bool* isRealTime, int32_t* status) {
-    return 0;
+    pthread_t curr_thread = pthread_self();
+    return HAL_GetThreadPriority(&curr_thread, isRealTime, status);
 }
 
+// TODO:  In general, how should the "realTime" parameter be handled below?
+
 HAL_Bool HAL_SetThreadPriority(NativeThreadHandle handle, HAL_Bool realTime, int32_t priority, int32_t* status) {
-    return true;
+	int policy;
+	struct sched_param schedparam;
+
+	int curr_policy = realTime ? SCHED_FIFO : SCHED_OTHER;
+
+	int min_priority = sched_get_priority_min(curr_policy);
+	int max_priority = sched_get_priority_max(curr_policy);
+
+	if ((priority < min_priority) || (priority > max_priority)) {
+		*status = HAL_THREAD_PRIORITY_RANGE_ERROR;
+		return false;
+	}
+
+	if (!pthread_getschedparam(*handle, &policy, &schedparam)) {
+		schedparam.__sched_priority = priority;
+		if (!pthread_setschedparam(*handle, policy, &schedparam)) {
+			return true;
+		}
+	}
+    return false;
 }
 
 HAL_Bool HAL_SetCurrentThreadPriority(HAL_Bool realTime, int32_t priority, int32_t* status) {
-    return true;
+    pthread_t curr_thread = pthread_self();
+    return HAL_SetThreadPriority(&curr_thread, priority, realTime, status);
 }
