@@ -24,7 +24,7 @@ static VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(
 		VMXResourceType::Undefined, INVALID_VMX_RESOURCE_INDEX);
 
 /* VMX-pi only has one I2C port, whereas the reference implementation uses 2. */
-/* For convenience, both of the WPI serial port identifiers map the same      */
+/* For convenience, both of the WPI I2C port identifiers map the same         */
 /* underlying VMX-pi resource.                                                */
 
 extern "C" {

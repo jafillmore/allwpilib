@@ -7,6 +7,8 @@
 
 #include "HAL/Power.h"
 
+#include "MauInternal.h"
+
 namespace hal {
     namespace init {
         void InitializePower() {}
@@ -15,86 +17,126 @@ namespace hal {
 
 extern "C" {
     double HAL_GetVinVoltage(int32_t* status) {
-    //    return SimRoboRioData[0].GetVInVoltage();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	float voltage = 0.0;
+    	mau::vmxPower->GetSystemVoltage(voltage, status);
+    	return voltage;
     }
 
     double HAL_GetVinCurrent(int32_t* status) {
-    //    return SimRoboRioData[0].GetVInCurrent();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	return 1.0;  // VMX-pi does not provide Vin current monitoring
     }
 
     double HAL_GetUserVoltage6V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserVoltage6V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	return 0.0; // VMX-pi has no 6V user rail
     }
 
     double HAL_GetUserCurrent6V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserCurrent6V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	return 0.0; // VMX-pi has no 6V user rail
     }
 
     HAL_Bool HAL_GetUserActive6V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserActive6V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return false;  // VMX-pi has no 6V user rail
     }
 
     int32_t HAL_GetUserCurrentFaults6V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserFaults6V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+       return 0; // VMX-pi has no 6V user rail, so there can be no faults on it.
     }
 
     double HAL_GetUserVoltage5V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserVoltage5V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	double voltage = 5.0;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			voltage = 0.0;
+    		}
+    	}
+
+        return voltage;
     }
 
     double HAL_GetUserCurrent5V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserCurrent5V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	double current = 0.5; // Max user rail current on VMX-pi
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			current = 0.0;
+    		}
+    	}
+
+        return current;
     }
 
     HAL_Bool HAL_GetUserActive5V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserActive5V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	bool active = true;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			active = false;
+    		}
+    	}
+
+        return active;
     }
 
+    // TODO:  Implement Fault Counting on VMX-pi?
     int32_t HAL_GetUserCurrentFaults5V(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserFaults5V();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	int32_t num5Vfaults = 0;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			num5Vfaults = 1;
+    		}
+    	}
+
+        return num5Vfaults;
     }
 
     double HAL_GetUserVoltage3V3(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserVoltage3V3();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	double voltage = 3.3;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			voltage = 0.0;
+    		}
+    	}
+
+        return voltage;
     }
 
     double HAL_GetUserCurrent3V3(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserCurrent3V3();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	double current = 0.5; // Max user rail current on VMX-pi
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			current = 0.0;
+    		}
+    	}
+
+        return current;
     }
 
     HAL_Bool HAL_GetUserActive3V3(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserActive3V3();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	bool active = true;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			active = false;
+    		}
+    	}
+
+        return active;
     }
 
+    // TODO:  Implement Fault Counting on VMX-pi?
     int32_t HAL_GetUserCurrentFaults3V3(int32_t* status) {
-    //    return SimRoboRioData[0].GetUserFaults3V3();
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+    	int32_t num5Vfaults = 0;
+    	bool overcurrent = false;
+    	if (mau::vmxPower->GetOvercurrent(overcurrent, status)) {
+    		if (overcurrent) {
+    			num5Vfaults = 1;
+    		}
+    	}
+
+        return num5Vfaults;
     }
 }  // extern "C"
