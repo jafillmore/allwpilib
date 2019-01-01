@@ -22,21 +22,18 @@ extern "C" {
     }
 
     void HAL_SetAccelerometerRange(HAL_AccelerometerRange range) {
-        // VMX-pi's Accelerometer range is fixed: no-op
+        // VMX-pi's Accelerometer range is fixed at 2G
     }
 
     double HAL_GetAccelerometerX(void) {
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return mau::vmxIMU->GetRawAccelX();
     }
 
     double HAL_GetAccelerometerY(void) {
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return mau::vmxIMU->GetRawAccelY();
     }
 
     double HAL_GetAccelerometerZ(void) {
-        // TODO: ALL DYLAN! ALL!!!!
-        return 0;
+        return mau::vmxIMU->GetRawAccelZ();
     }
 }

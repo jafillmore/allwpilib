@@ -31,7 +31,6 @@ namespace hal {
     	VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
     	AccumulatorConfig vmx_config;
         int32_t channel;		/* WPI Library Channel Number (in Analog Channel Address Domain) */
-        bool isAccumulator;		/* Analog Accumulator is assigned to this Analog Input */
     };
 
     extern IndexedHandleResource<HAL_AnalogInputHandle, hal::AnalogPort,
@@ -40,4 +39,6 @@ namespace hal {
 
     int32_t GetAnalogTriggerInputIndex(HAL_AnalogTriggerHandle handle, int32_t *status);
     std::shared_ptr<AnalogPort> allocateAnalogInputHandleAndInitializedPort(int32_t wpi_channel, HAL_AnalogInputHandle& anInHandle, int32_t *status);
+    bool AllocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, int32_t* status);
+    void DeallocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, bool& isActive);
 }

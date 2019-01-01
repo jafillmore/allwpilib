@@ -78,4 +78,30 @@ namespace hal {
     	return port;
     }
 
+    bool AllocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, int32_t* status) {
+    	/* Use the default accumulator configuration */
+    	if (mau::vmxIO->ChannelSupportsCapability(anPort->vmx_chan_info.index, VMXChannelCapability::AccumulatorInput)) {
+    		*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
+    		return false;
+    	}
+
+    	if (!mau::vmxIO->ActivateSinglechannelResource(anPort->vmx_chan_info, &anPort->vmx_config, anPort->vmx_res_handle, status)) {
+    		return false;
+    	}
+
+    	return true;
+    }
+
+    /* Can be used to deallocate either a DigitalIO or a PWMGenerator VMXPi Resource. */
+    void DeallocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, bool& isActive) {
+    	isActive = false;
+    	mau::vmxIO->IsResourceActive(anPort->vmx_res_handle, isActive, mau::vmxError);
+    	if (isActive) {
+    		mau::vmxIO->DeallocateResource(anPort->vmx_res_handle, mau::vmxError);
+    	}
+    	anPort->vmx_res_handle = 0;
+    }
+
+
+
 }

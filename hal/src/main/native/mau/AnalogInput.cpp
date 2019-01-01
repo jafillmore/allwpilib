@@ -22,31 +22,6 @@ namespace hal {
     }
 }
 
-static bool AllocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, int32_t* status) {
-	/* Use the default accumulator configuration */
-	if (mau::vmxIO->ChannelSupportsCapability(anPort->vmx_chan_info.index, VMXChannelCapability::AccumulatorInput)) {
-		*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
-		return false;
-	}
-
-	if (!mau::vmxIO->ActivateSinglechannelResource(anPort->vmx_chan_info, &anPort->vmx_config, anPort->vmx_res_handle, status)) {
-		return false;
-	}
-
-	return true;
-}
-
-/* Can be used to deallocate either a DigitalIO or a PWMGenerator VMXPi Resource. */
-static void DeallocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, bool& isActive) {
-	isActive = false;
-	mau::vmxIO->IsResourceActive(anPort->vmx_res_handle, isActive, mau::vmxError);
-	if (isActive) {
-		mau::vmxIO->DeallocateResource(anPort->vmx_res_handle, mau::vmxError);
-	}
-	anPort->vmx_res_handle = 0;
-}
-
-
 extern "C" {
     HAL_AnalogInputHandle HAL_InitializeAnalogInputPort(HAL_PortHandle portHandle, int32_t* status) {
         hal::init::CheckInit();
@@ -63,11 +38,11 @@ extern "C" {
         }
 
         port->vmx_config = AccumulatorConfig();
-        return (AllocateVMXAnalogIn(port, status) ? handle : HAL_kInvalidHandle);
         if (!AllocateVMXAnalogIn(port, status)) {
         	analogInputHandles->Free(handle);
         	return HAL_kInvalidHandle;
         }
+        port->channel = wpi_analogin_channel;
 
         return handle;
     }
@@ -89,8 +64,16 @@ extern "C" {
    		return isWPILibChannelValid(HAL_ChannelAddressDomain::AnalogInput, channel);
     }
 
+    /**
+     * Set the sample rate per channel for all analog channels.
+     *
+     * The maximum rate is 500kS/s divided by the number of channels in use.
+     * This is 62500 samples/s per channel.
+     *
+     * @param samplesPerSecond The number of samples per second.
+     */
     void HAL_SetAnalogSampleRate(double samplesPerSecond, int32_t* status) {
-        // No op; the VMX-pi sample rate is fixed currently, just like athena.
+        // No op; the VMX-pi sample rate is fixed currently, as is the reference HAL implementation.
     }
 
     double HAL_GetAnalogSampleRate(int32_t* status) {

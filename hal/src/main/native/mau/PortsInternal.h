@@ -31,7 +31,7 @@ namespace hal {
 	constexpr int32_t kNumCommDIOOutputCapableChannels = 6;	/* I2C SDA/SCL, UART TX, SPI CLK/CS/MOSI */
 	constexpr int32_t kNumCommDIOChannels = 8;				/* I2C SDA/SCL, UART RX/TX, SPI CLK/CS/MOSI/MISO */
 
-    constexpr int32_t kNumAccumulators = 4;					/* Accumulators implemented in VMX-pi firmware */
+    constexpr int32_t kNumAccumulators = 2;					/* Accumulators implemented in VMX-pi firmware */
     constexpr int32_t kNumAnalogTriggers = 4;				/* Triggers implemented in VMX-pi firmware */
     constexpr int32_t kNumAnalogInputs = 4;					/* VMX-pi Analog Input Header */ /* Ref'd by wpilibc/j/SensorUtil */
     constexpr int32_t kNumAnalogOutputs = 0;				/* Not supported on VMX-pi */ /* Ref'd by wpilibc/j/SensorUtil */
