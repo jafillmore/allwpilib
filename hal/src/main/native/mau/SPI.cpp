@@ -9,6 +9,7 @@
 #include "HAL/Errors.h"
 
 #include "HALInitializer.h"
+#include "InterruptsInternal.h"
 #include "MauInternal.h"
 
 using namespace hal;
@@ -22,7 +23,9 @@ namespace hal {
 static VMXResourceHandle vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(
 		VMXResourceType::Undefined, INVALID_VMX_RESOURCE_INDEX);
 static SPIConfig spi_cfg(500000 /* Bitrate */);
-static int handle = -1;
+static int handle = -1;  // This handle is specified by the user.
+
+static AutoTransmitEngineHandle engine_handle = INVALID_AUTO_TRANSMIT_ENGINE_HANDLE;
 
 static void ReinitializeSPIIfAlreadyAllocated(HAL_SPIPort port, int32_t *status) {
 	if (INVALID_VMX_RESOURCE_HANDLE(vmx_res_handle)) {
@@ -218,14 +221,16 @@ void HAL_SetSPIHandle(HAL_SPIPort port, int32_t handle_value) {
  * @param bufferSize buffer size in bytes
  */
 void HAL_InitSPIAuto(HAL_SPIPort port, int32_t bufferSize, int32_t* status) {
-
+	mau::vmxIO->AutoTransmit_Allocate(engine_handle, status);
 }
 
 /**
  * Frees the automatic SPI transfer engine.
  */
 void HAL_FreeSPIAuto(HAL_SPIPort port, int32_t* status) {
-
+	mau::vmxIO->AutoTransmit_Stop(engine_handle, status);
+	mau::vmxIO->AutoTransmit_Deallocate(engine_handle, status);
+	engine_handle = INVALID_AUTO_TRANSMIT_ENGINE_HANDLE;
 }
 
 /**
@@ -237,7 +242,8 @@ void HAL_FreeSPIAuto(HAL_SPIPort port, int32_t* status) {
  * @param period period between transfers, in seconds (us resolution)
  */
 void HAL_StartSPIAutoRate(HAL_SPIPort port, double period, int32_t* status) {
-
+	uint32_t repeat_every_ms = static_cast<uint32_t>(period * 1000);
+	mau::vmxIO->AutoTransmit_StartPeriodic(engine_handle, vmx_res_handle, repeat_every_ms, status);
 }
 
 /**
@@ -252,14 +258,28 @@ void HAL_StartSPIAutoRate(HAL_SPIPort port, double period, int32_t* status) {
  */
 void HAL_StartSPIAutoTrigger(HAL_SPIPort port, HAL_Handle digitalSourceHandle, HAL_AnalogTriggerType analogTriggerType,
                              HAL_Bool triggerRising, HAL_Bool triggerFalling, int32_t* status) {
-
+	VMXResourceIndex int_res_index;
+	VMXChannelInfo vmx_chan_info;
+	if (GetVMXInterruptResourceIndexForDigitalSourceHandle(digitalSourceHandle, int_res_index, vmx_chan_info, status)) {
+		InterruptConfig::InterruptEdge edge_type;
+		if (triggerRising) {
+			if (triggerFalling) {
+				edge_type = InterruptConfig::InterruptEdge::BOTH;
+			} else {
+				edge_type = InterruptConfig::InterruptEdge::RISING;
+			}
+		} else {
+			edge_type = InterruptConfig::InterruptEdge::FALLING;
+		}
+		mau::vmxIO->AutoTransmit_StartTrigger(engine_handle, vmx_res_handle, vmx_chan_info.index, edge_type, status);
+	}
 }
 
 /**
  * Stop running the automatic SPI transfer engine.
  */
 void HAL_StopSPIAuto(HAL_SPIPort port, int32_t* status) {
-
+	mau::vmxIO->AutoTransmit_Stop(engine_handle, status);
 }
 
 /**
@@ -273,14 +293,14 @@ void HAL_StopSPIAuto(HAL_SPIPort port, int32_t* status) {
  */
 void HAL_SetSPIAutoTransmitData(HAL_SPIPort port, const uint8_t* dataToSend, int32_t dataSize, int32_t zeroSize,
                                 int32_t* status) {
-
+	mau::vmxIO->AutoTransmit_SetData(engine_handle, const_cast<uint8_t *>(dataToSend), dataSize, zeroSize, status);
 }
 
 /**
  * Force the engine to make a single transfer.
  */
 void HAL_ForceSPIAutoRead(HAL_SPIPort port, int32_t* status) {
-
+	mau::vmxIO->AutoTransmit_Immediate(engine_handle, status);
 }
 
 /**
@@ -299,8 +319,10 @@ void HAL_ForceSPIAutoRead(HAL_SPIPort port, int32_t* status) {
  */
 int32_t HAL_ReadSPIAutoReceivedData(HAL_SPIPort port, uint8_t* buffer,  int32_t numToRead, double timeout,
                                     int32_t* status) {
-//    return SimSPIData[port].ReadAutoReceivedData(buffer, numToRead, timeout, status);
-    return 0;
+	int32_t num_bytes_remaining = 0;
+	uint32_t timeout_ms = static_cast<uint32_t>(timeout * 1000);
+	mau::vmxIO->AutoTransmit_GetData(engine_handle, buffer, numToRead, timeout_ms, num_bytes_remaining, status);
+	return num_bytes_remaining;
 }
 
 /**
@@ -310,5 +332,7 @@ int32_t HAL_ReadSPIAutoReceivedData(HAL_SPIPort port, uint8_t* buffer,  int32_t 
  * @return Number of bytes dropped
  */
 int32_t HAL_GetSPIAutoDroppedCount(HAL_SPIPort port, int32_t* status) {
-    return 0;
+	int32_t num_dropped = 0;
+	mau::vmxIO->AutoTransmit_GetNumDropped(engine_handle, num_dropped, status);
+	return num_dropped;
 }
