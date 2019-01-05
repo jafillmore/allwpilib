@@ -17,7 +17,7 @@
 #include "DigitalInternal.h"
 #include "AnalogInternal.h"
 #include "AnalogTriggerInternal.h"
-#include "DigitalSourceInternal.h"
+#include "InterruptsInternal.h"
 #include <VMXChannel.h>
 #include <VMXResource.h>
 #include <VMXResourceConfig.h>

@@ -8,6 +8,7 @@
 #include "HAL/HAL.h"
 #include "HAL/Ports.h"
 #include "PortsInternal.h"
+#include "MauInternal.h"
 #include "MauErrors.h"
 
 namespace hal {
@@ -25,7 +26,7 @@ VMXChannelIndex getVMXChannelIndexAndVMXChannelInfo(HAL_HandleEnum handleType, i
 		return INVALID_VMX_CHANNEL_INDEX;
 	}
 
-	VMXChannelIndex vmx_chan_index = getVMXChannelIndexForWPILibDigitalChannel(handleType, vmx_chan_info.index);
+	VMXChannelIndex vmx_chan_index = vmx_chan_info.index;
 	if (vmx_chan_index == INVALID_VMX_CHANNEL_INDEX) {
 		*status = MAU_CHANNEL_MAP_ERROR;
 	} else {

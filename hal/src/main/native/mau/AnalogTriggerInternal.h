@@ -17,6 +17,7 @@
 #include "HAL/handles/HandlesInternal.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
+#include "HAL/handles/LimitedHandleResource.h"
 
 namespace hal {
 

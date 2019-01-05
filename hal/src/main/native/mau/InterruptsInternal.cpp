@@ -5,7 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "DigitalSourceInternal.h"
+#include "InterruptsInternal.h"
+#include "AnalogInternal.h"
 #include "AnalogTriggerInternal.h"
 #include "DigitalInternal.h"
 #include <VMXChannel.h>
@@ -49,7 +50,7 @@ bool GetVMXInterruptResourceIndexForDigitalSourceHandle(HAL_Handle digitalSource
         	*status = HAL_HANDLE_ERROR;
         	return false;
         }
-        vmx_chan_info = analogInputResource.vmx_chan_info;
+        vmx_chan_info = analogInputResource->vmx_chan_info;
         int_res_index = analogInputResource->vmx_chan_info.index;
 	} else {
 		// Invalid index source digitalSourceHandle handle type
