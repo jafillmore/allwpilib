@@ -7,6 +7,8 @@
 
 #include "HAL/HAL.h"
 
+#include <signal.h>
+
 #include <wpi/raw_ostream.h>
 #include <wpi/mutex.h>
 
@@ -42,7 +44,6 @@ VMXErrorCode* mau::vmxError = &vmxErrCode;
 Mau_ChannelMap* mau::channelMap;
 Mau_EnumConverter* mau::enumConverter;
 
-
 namespace hal {
     namespace init {
         bool InitializeHAL() {
@@ -60,8 +61,9 @@ namespace hal {
             vmx = new VMXPi(realtime, hertz);
 
             if (!vmx->IsOpen()) {
-		delete vmx;
-		vmx = 0;
+           		delete vmx;
+            	printf("Error initializating VMX-pi HAL.\n");
+            	vmx = 0;
             	return false;
             }
 

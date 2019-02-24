@@ -8,7 +8,7 @@ namespace mau {
     extern VMXTime* vmxTime;
 
     inline uint64_t vmxGetTime() {
-        return vmxTime->GetCurrentMicroseconds();
+        return vmxTime->GetCurrentTotalMicroseconds();
     }
 }
 

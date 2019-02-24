@@ -40,6 +40,15 @@ HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index) {
 	}
 }
 
+HAL_DigitalHandle getDigitalHandleAndVMXChannelInfo(HAL_HandleEnum handleType, int32_t wpiLibPwmChannel, VMXChannelInfo& info, int32_t *status)
+{
+	VMXChannelIndex vmx_chan_index = getVMXChannelIndexAndVMXChannelInfo(handleType, wpiLibPwmChannel, info, status);
+	if (INVALID_VMX_CHANNEL_INDEX == vmx_chan_index) {
+		return HAL_kInvalidHandle;
+	}
+	return getDigitalHandleForVMXChannelIndex(vmx_chan_index);
+}
+
 std::shared_ptr<DigitalPort> allocateDigitalPort(HAL_DigitalHandle digHandle, HAL_HandleEnum handleType, int32_t *status)
 {
 	auto handle =

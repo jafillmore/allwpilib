@@ -49,7 +49,7 @@ void HAL_Internal_SetDigitalFilterPeriodNanoseconds(uint8_t digFilterIndex, uint
 	}
 }
 
-uint64_t HAL_Internal_SetDigitalFilterPeriodNanoseconds(uint8_t digFilterIndex)
+uint64_t HAL_Internal_GetDigitalFilterPeriodNanoseconds(uint8_t digFilterIndex)
 {
 	if (digFilterIndex < kNumDigitalFilters) {
 		return digFilterPeriodNanoseconds[digFilterIndex];

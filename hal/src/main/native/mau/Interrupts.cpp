@@ -91,7 +91,7 @@ static constexpr uint8_t kInvalidHALInterruptIndex = 255;
 
 namespace hal {
 namespace init {
-void InitialzeInterrupts() {
+void InitializeInterrupts() {
 	static LimitedHandleResource<HAL_InterruptHandle, InterruptResource, kNumInterrupts,
 			HAL_HandleEnum::Interrupt> iH;
 	interruptHandles = &iH;
