@@ -313,7 +313,10 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
 
     hal::init::HAL_IsInitialized.store(true);
 
+    setlinebuf(stdin);
+    setlinebuf(stdout);
     wpi::outs().SetUnbuffered();
+
     if (HAL_LoadExtensions() < 0) return false;
     Mau_restartTiming();
     HAL_InitializeDriverStation();

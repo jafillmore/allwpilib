@@ -300,6 +300,8 @@ int Socket::SelectiveServerSocket::close() {
 	return Socket::socket_close(_socket);
 }
 
+#define SOCKET_ACCEPT_TIMEOUT_MS 10
+
 int Socket::SelectiveServerSocket::accept() {
 	FD_ZERO(&_socks);
 	FD_SET(_socket, &_socks);
@@ -311,7 +313,11 @@ int Socket::SelectiveServerSocket::accept() {
 		}
 	}
 
-	int readsocks = select(_highsock + 1, &_socks, (fd_set *)0, (fd_set *)0, NULL);
+	struct timeval tv;
+	tv.tv_sec = 0;
+	tv.tv_usec = SOCKET_ACCEPT_TIMEOUT_MS * 1000;
+
+	int readsocks = select(_highsock + 1, &_socks, (fd_set *)0, (fd_set *)0, &tv);
 	if (readsocks < 0) {
 		return -1;
 	} else if (readsocks == 0) {
@@ -337,7 +343,9 @@ int Socket::SelectiveServerSocket::accept() {
 		for (int i = 0; i < _maxsize; i++) {
 			if (FD_ISSET(_connectionlist[i], &_socks)) {
 				// Data
-				_cb(i, _connectionlist[i]);
+				if (_cb) {
+					_cb(i, _connectionlist[i]);
+				}
 			}
 		}
 	}
@@ -346,6 +354,34 @@ int Socket::SelectiveServerSocket::accept() {
 
 void Socket::SelectiveServerSocket::on_data(std::function<void(int client_id, Socket::ClientSocket sock)> callback) {
 	_cb = callback;
+}
+
+void Socket::SelectiveServerSocket::send_to_all_connected_clients(char *buffer, size_t length) {
+	for (int i = 0; i < _maxsize; i++) {
+		if (_connectionlist[i] != 0) {
+			int ret = ::send(_connectionlist[i], buffer, length, MSG_NOSIGNAL);
+			if (ret == -1) {
+				if (errno == EPIPE) {
+					// Client connection is now closed
+					Socket::socket_close(_connectionlist[i]);
+					_connectionlist[i] = 0;
+				}
+			}
+		}
+	}
+}
+
+// Remove any no-longer connected clients from the connectionlist
+void Socket::SelectiveServerSocket::prune_disconnected_clients() {
+	for (int i = 0; i < _maxsize; i++) {
+		if (_connectionlist[i] != 0) {
+			char buffer[32];
+			if (recv(_connectionlist[i], buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0 ) {
+				Socket::socket_close(_connectionlist[i]);
+				_connectionlist[i] = 0;
+			}
+		}
+	}
 }
 
 int Socket::DatagramSocket::bind() {

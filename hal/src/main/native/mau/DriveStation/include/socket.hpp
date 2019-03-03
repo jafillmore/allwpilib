@@ -218,6 +218,9 @@ namespace Toast {
 
 					API void on_data(std::function<void(int client_id, ClientSocket sock)> callback);
 
+					API void send_to_all_connected_clients(char *buffer, size_t length);
+					API void prune_disconnected_clients();
+
 					Toast::Net::Socket::SOCKET _socket;
 
 					int _maxsize;
