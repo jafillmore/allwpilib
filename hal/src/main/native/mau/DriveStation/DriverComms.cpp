@@ -119,7 +119,11 @@ void mau::comms::decodeTcpPacket(char* data, int length) {
                 memcpy(desc.name, &data[nb_i], name_length);
                 desc.axisCount = axis_count;
                 for (int x = 0; x < axis_count; x++) {
-                    desc.axisTypes[x] = data[at_i + x];
+                	if ( x < HAL_kMaxJoystickAxes) {
+                        desc.axisTypes[x] = data[at_i + x];
+                	} else {
+                		break;
+                	}
                 }
                 Mau_DriveData::updateJoyDescriptor(joyid, &desc);
             }

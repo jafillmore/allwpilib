@@ -201,7 +201,7 @@ static void logServerProcess() {
 
 		MessageHeader *p_head = RemoveHead();
 		while (p_head) {
-    		sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), p_head->len + sizeof(uint16_t));
+    		sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
     		FreeMessageMemory(p_head);
     		p_head = RemoveHead();
         }
@@ -273,10 +273,13 @@ static void stdoutCaptureProcess() {
 				ssize_t num_read;
 				size_t len = MAX_STDOUT_LINE_LEN;
 				while ((num_read = getline(&line, &len, pipe_file)) != -1) {
-					// Enqueue Message for transmission to WPI Logging Client
-					enqueuePrintMessage(line);
 					// Output to console FD
 					write(stdout_prev_fd, line, num_read);
+					// Enqueue Message for transmission to WPI Logging Client
+					if (num_read > 0) {
+						line[num_read - 1] = 0; // replace final line feed with null
+					}
+					enqueuePrintMessage(line);
 				}
 			}
 		} else {

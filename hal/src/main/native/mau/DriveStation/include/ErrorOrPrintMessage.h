@@ -12,6 +12,7 @@
 #define ERRORORPRINTMESSAGE_H_
 
 #include <stdint.h>
+#include <arpa/inet.h>
 
 #define WPI_LOG_MSG_TYPE_ERROR_OR_WARNING	11
 #define WPI_LOG_MSG_TYPE_PRINT              12  // Console (STDOUT) message
@@ -48,7 +49,7 @@ protected:
 		header->next = 0;
 		header->msg_type = msg_type;
 		header->timeStamp = 0.0; // TODO:  Get Current timestamp as floating point number
-		header->seqNumber = sequence_number;
+		header->seqNumber = htons(sequence_number);
 
 		return sizeof(MessageHeader);
 	}
@@ -83,7 +84,9 @@ public:
 
 		if (output_buffer) {
 			MessageHeader *header = (MessageHeader *)output_buffer;
-			header->len = total_len - sizeof(uint16_t); // length in header does not include the length value.
+			// length in header does not include the link * and the length value.
+			uint16_t actual_len = total_len - (sizeof(MessageHeader *) + sizeof(uint16_t));
+			header->len = htons(actual_len);
 		}
 		return total_len;
 	}
@@ -104,8 +107,8 @@ public:
 
 		if (output_buffer) {
 			ErrorWarningMessageHeader * error_header = (ErrorWarningMessageHeader *)(output_buffer + running_len);
-			error_header->numOccur = numOccur;
-			error_header->errorCode = errorCode;
+			error_header->numOccur = htons(numOccur);
+			error_header->errorCode = htonl(errorCode);
 			error_header->flags = flags;
 		}
 		running_len += sizeof(ErrorWarningMessageHeader);
@@ -114,8 +117,8 @@ public:
 		size_t detail_len = strlen(details);
 		if (output_buffer) {
 			LengthString * detail_string = (LengthString *)(output_buffer + running_len);
-			detail_string->len = detail_len;
-			memcpy(detail_string->chars, details, detail_string->len);
+			detail_string->len = htons(detail_len);
+			memcpy(detail_string->chars, details, detail_len);
 		}
 		running_len += LengthString::GetTotalSize(detail_len);
 		if (running_len > max_len) return -1;
@@ -127,8 +130,8 @@ public:
 		size_t location_len = strlen(location);
 		if (output_buffer) {
 			LengthString * location_string = (LengthString *)(output_buffer + running_len);
-			location_string->len = location_len;
-			memcpy(location_string->chars, location, location_string->len);
+			location_string->len = htons(location_len);
+			memcpy(location_string->chars, location, location_len);
 		}
 		running_len += LengthString::GetTotalSize(location_len);
 		if (running_len > max_len) return -1;
@@ -136,15 +139,16 @@ public:
 		size_t callStack_len = strlen(callStack);
 		if (output_buffer) {
 			LengthString * callStack_string = (LengthString *)(output_buffer + running_len);
-			callStack_string->len = callStack_len;
-			memcpy(callStack_string->chars, callStack, callStack_string->len);
+			callStack_string->len = htons(callStack_len);
+			memcpy(callStack_string->chars, callStack, callStack_len);
 		}
 		running_len += LengthString::GetTotalSize(callStack_len);
 		if (running_len > max_len) return -1;
 
 		if (output_buffer) {
 			MessageHeader *header = (MessageHeader *)output_buffer;
-			header->len = running_len - sizeof(uint16_t);  // length in header does not include the length value.
+			// length in header does not include the link * and the length value.
+			header->len = htons(running_len - (sizeof(MessageHeader *) + sizeof(uint16_t)));
 		}
 
 		return running_len;
