@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include "HAL/DriverStation.h"
+#include "HAL/Power.h"
 
 #include <thread>
 #include <cstdio>
@@ -22,7 +23,6 @@
 #include "DriveStation/include/socket.hpp"
 #include "DriveStation/include/DriverComms.hpp"
 #include "DriveStation/include/MauDriveData.h"
-#include "DriveStation/include/LoggerComms.hpp"
 
 static wpi::mutex msgMutex;
 static wpi::priority_mutex* mauDataMutex;
@@ -42,7 +42,6 @@ using namespace hal;
 
 extern "C" {
     void HAL_InitializeDriverStation() {
-    	mau::LoggerComms::start(); // start logger
         mau::comms::start();
     }
 
@@ -59,8 +58,12 @@ extern "C" {
     }
 
     HAL_Bool HAL_WaitForDSDataTimeout(double timeout) {
-        std::unique_lock<wpi::priority_mutex> dataLock(*mauDataMutex);
 
+        // Update voltage immediately.
+        int32_t status = 0;
+        mau::comms::setInputVoltage(HAL_GetVinVoltage(&status));
+
+        std::unique_lock<wpi::priority_mutex> dataLock(*mauDataMutex);
         std::atomic<bool> expired{false};
         auto waitTime = std::chrono::milliseconds((int)timeout);
         if (timeout <= 0) {
@@ -112,7 +115,7 @@ extern "C" {
                     std::fprintf(stderr, "%s\n", callStack);
                 }
                 uint16_t num_occur = 1;
-                mau::LoggerComms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, callStack);
+                mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, callStack);
             }
             if (i == KEEP_MSGS) {
                 // replace the oldest one

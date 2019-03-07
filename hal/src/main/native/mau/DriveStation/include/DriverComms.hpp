@@ -30,5 +30,7 @@ namespace mau {
         void encodePacket(char* data);
         void decodeTcpPacket(char* data, int length);
         void periodicUpdate();
+        void setInputVoltage(double voltage);
+        void enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, uint8_t flags, const char *details, const char *location, const char *callStack);
     }
 }
