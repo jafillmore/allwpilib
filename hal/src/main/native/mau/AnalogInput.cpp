@@ -5,10 +5,10 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/AnalogInput.h"
+#include "hal/AnalogInput.h"
 
 #include "AnalogInternal.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"

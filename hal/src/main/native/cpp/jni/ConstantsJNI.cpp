@@ -9,10 +9,10 @@
 
 #include <cassert>
 
-#include "HAL/Constants.h"
-#include "HAL/cpp/Log.h"
 #include "HALUtil.h"
-#include "edu_wpi_first_wpilibj_hal_ConstantsJNI.h"
+#include "edu_wpi_first_hal_ConstantsJNI.h"
+#include "hal/Constants.h"
+#include "hal/cpp/Log.h"
 
 using namespace frc;
 
@@ -27,12 +27,12 @@ TLogLevel constantsJNILogLevel = logWARNING;
 
 extern "C" {
 /*
- * Class:     edu_wpi_first_wpilibj_hal_ConstantsJNI
+ * Class:     edu_wpi_first_hal_ConstantsJNI
  * Method:    getSystemClockTicksPerMicrosecond
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_edu_wpi_first_wpilibj_hal_ConstantsJNI_getSystemClockTicksPerMicrosecond
+Java_edu_wpi_first_hal_ConstantsJNI_getSystemClockTicksPerMicrosecond
   (JNIEnv* env, jclass)
 {
   CONSTANTSJNI_LOG(logDEBUG)

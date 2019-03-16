@@ -8,7 +8,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include <VMXChannel.h>
 
 /* NOTE:  The VMX-pi HAL provides differing numbers of various channel and resource types than athena. */

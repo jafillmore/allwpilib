@@ -3,7 +3,6 @@ plugins {
     id 'application'
     id 'cpp'
     id 'visual-studio'
-    id 'com.github.johnrengelman.shadow' version '2.0.3' apply false
 }
 
 apply plugin: 'edu.wpi.first.NativeUtils'
@@ -18,17 +17,17 @@ ext {
     skipDev = true
 }
 
-apply from: "${rootDir}/shared/opencv.gradle"
-
 ext {
-    sharedUvwConfigs = [myRobotCpp      : [],
-                        myRobotCppStatic: []]
-    staticUvwConfigs = [:]
+    chipObjectComponents = ['myRobotCpp', 'myRobotCppStatic']
+    netCommComponents = ['myRobotCpp', 'myRobotCppStatic']
+    useNiJava = true
 }
 
-apply from: "${rootDir}/shared/libuv.gradle"
+apply from: "${rootDir}/shared/nilibraries.gradle"
 
-mainClassName = 'edu.wpi.first.wpilibj.RobotBase'
+apply from: "${rootDir}/shared/opencv.gradle"
+
+mainClassName = 'Main'
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -52,6 +51,7 @@ jar {
 model {
     components {
         myRobotCpp(NativeExecutableSpec) {
+            targetBuildTypes 'debug'
             baseName = 'FRCUserProgram'
             sources {
                 cpp {
@@ -69,13 +69,13 @@ model {
                     lib project: ':wpilibc', library: 'wpilibc', linkage: 'shared'
                     lib project: ':ntcore', library: 'ntcore', linkage: 'shared'
                     lib project: ':cscore', library: 'cscore', linkage: 'shared'
-                    lib project: ':hal', library: 'hal', linkage: 'shared'
+                    project(':hal').addHalDependency(binary, 'shared')
                     lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
                     lib project: ':cameraserver', library: 'cameraserver', linkage: 'shared'
-                    project(':ni-libraries').addNiLibrariesToLinker(binary)
             }
         }
         myRobotCppStatic(NativeExecutableSpec) {
+            targetBuildTypes 'debug'
             baseName = 'FRCUserProgram'
             sources {
                 cpp {
@@ -93,10 +93,9 @@ model {
                     lib project: ':wpilibc', library: 'wpilibc', linkage: 'static'
                     lib project: ':ntcore', library: 'ntcore', linkage: 'static'
                     lib project: ':cscore', library: 'cscore', linkage: 'static'
-                    lib project: ':hal', library: 'hal', linkage: 'static'
+                    project(':hal').addHalDependency(binary, 'static')
                     lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
                     lib project: ':cameraserver', library: 'cameraserver', linkage: 'static'
-                    project(':ni-libraries').addNiLibrariesToLinker(binary)
             }
         }
     }
@@ -120,7 +119,6 @@ model {
                                 run.systemProperty 'java.library.path', filePath
                                 run.environment 'LD_LIBRARY_PATH', filePath
                                 run.workingDir filePath
-                                run.args << 'MyRobot'
 
                                 found = true
                             }

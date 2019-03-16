@@ -5,19 +5,19 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Interrupts.h"
+#include "hal/Interrupts.h"
 
 #include <memory>
 
 #include <wpi/SafeThread.h>
 
 #include "DigitalInternal.h"
-#include "HAL/ChipObject.h"
-#include "HAL/Errors.h"
-#include "HAL/handles/HandlesInternal.h"
-#include "HAL/handles/LimitedHandleResource.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
+#include "hal/ChipObject.h"
+#include "hal/Errors.h"
+#include "hal/handles/HandlesInternal.h"
+#include "hal/handles/LimitedHandleResource.h"
 
 using namespace hal;
 
@@ -123,13 +123,6 @@ void* HAL_CleanInterrupts(HAL_InterruptHandle interruptHandle,
   return param;
 }
 
-/**
- * In synchronous mode, wait for the defined interrupt to occur.
- * @param timeout Timeout in seconds
- * @param ignorePrevious If true, ignore interrupts that happened before
- * waitForInterrupt was called.
- * @return The mask of interrupts that fired.
- */
 int64_t HAL_WaitForInterrupt(HAL_InterruptHandle interruptHandle,
                              double timeout, HAL_Bool ignorePrevious,
                              int32_t* status) {
@@ -152,12 +145,6 @@ int64_t HAL_WaitForInterrupt(HAL_InterruptHandle interruptHandle,
   return result;
 }
 
-/**
- * Enable interrupts to occur on this input.
- * Interrupts are disabled when the RequestInterrupt call is made. This gives
- * time to do the setup of the other options before starting to field
- * interrupts.
- */
 void HAL_EnableInterrupts(HAL_InterruptHandle interruptHandle,
                           int32_t* status) {
   auto anInterrupt = interruptHandles->Get(interruptHandle);
@@ -168,9 +155,6 @@ void HAL_EnableInterrupts(HAL_InterruptHandle interruptHandle,
   anInterrupt->manager->enable(status);
 }
 
-/**
- * Disable Interrupts without without deallocating structures.
- */
 void HAL_DisableInterrupts(HAL_InterruptHandle interruptHandle,
                            int32_t* status) {
   auto anInterrupt = interruptHandles->Get(interruptHandle);
@@ -181,36 +165,26 @@ void HAL_DisableInterrupts(HAL_InterruptHandle interruptHandle,
   anInterrupt->manager->disable(status);
 }
 
-/**
- * Return the timestamp for the rising interrupt that occurred most recently.
- * This is in the same time domain as GetClock().
- * @return Timestamp in seconds since boot.
- */
-double HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
-                                        int32_t* status) {
-  auto anInterrupt = interruptHandles->Get(interruptHandle);
-  if (anInterrupt == nullptr) {
-    *status = HAL_HANDLE_ERROR;
-    return 0;
-  }
-  uint32_t timestamp = anInterrupt->anInterrupt->readRisingTimeStamp(status);
-  return timestamp * 1e-6;
-}
-
-/**
- * Return the timestamp for the falling interrupt that occurred most recently.
- * This is in the same time domain as GetClock().
- * @return Timestamp in seconds since boot.
- */
-double HAL_ReadInterruptFallingTimestamp(HAL_InterruptHandle interruptHandle,
+int64_t HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
                                          int32_t* status) {
   auto anInterrupt = interruptHandles->Get(interruptHandle);
   if (anInterrupt == nullptr) {
     *status = HAL_HANDLE_ERROR;
     return 0;
   }
+  uint32_t timestamp = anInterrupt->anInterrupt->readRisingTimeStamp(status);
+  return timestamp;
+}
+
+int64_t HAL_ReadInterruptFallingTimestamp(HAL_InterruptHandle interruptHandle,
+                                          int32_t* status) {
+  auto anInterrupt = interruptHandles->Get(interruptHandle);
+  if (anInterrupt == nullptr) {
+    *status = HAL_HANDLE_ERROR;
+    return 0;
+  }
   uint32_t timestamp = anInterrupt->anInterrupt->readFallingTimeStamp(status);
-  return timestamp * 1e-6;
+  return timestamp;
 }
 
 void HAL_RequestInterrupts(HAL_InterruptHandle interruptHandle,

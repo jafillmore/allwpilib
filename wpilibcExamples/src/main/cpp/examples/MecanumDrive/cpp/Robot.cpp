@@ -5,16 +5,16 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <Drive/MecanumDrive.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Spark.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/drive/MecanumDrive.h>
 
 /**
  * This is a demo program showing how to use Mecanum control with the
  * MecanumDrive class.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void RobotInit() override {
     // Invert the left side motors. You may need to change or remove this to
@@ -38,14 +38,16 @@ class Robot : public frc::IterativeRobot {
 
   static constexpr int kJoystickChannel = 0;
 
-  frc::Spark m_frontLeft{kFrontLeftChannel};
-  frc::Spark m_rearLeft{kRearLeftChannel};
-  frc::Spark m_frontRight{kFrontRightChannel};
-  frc::Spark m_rearRight{kRearRightChannel};
+  frc::PWMVictorSPX m_frontLeft{kFrontLeftChannel};
+  frc::PWMVictorSPX m_rearLeft{kRearLeftChannel};
+  frc::PWMVictorSPX m_frontRight{kFrontRightChannel};
+  frc::PWMVictorSPX m_rearRight{kRearRightChannel};
   frc::MecanumDrive m_robotDrive{m_frontLeft, m_rearLeft, m_frontRight,
                                  m_rearRight};
 
   frc::Joystick m_stick{kJoystickChannel};
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

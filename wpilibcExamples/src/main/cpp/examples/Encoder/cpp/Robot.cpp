@@ -5,9 +5,9 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <Encoder.h>
-#include <IterativeRobot.h>
-#include <SmartDashboard/SmartDashboard.h>
+#include <frc/Encoder.h>
+#include <frc/TimedRobot.h>
+#include <frc/smartdashboard/SmartDashboard.h>
 
 /**
  * Sample program displaying the value of a quadrature encoder on the
@@ -28,7 +28,7 @@
  * distance that the robot drives can be precisely controlled during the
  * autonomous mode.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   Robot() {
     /* Defines the number of samples to average when determining the rate.
@@ -80,4 +80,6 @@ class Robot : public frc::IterativeRobot {
   frc::Encoder m_encoder{1, 2, false, frc::Encoder::k4X};
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

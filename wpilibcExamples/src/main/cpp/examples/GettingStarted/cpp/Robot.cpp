@@ -5,14 +5,14 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <Drive/DifferentialDrive.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <LiveWindow/LiveWindow.h>
-#include <Spark.h>
-#include <Timer.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/Timer.h>
+#include <frc/drive/DifferentialDrive.h>
+#include <frc/livewindow/LiveWindow.h>
 
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   Robot() {
     m_robotDrive.SetExpiration(0.1);
@@ -46,8 +46,8 @@ class Robot : public frc::IterativeRobot {
 
  private:
   // Robot drive system
-  frc::Spark m_left{0};
-  frc::Spark m_right{1};
+  frc::PWMVictorSPX m_left{0};
+  frc::PWMVictorSPX m_right{1};
   frc::DifferentialDrive m_robotDrive{m_left, m_right};
 
   frc::Joystick m_stick{0};
@@ -55,4 +55,6 @@ class Robot : public frc::IterativeRobot {
   frc::Timer m_timer;
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

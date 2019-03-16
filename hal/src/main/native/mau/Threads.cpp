@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Threads.h"
-#include "HAL/Errors.h"
+#include "hal/Threads.h"
+#include "hal/Errors.h"
 
 #include <pthread.h>
 
@@ -21,7 +21,7 @@ int32_t HAL_GetThreadPriority(NativeThreadHandle handle, HAL_Bool* isRealTime, i
 	int policy;
 	struct sched_param schedparam;
 	*isRealTime = false;
-	if (!pthread_getschedparam(*handle, &policy, &schedparam)) {
+	if (!pthread_getschedparam(*reinterpret_cast<const pthread_t*>(handle), &policy, &schedparam)) {
 		*isRealTime = (policy == SCHED_FIFO);
 		return schedparam.__sched_priority;
 	} else {
@@ -51,9 +51,9 @@ HAL_Bool HAL_SetThreadPriority(NativeThreadHandle handle, HAL_Bool realTime, int
 		return false;
 	}
 
-	if (!pthread_getschedparam(*handle, &policy, &schedparam)) {
+	if (!pthread_getschedparam(*reinterpret_cast<const pthread_t*>(handle), &policy, &schedparam)) {
 		schedparam.__sched_priority = priority;
-		if (!pthread_setschedparam(*handle, policy, &schedparam)) {
+		if (!pthread_setschedparam(*reinterpret_cast<const pthread_t*>(handle), policy, &schedparam)) {
 			return true;
 		}
 	}

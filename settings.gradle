@@ -5,7 +5,6 @@ pluginManagement {
     }
 }
 
-include 'ni-libraries'
 include 'wpiutil'
 include 'ntcore'
 include 'hal'
@@ -20,5 +19,12 @@ include 'simulation:halsim_print'
 include 'simulation:halsim_lowfi'
 include 'simulation:halsim_adx_gyro_accelerometer'
 include 'simulation:halsim_ds_nt'
+include 'simulation:gz_msgs'
+include 'simulation:frc_gazebo_plugins'
+include 'simulation:halsim_gazebo'
+include 'simulation:lowfi_simulation'
+include 'simulation:halsim_ds_socket'
 include 'cameraserver'
+include 'cameraserver:multiCameraServer'
 include 'myRobot'
+include 'docs'

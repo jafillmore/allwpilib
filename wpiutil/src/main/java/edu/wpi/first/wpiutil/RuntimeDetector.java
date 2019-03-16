@@ -7,13 +7,18 @@
 
 package edu.wpi.first.wpiutil;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
-public class RuntimeDetector {
+public final class RuntimeDetector {
   private static String filePrefix;
   private static String fileExtension;
   private static String filePath;
 
+  @SuppressWarnings("PMD.CyclomaticComplexity")
   private static synchronized void computePlatform() {
     if (fileExtension != null && filePath != null && filePrefix != null) {
       return;
@@ -48,11 +53,13 @@ public class RuntimeDetector {
         filePath = "/linux/x86-64/";
       } else if (isAthena()) {
         filePath = "/linux/athena/";
+      } else if (isRaspbian()) {
+        filePath = "/linux/raspbian/";
       } else {
         filePath = "/linux/nativearm/";
       }
     } else {
-      throw new RuntimeException("Failed to determine OS");
+      throw new IllegalStateException("Failed to determine OS");
     }
   }
 
@@ -93,9 +100,32 @@ public class RuntimeDetector {
     return toReturn;
   }
 
+  /**
+   * Get the path to the hash to the requested resource.
+   */
+  public static synchronized String getHashLibraryResource(String libName) {
+    computePlatform();
+
+    String toReturn = filePath + libName + ".hash";
+    return toReturn;
+  }
+
   public static boolean isAthena() {
     File runRobotFile = new File("/usr/local/frc/bin/frcRunRobot.sh");
     return runRobotFile.exists();
+  }
+
+  /** check if os is raspbian.
+   *
+   * @return if os is raspbian
+   */
+  public static boolean isRaspbian() {
+    try (BufferedReader reader = Files.newBufferedReader(Paths.get("/etc/os-release"))) {
+      String value = reader.readLine();
+      return value.contains("Raspbian");
+    } catch (IOException ex) {
+      return false;
+    }
   }
 
   public static boolean isLinux() {
@@ -112,11 +142,15 @@ public class RuntimeDetector {
 
   public static boolean is32BitIntel() {
     String arch = System.getProperty("os.arch");
-    return arch.equals("x86") || arch.equals("i386");
+    return "x86".equals(arch) || "i386".equals(arch);
   }
 
   public static boolean is64BitIntel() {
     String arch = System.getProperty("os.arch");
-    return arch.equals("amd64") || arch.equals("x86_64");
+    return "amd64".equals(arch) || "x86_64".equals(arch);
+  }
+
+  private RuntimeDetector() {
+
   }
 }

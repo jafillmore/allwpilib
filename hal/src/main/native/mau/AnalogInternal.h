@@ -11,9 +11,9 @@
 
 #include <memory>
 
-#include "HAL/Ports.h"
-#include "HAL/handles/IndexedHandleResource.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/Ports.h"
+#include "hal/handles/IndexedHandleResource.h"
+#include "hal/handles/HandlesInternal.h"
 #include "PortsInternal.h"
 #include <VMXPiConstants.h>
 #include <VMXResource.h>

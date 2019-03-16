@@ -10,7 +10,7 @@ package edu.wpi.first.networktables;
 /**
  * NetworkTables Remote Procedure Call (Server Side).
  */
-public final class RpcAnswer implements AutoCloseable {
+public final class RpcAnswer {
   /** Entry handle. */
   @SuppressWarnings("MemberName")
   public final int entry;
@@ -25,7 +25,7 @@ public final class RpcAnswer implements AutoCloseable {
 
   /** Call raw parameters. */
   @SuppressWarnings("MemberName")
-  public final String params;
+  public final byte[] params;
 
   /** Connection that called the RPC. */
   @SuppressWarnings("MemberName")
@@ -33,6 +33,7 @@ public final class RpcAnswer implements AutoCloseable {
 
   /** Constructor.
    * This should generally only be used internally to NetworkTables.
+   *
    * @param inst Instance
    * @param entry Entry handle
    * @param call Call handle
@@ -40,7 +41,7 @@ public final class RpcAnswer implements AutoCloseable {
    * @param params Call raw parameters
    * @param conn Connection info
    */
-  public RpcAnswer(NetworkTableInstance inst, int entry, int call, String name, String params,
+  public RpcAnswer(NetworkTableInstance inst, int entry, int call, String name, byte[] params,
                    ConnectionInfo conn) {
     this.m_inst = inst;
     this.entry = entry;
@@ -52,23 +53,20 @@ public final class RpcAnswer implements AutoCloseable {
 
   static final byte[] emptyResponse = new byte[] {};
 
-  @Deprecated
-  public void free() {
-    close();
-  }
-
-  /**
-   * Posts an empty response if one was not previously sent.
+  /*
+   * Finishes an RPC answer by replying empty if the user did not respond.
+   * Called internally by the callback thread.
    */
-  @Override
-  public synchronized void close() {
+  void finish() {
     if (call != 0) {
-      postResponse(emptyResponse);
+      NetworkTablesJNI.postRpcResponse(entry, call, emptyResponse);
+      call = 0;
     }
   }
 
   /**
    * Determines if the native handle is valid.
+   *
    * @return True if the native handle is valid, false otherwise.
    */
   public boolean isValid() {
@@ -77,11 +75,14 @@ public final class RpcAnswer implements AutoCloseable {
 
   /**
    * Post RPC response (return value) for a polled RPC.
+   *
    * @param result  result raw data that will be provided to remote caller
+   * @return        true if the response was posted, otherwise false
    */
-  public void postResponse(byte[] result) {
-    NetworkTablesJNI.postRpcResponse(entry, call, result);
+  public boolean postResponse(byte[] result) {
+    boolean ret = NetworkTablesJNI.postRpcResponse(entry, call, result);
     call = 0;
+    return ret;
   }
 
   /* Network table instance. */
@@ -92,6 +93,7 @@ public final class RpcAnswer implements AutoCloseable {
 
   /**
    * Get the entry as an object.
+   *
    * @return NetworkTableEntry for the RPC.
    */
   NetworkTableEntry getEntry() {

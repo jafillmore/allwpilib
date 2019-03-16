@@ -10,7 +10,7 @@ package edu.wpi.first.wpilibj;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-import edu.wpi.first.wpilibj.hal.NotifierJNI;
+import edu.wpi.first.hal.NotifierJNI;
 
 public class Notifier implements AutoCloseable {
   // The thread waiting on the HAL alarm.
@@ -22,15 +22,15 @@ public class Notifier implements AutoCloseable {
   private final AtomicInteger m_notifier = new AtomicInteger();
   // The time, in microseconds, at which the corresponding handler should be
   // called. Has the same zero as Utility.getFPGATime().
-  private double m_expirationTime = 0;
+  private double m_expirationTime;
   // The handler passed in by the user which should be called at the
   // appropriate interval.
   private Runnable m_handler;
   // Whether we are calling the handler just once or periodically.
-  private boolean m_periodic = false;
+  private boolean m_periodic;
   // If periodic, the period of the calling; if just once, stores how long it
   // is until we call the handler.
-  private double m_period = 0;
+  private double m_period;
 
   @Override
   @SuppressWarnings("NoFinalizer")
@@ -60,13 +60,22 @@ public class Notifier implements AutoCloseable {
 
   /**
    * Update the alarm hardware to reflect the next alarm.
+   *
+   * @param triggerTime the time at which the next alarm will be triggered
    */
-  private void updateAlarm() {
+  private void updateAlarm(long triggerTime) {
     int notifier = m_notifier.get();
     if (notifier == 0) {
       return;
     }
-    NotifierJNI.updateNotifierAlarm(notifier, (long) (m_expirationTime * 1e6));
+    NotifierJNI.updateNotifierAlarm(notifier, triggerTime);
+  }
+
+  /**
+   * Update the alarm hardware to reflect the next alarm.
+   */
+  private void updateAlarm() {
+    updateAlarm((long) (m_expirationTime * 1e6));
   }
 
   /**
@@ -97,6 +106,9 @@ public class Notifier implements AutoCloseable {
           if (m_periodic) {
             m_expirationTime += m_period;
             updateAlarm();
+          } else {
+            // need to update the alarm to cause it to wait again
+            updateAlarm((long) -1);
           }
         } finally {
           m_processLock.unlock();

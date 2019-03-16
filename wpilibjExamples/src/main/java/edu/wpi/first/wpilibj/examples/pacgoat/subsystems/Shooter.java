@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.command.Subsystem;
  * <p>NOTE: Simulation currently approximates this as as single pneumatic
  * cylinder and ignores the latch.
  */
+@SuppressWarnings("PMD.TooManyMethods")
 public class Shooter extends Subsystem {
   // Devices
   DoubleSolenoid m_piston1 = new DoubleSolenoid(1, 3, 4);
@@ -30,7 +31,7 @@ public class Shooter extends Subsystem {
   DigitalInput m_piston1ReedSwitchFront = new DigitalInput(9);
   DigitalInput m_piston1ReedSwitchBack = new DigitalInput(11);
   //NOTE: currently ignored in simulation
-  DigitalInput m_hotGoalSensor = new DigitalInput(3);
+  DigitalInput m_hotGoalSensor = new DigitalInput(7);
 
   /**
    * Create a new shooter subsystem.

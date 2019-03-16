@@ -17,7 +17,7 @@ public class VideoSink implements AutoCloseable {
     kUnknown(0), kMjpeg(2), kCv(4);
 
     @SuppressWarnings("MemberName")
-    private int value;
+    private final int value;
 
     Kind(int value) {
       this.value = value;
@@ -110,9 +110,66 @@ public class VideoSink implements AutoCloseable {
   }
 
   /**
+   * Get a property of the sink.
+   *
+   * @param name Property name
+   * @return Property (kind Property::kNone if no property with
+   *         the given name exists)
+   */
+  public VideoProperty getProperty(String name) {
+    return new VideoProperty(CameraServerJNI.getSinkProperty(m_handle, name));
+  }
+
+  /**
+   * Enumerate all properties of this sink.
+   */
+  @SuppressWarnings("PMD.AvoidInstantiatingObjectsInLoops")
+  public VideoProperty[] enumerateProperties() {
+    int[] handles = CameraServerJNI.enumerateSinkProperties(m_handle);
+    VideoProperty[] rv = new VideoProperty[handles.length];
+    for (int i = 0; i < handles.length; i++) {
+      rv[i] = new VideoProperty(handles[i]);
+    }
+    return rv;
+  }
+
+  /**
+   * Set properties from a JSON configuration string.
+   *
+   * <p>The format of the JSON input is:
+   *
+   * <pre>
+   * {
+   *     "properties": [
+   *         {
+   *             "name": property name
+   *             "value": property value
+   *         }
+   *     ]
+   * }
+   * </pre>
+   *
+   * @param config configuration
+   * @return True if set successfully
+   */
+  public boolean setConfigJson(String config) {
+    return CameraServerJNI.setSinkConfigJson(m_handle, config);
+  }
+
+  /**
+   * Get a JSON configuration string.
+   *
+   * @return JSON configuration string
+   */
+  public String getConfigJson() {
+    return CameraServerJNI.getSinkConfigJson(m_handle);
+  }
+
+  /**
    * Configure which source should provide frames to this sink.  Each sink
    * can accept frames from only a single source, but a single source can
    * provide frames to multiple clients.
+   *
    * @param source Source
    */
   public void setSource(VideoSource source) {
@@ -125,6 +182,7 @@ public class VideoSink implements AutoCloseable {
 
   /**
    * Get the connected source.
+   *
    * @return Connected source; nullptr if no source connected.
    */
   public VideoSource getSource() {
@@ -135,6 +193,7 @@ public class VideoSink implements AutoCloseable {
 
   /**
    * Get a property of the associated source.
+   *
    * @param name Property name
    * @return Property (kind Property::kNone if no property with
    *         the given name exists or no source connected)
@@ -146,8 +205,10 @@ public class VideoSink implements AutoCloseable {
 
   /**
    * Enumerate all existing sinks.
+   *
    * @return Vector of sinks.
    */
+  @SuppressWarnings("PMD.AvoidInstantiatingObjectsInLoops")
   public static VideoSink[] enumerateSinks() {
     int[] handles = CameraServerJNI.enumerateSinks();
     VideoSink[] rv = new VideoSink[handles.length];

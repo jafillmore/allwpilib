@@ -25,9 +25,10 @@ if (NOT WITHOUT_JAVA)
 
 endif()
 
-file(GLOB
+file(GLOB_RECURSE
     cameraserver_native_src src/main/native/cpp/*.cpp)
 add_library(cameraserver ${cameraserver_native_src})
+set_target_properties(cameraserver PROPERTIES DEBUG_POSTFIX "d")
 target_include_directories(cameraserver PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/include>
                             $<INSTALL_INTERFACE:${include_dest}/cameraserver>)
@@ -50,3 +51,7 @@ endif()
 
 install(FILES cameraserver-config.cmake DESTINATION ${cameraserver_config_dir})
 install(EXPORT cameraserver DESTINATION ${cameraserver_config_dir})
+
+file(GLOB multiCameraServer_src multiCameraServer/src/main/native/cpp/*.cpp)
+add_executable(multiCameraServer ${multiCameraServer_src})
+target_link_libraries(multiCameraServer cameraserver)

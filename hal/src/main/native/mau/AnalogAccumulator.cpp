@@ -7,10 +7,10 @@
 
 #include <algorithm>
 
-#include "HAL/AnalogAccumulator.h"
+#include "hal/AnalogAccumulator.h"
 
 #include "AnalogInternal.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include "MauInternal.h"
 #include "MauTime.h"
 #include <VMXIO.h>

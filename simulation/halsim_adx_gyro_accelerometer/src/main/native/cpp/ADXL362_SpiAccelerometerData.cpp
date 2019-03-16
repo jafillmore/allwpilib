@@ -9,7 +9,7 @@
 
 #include <cstring>
 
-#include "MockData/SPIData.h"
+#include <mockdata/SPIData.h>
 
 using namespace hal;
 
@@ -38,6 +38,9 @@ ADXL362_SpiAccelerometer::ADXL362_SpiAccelerometer(int port) : m_port(port) {
 ADXL362_SpiAccelerometer::~ADXL362_SpiAccelerometer() {
   HALSIM_CancelSPIReadCallback(m_port, m_readCallbackId);
   HALSIM_CancelSPIWriteCallback(m_port, m_writeCallbackId);
+}
+bool ADXL362_SpiAccelerometer::GetInitialized() const {
+  return HALSIM_GetSPIInitialized(m_port);
 }
 
 void ADXL362_SpiAccelerometer::HandleWrite(const uint8_t* buffer,

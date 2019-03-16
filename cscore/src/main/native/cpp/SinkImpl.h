@@ -11,25 +11,34 @@
 #include <memory>
 #include <string>
 
+#include <wpi/Logger.h>
 #include <wpi/StringRef.h>
+#include <wpi/Twine.h>
 #include <wpi/mutex.h>
 
 #include "SourceImpl.h"
 
+namespace wpi {
+class json;
+}  // namespace wpi
+
 namespace cs {
 
 class Frame;
+class Notifier;
+class Telemetry;
 
-class SinkImpl {
+class SinkImpl : public PropertyContainer {
  public:
-  explicit SinkImpl(wpi::StringRef name);
+  explicit SinkImpl(const wpi::Twine& name, wpi::Logger& logger,
+                    Notifier& notifier, Telemetry& telemetry);
   virtual ~SinkImpl();
   SinkImpl(const SinkImpl& queue) = delete;
   SinkImpl& operator=(const SinkImpl& queue) = delete;
 
   wpi::StringRef GetName() const { return m_name; }
 
-  void SetDescription(wpi::StringRef description);
+  void SetDescription(const wpi::Twine& description);
   wpi::StringRef GetDescription(wpi::SmallVectorImpl<char>& buf) const;
 
   void Enable();
@@ -46,10 +55,23 @@ class SinkImpl {
   std::string GetError() const;
   wpi::StringRef GetError(wpi::SmallVectorImpl<char>& buf) const;
 
+  bool SetConfigJson(wpi::StringRef config, CS_Status* status);
+  virtual bool SetConfigJson(const wpi::json& config, CS_Status* status);
+  std::string GetConfigJson(CS_Status* status);
+  virtual wpi::json GetConfigJsonObject(CS_Status* status);
+
  protected:
+  // PropertyContainer implementation
+  void NotifyPropertyCreated(int propIndex, PropertyImpl& prop) override;
+  void UpdatePropertyValue(int property, bool setString, int value,
+                           const wpi::Twine& valueStr) override;
+
   virtual void SetSourceImpl(std::shared_ptr<SourceImpl> source);
 
-  mutable wpi::mutex m_mutex;
+ protected:
+  wpi::Logger& m_logger;
+  Notifier& m_notifier;
+  Telemetry& m_telemetry;
 
  private:
   std::string m_name;

@@ -8,8 +8,8 @@
 package edu.wpi.first.wpilibj.templates.sample;
 
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.SampleRobot;
-import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -29,17 +29,17 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  *
  * <p>WARNING: While it may look like a good choice to use for your code if
  * you're inexperienced, don't. Unless you know what you are doing, complex code
- * will be much more difficult under this system. Use IterativeRobot or
+ * will be much more difficult under this system. Use TimedRobot or
  * Command-Based instead if you're new.
  */
 public class Robot extends SampleRobot {
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
 
-  private DifferentialDrive m_robotDrive
-      = new DifferentialDrive(new Spark(0), new Spark(1));
-  private Joystick m_stick = new Joystick(0);
-  private SendableChooser<String> m_chooser = new SendableChooser<>();
+  private final DifferentialDrive m_robotDrive
+      = new DifferentialDrive(new PWMVictorSPX(0), new PWMVictorSPX(1));
+  private final Joystick m_stick = new Joystick(0);
+  private final SendableChooser<String> m_chooser = new SendableChooser<>();
 
   public Robot() {
     m_robotDrive.setExpiration(0.1);
@@ -47,8 +47,8 @@ public class Robot extends SampleRobot {
 
   @Override
   public void robotInit() {
-    m_chooser.addDefault("Default Auto", kDefaultAuto);
-    m_chooser.addObject("My Auto", kCustomAuto);
+    m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
+    m_chooser.addOption("My Auto", kCustomAuto);
     SmartDashboard.putData("Auto modes", m_chooser);
   }
 
@@ -63,7 +63,7 @@ public class Robot extends SampleRobot {
    * the if-else structure below with additional strings. If using the
    * SendableChooser make sure to add them to the chooser code above as well.
    *
-   * <p>If you wanted to run a similar autonomous mode with an IterativeRobot
+   * <p>If you wanted to run a similar autonomous mode with an TimedRobot
    * you would write:
    *
    * <blockquote><pre>{@code
@@ -124,7 +124,7 @@ public class Robot extends SampleRobot {
   /**
    * Runs the motors with arcade steering.
    *
-   * <p>If you wanted to run a similar teleoperated mode with an IterativeRobot
+   * <p>If you wanted to run a similar teleoperated mode with an TimedRobot
    * you would write:
    *
    * <blockquote><pre>{@code

@@ -12,8 +12,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 /**
  * Common base class for all PWM Speed Controllers.
  */
-public abstract class PWMSpeedController extends SafePWM implements SpeedController {
-  private boolean m_isInverted = false;
+public abstract class PWMSpeedController extends PWM implements SpeedController {
+  private boolean m_isInverted;
 
   /**
    * Constructor.
@@ -64,6 +64,11 @@ public abstract class PWMSpeedController extends SafePWM implements SpeedControl
     return m_isInverted;
   }
 
+  @Override
+  public void disable() {
+    setDisabled();
+  }
+
   /**
    * Write out the PID value as seen in the PIDOutput base object.
    *
@@ -77,6 +82,7 @@ public abstract class PWMSpeedController extends SafePWM implements SpeedControl
   @Override
   public void initSendable(SendableBuilder builder) {
     builder.setSmartDashboardType("Speed Controller");
+    builder.setActuator(true);
     builder.setSafeState(this::setDisabled);
     builder.addDoubleProperty("Value", this::getSpeed, this::setSpeed);
   }

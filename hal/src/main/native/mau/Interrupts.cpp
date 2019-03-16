@@ -5,16 +5,16 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Interrupts.h"
+#include "hal/Interrupts.h"
 
 #include <memory>
 
 #include <wpi/SafeThread.h>
 
 #include "DigitalInternal.h"
-#include "HAL/Errors.h"
-#include "HAL/handles/HandlesInternal.h"
-#include "HAL/handles/LimitedHandleResource.h"
+#include "hal/Errors.h"
+#include "hal/handles/HandlesInternal.h"
+#include "hal/handles/LimitedHandleResource.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "InterruptsInternal.h"
@@ -34,7 +34,7 @@ class InterruptSafeThread : public wpi::SafeThread {
 class BlockingInterruptManager: public wpi::detail::SafeThreadProxyBase {
 public:
 	BlockingInterruptManager(wpi::SafeThread *p_thread) :
-			SafeThreadProxyBase(p_thread) {
+			SafeThreadProxyBase(std::shared_ptr<wpi::SafeThread>(p_thread)) {
 	}
 
 	std::atomic<uint32_t> m_mask;
@@ -304,7 +304,7 @@ void HAL_DisableInterrupts(HAL_InterruptHandle interruptHandle,
  * This is in the same time domain as GetClock().
  * @return Timestamp in seconds since boot.
  */
-double HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
+int64_t HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
 		int32_t* status) {
 	auto anInterrupt = interruptHandles->Get(interruptHandle);
 	if (anInterrupt == nullptr) {
@@ -318,7 +318,7 @@ double HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
 		return 0;
 	}
 
-	return timestamp_microseconds * 1e-6;
+	return timestamp_microseconds;
 }
 
 /**
@@ -326,7 +326,7 @@ double HAL_ReadInterruptRisingTimestamp(HAL_InterruptHandle interruptHandle,
  * This is in the same time domain as GetClock().
  * @return Timestamp in seconds since boot.
  */
-double HAL_ReadInterruptFallingTimestamp(HAL_InterruptHandle interruptHandle,
+int64_t HAL_ReadInterruptFallingTimestamp(HAL_InterruptHandle interruptHandle,
 		int32_t* status) {
 	auto anInterrupt = interruptHandles->Get(interruptHandle);
 	if (anInterrupt == nullptr) {
@@ -340,7 +340,7 @@ double HAL_ReadInterruptFallingTimestamp(HAL_InterruptHandle interruptHandle,
 		return 0;
 	}
 
-	return timestamp_microseconds * 1e-6;
+	return timestamp_microseconds;
 }
 
 /**

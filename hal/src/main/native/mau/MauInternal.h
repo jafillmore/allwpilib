@@ -12,7 +12,7 @@
 #include "MauMap.h"
 #include "Translator/include/MauEnumConverter.h"
 #include "MauErrors.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 
 namespace mau {
     extern AHRS* vmxIMU;

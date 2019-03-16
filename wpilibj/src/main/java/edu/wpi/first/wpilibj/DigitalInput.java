@@ -7,9 +7,9 @@
 
 package edu.wpi.first.wpilibj;
 
-import edu.wpi.first.wpilibj.hal.DIOJNI;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
+import edu.wpi.first.hal.DIOJNI;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 
 /**
@@ -19,8 +19,8 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
  * for devices like switches etc. that aren't implemented anywhere else.
  */
 public class DigitalInput extends DigitalSource {
-  private int m_channel = 0;
-  private int m_handle = 0;
+  private final int m_channel;
+  private int m_handle;
 
   /**
    * Create an instance of a Digital Input class. Creates a digital input given a channel.
@@ -43,8 +43,8 @@ public class DigitalInput extends DigitalSource {
     if (m_interrupt != 0) {
       cancelInterrupts();
     }
-
     DIOJNI.freeDIOPort(m_handle);
+    m_handle = 0;
   }
 
   /**

@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/HAL.h"
-#include "HAL/Ports.h"
+#include "hal/HAL.h"
+#include "hal/Ports.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
 #include "MauErrors.h"

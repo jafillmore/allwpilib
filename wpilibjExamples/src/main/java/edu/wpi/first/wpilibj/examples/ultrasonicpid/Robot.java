@@ -8,17 +8,17 @@
 package edu.wpi.first.wpilibj.examples.ultrasonicpid;
 
 import edu.wpi.first.wpilibj.AnalogInput;
-import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PIDOutput;
-import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
+import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 
 /**
  * This is a sample program to demonstrate the use of a PIDController with an
  * ultrasonic sensor to reach and maintain a set distance from an object.
  */
-public class Robot extends IterativeRobot {
+public class Robot extends TimedRobot {
   // distance in inches the robot wants to stay from an object
   private static final double kHoldDistance = 12.0;
 
@@ -41,11 +41,11 @@ public class Robot extends IterativeRobot {
   private static final int kRightMotorPort = 1;
   private static final int kUltrasonicPort = 0;
 
-  private AnalogInput m_ultrasonic = new AnalogInput(kUltrasonicPort);
-  private DifferentialDrive m_robotDrive
-      = new DifferentialDrive(new Spark(kLeftMotorPort),
-      new Spark(kRightMotorPort));
-  private PIDController m_pidController
+  private final AnalogInput m_ultrasonic = new AnalogInput(kUltrasonicPort);
+  private final DifferentialDrive m_robotDrive
+      = new DifferentialDrive(new PWMVictorSPX(kLeftMotorPort),
+      new PWMVictorSPX(kRightMotorPort));
+  private final PIDController m_pidController
       = new PIDController(kP, kI, kD, m_ultrasonic, new MyPidOutput());
 
   /**

@@ -5,18 +5,18 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Talon.h>
-#include <Victor.h>
-#include <Jaguar.h>
-#include <SD540.h>
-#include <DMC60.h>
-#include <VictorSP.h>
-#include <PWMTalonSRX.h>
-#include <PWMVictorSPX.h>
-#include <Servo.h>
-#include <Timer.h>
+#include <frc/IterativeRobot.h>
+#include <frc/Joystick.h>
+#include <frc/Talon.h>
+#include <frc/Victor.h>
+#include <frc/Jaguar.h>
+#include <frc/SD540.h>
+#include <frc/DMC60.h>
+#include <frc/VictorSP.h>
+#include <frc/PWMTalonSRX.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/Servo.h>
+#include <frc/Timer.h>
 
 using namespace frc;
 

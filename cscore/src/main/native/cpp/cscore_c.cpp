@@ -99,8 +99,18 @@ uint64_t CS_GetSourceLastFrameTime(CS_Source source, CS_Status* status) {
   return cs::GetSourceLastFrameTime(source, status);
 }
 
+void CS_SetSourceConnectionStrategy(CS_Source source,
+                                    CS_ConnectionStrategy strategy,
+                                    CS_Status* status) {
+  cs::SetSourceConnectionStrategy(source, strategy, status);
+}
+
 CS_Bool CS_IsSourceConnected(CS_Source source, CS_Status* status) {
   return cs::IsSourceConnected(source, status);
+}
+
+CS_Bool CS_IsSourceEnabled(CS_Source source, CS_Status* status) {
+  return cs::IsSourceEnabled(source, status);
 }
 
 CS_Property CS_GetSourceProperty(CS_Source source, const char* name,
@@ -158,6 +168,15 @@ CS_Bool CS_SetSourceResolution(CS_Source source, int width, int height,
 
 CS_Bool CS_SetSourceFPS(CS_Source source, int fps, CS_Status* status) {
   return cs::SetSourceFPS(source, fps, status);
+}
+
+CS_Bool CS_SetSourceConfigJson(CS_Source source, const char* config,
+                               CS_Status* status) {
+  return cs::SetSourceConfigJson(source, config, status);
+}
+
+char* CS_GetSourceConfigJson(CS_Source source, CS_Status* status) {
+  return cs::ConvertToC(cs::GetSourceConfigJson(source, status));
 }
 
 CS_VideoMode* CS_EnumerateSourceVideoModes(CS_Source source, int* count,
@@ -242,6 +261,31 @@ char* CS_GetSinkDescription(CS_Sink sink, CS_Status* status) {
   return cs::ConvertToC(str);
 }
 
+CS_Property CS_GetSinkProperty(CS_Sink sink, const char* name,
+                               CS_Status* status) {
+  return cs::GetSinkProperty(sink, name, status);
+}
+
+CS_Property* CS_EnumerateSinkProperties(CS_Sink sink, int* count,
+                                        CS_Status* status) {
+  wpi::SmallVector<CS_Property, 32> buf;
+  auto vec = cs::EnumerateSinkProperties(sink, buf, status);
+  CS_Property* out = static_cast<CS_Property*>(
+      wpi::CheckedMalloc(vec.size() * sizeof(CS_Property)));
+  *count = vec.size();
+  std::copy(vec.begin(), vec.end(), out);
+  return out;
+}
+
+CS_Bool CS_SetSinkConfigJson(CS_Sink sink, const char* config,
+                             CS_Status* status) {
+  return cs::SetSinkConfigJson(sink, config, status);
+}
+
+char* CS_GetSinkConfigJson(CS_Sink sink, CS_Status* status) {
+  return cs::ConvertToC(cs::GetSinkConfigJson(sink, status));
+}
+
 void CS_SetSinkSource(CS_Sink sink, CS_Source source, CS_Status* status) {
   return cs::SetSinkSource(sink, source, status);
 }
@@ -321,6 +365,8 @@ void CS_SetLogger(CS_LogFunc func, unsigned int min_level) {
 void CS_SetDefaultLogger(unsigned int min_level) {
   cs::SetDefaultLogger(min_level);
 }
+
+void CS_Shutdown(void) { cs::Shutdown(); }
 
 CS_Source* CS_EnumerateSources(int* count, CS_Status* status) {
   wpi::SmallVector<CS_Source, 32> buf;

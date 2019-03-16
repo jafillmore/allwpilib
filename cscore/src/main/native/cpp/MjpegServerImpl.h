@@ -18,7 +18,7 @@
 #include <wpi/NetworkStream.h>
 #include <wpi/SafeThread.h>
 #include <wpi/SmallVector.h>
-#include <wpi/StringRef.h>
+#include <wpi/Twine.h>
 #include <wpi/raw_istream.h>
 #include <wpi/raw_ostream.h>
 #include <wpi/raw_socket_ostream.h>
@@ -31,7 +31,9 @@ class SourceImpl;
 
 class MjpegServerImpl : public SinkImpl {
  public:
-  MjpegServerImpl(wpi::StringRef name, wpi::StringRef listenAddress, int port,
+  MjpegServerImpl(const wpi::Twine& name, wpi::Logger& logger,
+                  Notifier& notifier, Telemetry& telemetry,
+                  const wpi::Twine& listenAddress, int port,
                   std::unique_ptr<wpi::NetworkAcceptor> acceptor);
   ~MjpegServerImpl() override;
 
@@ -55,6 +57,13 @@ class MjpegServerImpl : public SinkImpl {
   std::thread m_serverThread;
 
   std::vector<wpi::SafeThreadOwner<ConnThread>> m_connThreads;
+
+  // property indices
+  int m_widthProp;
+  int m_heightProp;
+  int m_compressionProp;
+  int m_defaultCompressionProp;
+  int m_fpsProp;
 };
 
 }  // namespace cs

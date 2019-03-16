@@ -5,14 +5,14 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/DIO.h"
-#include "HAL/PWM.h"
+#include "hal/DIO.h"
+#include "hal/PWM.h"
 
 #include <cmath>
 
 #include "DigitalInternal.h"
-#include "HAL/handles/HandlesInternal.h"
-#include "HAL/handles/LimitedHandleResource.h"
+#include "hal/handles/HandlesInternal.h"
+#include "hal/handles/LimitedHandleResource.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"

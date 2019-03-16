@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "Handle.h"
+#include "Instance.h"
 #include "SinkImpl.h"
 #include "SourceImpl.h"
 
@@ -24,7 +25,7 @@ namespace {
 template <typename T>
 class UidVector {
  public:
-  typedef typename std::vector<T>::size_type size_type;
+  using size_type = typename std::vector<T>::size_type;
 
   size_type size() const { return m_vector.size(); }
   T& operator[](size_type i) { return m_vector[i]; }
@@ -94,10 +95,7 @@ Notifier::Notifier() { s_destroyed = false; }
 
 Notifier::~Notifier() { s_destroyed = true; }
 
-void Notifier::Start() {
-  auto thr = m_owner.GetThread();
-  if (!thr) m_owner.Start(new Thread(m_on_start, m_on_exit));
-}
+void Notifier::Start() { m_owner.Start(m_on_start, m_on_exit); }
 
 void Notifier::Stop() { m_owner.Stop(); }
 
@@ -151,7 +149,7 @@ void Notifier::RemoveListener(int uid) {
   thr->m_listeners.erase(uid);
 }
 
-void Notifier::NotifySource(wpi::StringRef name, CS_Source source,
+void Notifier::NotifySource(const wpi::Twine& name, CS_Source source,
                             CS_EventKind kind) {
   auto thr = m_owner.GetThread();
   if (!thr) return;
@@ -160,7 +158,7 @@ void Notifier::NotifySource(wpi::StringRef name, CS_Source source,
 }
 
 void Notifier::NotifySource(const SourceImpl& source, CS_EventKind kind) {
-  auto handleData = Sources::GetInstance().Find(source);
+  auto handleData = Instance::GetInstance().FindSource(source);
   NotifySource(source.GetName(), handleData.first, kind);
 }
 
@@ -169,20 +167,20 @@ void Notifier::NotifySourceVideoMode(const SourceImpl& source,
   auto thr = m_owner.GetThread();
   if (!thr) return;
 
-  auto handleData = Sources::GetInstance().Find(source);
+  auto handleData = Instance::GetInstance().FindSource(source);
 
   thr->m_notifications.emplace(source.GetName(), handleData.first, mode);
   thr->m_cond.notify_one();
 }
 
 void Notifier::NotifySourceProperty(const SourceImpl& source, CS_EventKind kind,
-                                    wpi::StringRef propertyName, int property,
-                                    CS_PropertyKind propertyKind, int value,
-                                    wpi::StringRef valueStr) {
+                                    const wpi::Twine& propertyName,
+                                    int property, CS_PropertyKind propertyKind,
+                                    int value, const wpi::Twine& valueStr) {
   auto thr = m_owner.GetThread();
   if (!thr) return;
 
-  auto handleData = Sources::GetInstance().Find(source);
+  auto handleData = Instance::GetInstance().FindSource(source);
 
   thr->m_notifications.emplace(
       propertyName, handleData.first, static_cast<RawEvent::Kind>(kind),
@@ -191,7 +189,7 @@ void Notifier::NotifySourceProperty(const SourceImpl& source, CS_EventKind kind,
   thr->m_cond.notify_one();
 }
 
-void Notifier::NotifySink(wpi::StringRef name, CS_Sink sink,
+void Notifier::NotifySink(const wpi::Twine& name, CS_Sink sink,
                           CS_EventKind kind) {
   auto thr = m_owner.GetThread();
   if (!thr) return;
@@ -201,11 +199,11 @@ void Notifier::NotifySink(wpi::StringRef name, CS_Sink sink,
 }
 
 void Notifier::NotifySink(const SinkImpl& sink, CS_EventKind kind) {
-  auto handleData = Sinks::GetInstance().Find(sink);
+  auto handleData = Instance::GetInstance().FindSink(sink);
   NotifySink(sink.GetName(), handleData.first, kind);
 }
 
-void Notifier::NotifySinkSourceChanged(wpi::StringRef name, CS_Sink sink,
+void Notifier::NotifySinkSourceChanged(const wpi::Twine& name, CS_Sink sink,
                                        CS_Source source) {
   auto thr = m_owner.GetThread();
   if (!thr) return;
@@ -214,6 +212,22 @@ void Notifier::NotifySinkSourceChanged(wpi::StringRef name, CS_Sink sink,
   event.sourceHandle = source;
 
   thr->m_notifications.emplace(std::move(event));
+  thr->m_cond.notify_one();
+}
+
+void Notifier::NotifySinkProperty(const SinkImpl& sink, CS_EventKind kind,
+                                  const wpi::Twine& propertyName, int property,
+                                  CS_PropertyKind propertyKind, int value,
+                                  const wpi::Twine& valueStr) {
+  auto thr = m_owner.GetThread();
+  if (!thr) return;
+
+  auto handleData = Instance::GetInstance().FindSink(sink);
+
+  thr->m_notifications.emplace(
+      propertyName, handleData.first, static_cast<RawEvent::Kind>(kind),
+      Handle{handleData.first, property, Handle::kSinkProperty}, propertyKind,
+      value, valueStr);
   thr->m_cond.notify_one();
 }
 

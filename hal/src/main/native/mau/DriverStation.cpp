@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/DriverStation.h"
-#include "HAL/Power.h"
+#include "hal/DriverStation.h"
+#include "hal/Power.h"
 
 #include <thread>
 #include <cstdio>
@@ -14,9 +14,8 @@
 #include <cstring>
 #include <string>
 
-#include <wpi/priority_mutex.h>
+#include <wpi/mutex.h>
 #include <wpi/condition_variable.h>
-#include <wpi/priority_condition_variable.h>
 #include <wpi/mutex.h>
 
 #include "HALInitializer.h"
@@ -25,13 +24,13 @@
 #include "DriveStation/include/MauDriveData.h"
 
 static wpi::mutex msgMutex;
-static wpi::priority_mutex* mauDataMutex;
-static wpi::priority_condition_variable* mauDataSignal;
+static wpi::mutex* mauDataMutex;
+static wpi::condition_variable* mauDataSignal;
 
 namespace hal {
     namespace init {
         void InitializeDriverStation() {
-            wpi::priority_mutex* newMutex = new wpi::priority_mutex();
+            wpi::mutex* newMutex = new wpi::mutex();
             mauDataMutex = newMutex;
             mauDataSignal = Mau_DriveData::getDataSignal();
         }
@@ -49,7 +48,7 @@ extern "C" {
 
     }
 
-    bool HAL_IsNewControlData() {
+    HAL_Bool HAL_IsNewControlData(void) {
         return false;
     }
 
@@ -63,7 +62,7 @@ extern "C" {
         int32_t status = 0;
         mau::comms::setInputVoltage(HAL_GetVinVoltage(&status));
 
-        std::unique_lock<wpi::priority_mutex> dataLock(*mauDataMutex);
+        std::unique_lock<wpi::mutex> dataLock(*mauDataMutex);
         std::atomic<bool> expired{false};
         auto waitTime = std::chrono::milliseconds((int)timeout);
         if (timeout <= 0) {
@@ -207,19 +206,14 @@ extern "C" {
     }
 
     int HAL_GetMatchInfo(HAL_MatchInfo* info) {
-    	info->eventName = new char[Mau_kMatchNameLength];
     	info->eventName[0] = 0;
-    	info->gameSpecificMessage = new char[Mau_kMatchMessageLength];
     	info->gameSpecificMessage[0] = 0;
+	info->gameSpecificMessageSize = 0;
         Mau_DriveData::scribeMatchInfo(info);
         return 0;
     }
 
     void HAL_FreeMatchInfo(HAL_MatchInfo* info) {
-        delete info->eventName;
-        delete info->gameSpecificMessage;
-        info->eventName = nullptr;
-        info->gameSpecificMessage = nullptr;
     }
 }
 

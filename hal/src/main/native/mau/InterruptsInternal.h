@@ -8,7 +8,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include <VMXResource.h>
 
 namespace hal {

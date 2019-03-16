@@ -15,19 +15,6 @@ ext {
 
 apply from: "${rootDir}/shared/java/javacommon.gradle"
 
-ext {
-    sharedUvwConfigs = [:]
-    staticUvwConfigs = [:]
-}
-
-sharedUvwConfigs["${nativeName}"] = []
-sharedUvwConfigs["${nativeName}Base"] = []
-sharedUvwConfigs["${nativeName}Dev"] = []
-sharedUvwConfigs["${nativeName}Test"] = []
-staticUvwConfigs["${nativeName}JNI"] = []
-
-apply from: "${rootDir}/shared/libuv.gradle"
-
 dependencies {
     compile project(':wpiutil')
     devCompile project(':wpiutil')
@@ -43,22 +30,37 @@ staticGtestConfigs["${nativeName}Test"] = []
 
 apply from: "${rootDir}/shared/googletest.gradle"
 
+if (project.hasProperty('niLibraries')) {
+    ext {
+        chipObjectComponents = ["$nativeName".toString(), "${nativeName}Dev".toString(), "${nativeName}Base".toString(),
+                                "${nativeName}JNI".toString(), "${nativeName}JNIShared".toString(), "${nativeName}Test".toString()]
+        netCommComponents = ["$nativeName".toString(), "${nativeName}Dev".toString(), "${nativeName}Base".toString(),
+                             "${nativeName}JNI".toString(), "${nativeName}JNIShared".toString(), "${nativeName}Test".toString()]
+        useNiJava = true
+    }
+
+    apply from: "${rootDir}/shared/nilibraries.gradle"
+}
+
 model {
     components {
-        "${nativeName}Base"(JniNativeLibrarySpec) {
+        "${nativeName}Base"(NativeLibrarySpec) {
             if (project.hasProperty('setBaseName')) {
                 baseName = setBaseName
             }
-            javaCompileTasks << compileJava
-            jniCrossCompileOptions << JniCrossCompileOptions('athena')
             sources {
                 cpp {
                     source {
                         srcDirs 'src/main/native/cpp'
                         include '**/*.cpp'
+                        exclude '**/jni/*.cpp'
                     }
                     exportedHeaders {
-                        srcDirs 'src/main/native/include'
+                        srcDir 'src/main/native/include'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
+                        include '**/*.h'
                     }
                 }
             }
@@ -71,18 +73,12 @@ model {
                 if (project.hasProperty('splitSetup')) {
                     splitSetup(it)
                 }
-                if (project.hasProperty('niLibraries')) {
-                    project(':ni-libraries').addNiLibrariesToLinker(it)
-                }
             }
         }
-        "${nativeName}"(JniNativeLibrarySpec) {
+        "${nativeName}"(NativeLibrarySpec) {
             if (project.hasProperty('setBaseName')) {
                 baseName = setBaseName
             }
-            enableCheckTask true
-            javaCompileTasks << compileJava
-            jniCrossCompileOptions << JniCrossCompileOptions('athena')
             sources {
                 cpp {
                     source {
@@ -90,34 +86,78 @@ model {
                         include '**/*.cpp'
                     }
                     exportedHeaders {
-                        srcDirs 'src/main/native/include'
+                        srcDir 'src/main/native/include'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
                     }
                 }
             }
             binaries.all {
                 lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
-                if (project.hasProperty('niLibraries')) {
-                    project(':ni-libraries').addNiLibrariesToLinker(it)
+            }
+            appendDebugPathToBinaries(binaries)
+        }
+        "${nativeName}JNIShared"(JniNativeLibrarySpec) {
+            if (project.hasProperty('setBaseName')) {
+                baseName = setBaseName + 'jni'
+            } else {
+                baseName = nativeName + 'jni'
+            }
+            enableCheckTask true
+            javaCompileTasks << compileJava
+            jniCrossCompileOptions << JniCrossCompileOptions('athena')
+            jniCrossCompileOptions << JniCrossCompileOptions('raspbian')
+            sources {
+                cpp {
+                    source {
+                        srcDirs 'src/main/native/cpp'
+                        include '**/jni/*.cpp'
+                    }
+                    exportedHeaders {
+                        srcDir 'src/main/native/include'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
+                        include '**/*.h'
+                    }
+
+                }
+            }
+            binaries.all {
+                if (it instanceof StaticLibraryBinarySpec) {
+                    it.buildable = false
+                    return
+                }
+                lib library: "${nativeName}", linkage: 'shared'
+                lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
+                if (project.hasProperty('jniSplitSetup')) {
+                    jniSplitSetup(it)
                 }
             }
         }
         "${nativeName}JNI"(JniNativeLibrarySpec) {
             if (project.hasProperty('setBaseName')) {
-                baseName = setBaseName
+                baseName = setBaseName + 'jni'
             } else {
-                baseName = nativeName
+                baseName = nativeName + 'jni'
             }
             enableCheckTask true
             javaCompileTasks << compileJava
             jniCrossCompileOptions << JniCrossCompileOptions('athena')
+            jniCrossCompileOptions << JniCrossCompileOptions('raspbian')
             sources {
                 cpp {
                     source {
-                        srcDirs "${rootDir}/shared/singlelib"
-                        include '**/*.cpp'
+                        srcDirs 'src/main/native/cpp'
+                        include '**/jni/*.cpp'
                     }
                     exportedHeaders {
-                        srcDirs 'src/main/native/include'
+                        srcDir 'src/main/native/include'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
+                        include '**/*.h'
                     }
                 }
             }
@@ -127,11 +167,15 @@ model {
                     return
                 }
                 lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
+                if (project.hasProperty('jniSplitSetup')) {
+                    jniSplitSetup(it)
+                }
             }
         }
         // By default, a development executable will be generated. This is to help the case of
         // testing specific functionality of the library.
         "${nativeName}Dev"(NativeExecutableSpec) {
+            targetBuildTypes 'debug'
             sources {
                 cpp {
 
@@ -140,15 +184,16 @@ model {
                         include '**/*.cpp'
                     }
                     exportedHeaders {
-                        srcDirs 'src/dev/native/include'
+                        srcDir 'src/main/native/include'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
                     }
                 }
             }
             binaries.all {
-                if (project.hasProperty('niLibraries')) {
-                    project(':ni-libraries').addNiLibrariesToLinker(it)
-                }
                 lib library: nativeName, linkage: 'shared'
+                lib library: "${nativeName}JNIShared", linkage: 'shared'
                 lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
             }
         }
@@ -169,6 +214,9 @@ model {
                     }
                     exportedHeaders {
                         srcDirs 'src/test/native/include', 'src/main/native/cpp'
+                        if (project.hasProperty('generatedHeaders')) {
+                            srcDir generatedHeaders
+                        }
                     }
                 }
             }
@@ -176,7 +224,7 @@ model {
     }
     binaries {
         withType(GoogleTestTestSuiteBinarySpec) {
-            if (!project.hasProperty('onlyAthena')) {
+            if (!project.hasProperty('onlyAthena') && !project.hasProperty('onlyRaspbian')) {
                 lib library: nativeName, linkage: 'shared'
                 lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
             } else {

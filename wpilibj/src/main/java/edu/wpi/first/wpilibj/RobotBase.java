@@ -8,21 +8,22 @@
 package edu.wpi.first.wpilibj;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.jar.Manifest;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.function.Supplier;
 
 import edu.wpi.cscore.CameraServerJNI;
+import edu.wpi.first.cameraserver.CameraServerShared;
+import edu.wpi.first.cameraserver.CameraServerSharedStore;
+import edu.wpi.first.hal.FRCNetComm.tInstances;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
+import edu.wpi.first.hal.HALUtil;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tInstances;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
-import edu.wpi.first.wpilibj.hal.HALUtil;
-import edu.wpi.first.wpilibj.internal.HardwareHLUsageReporting;
-import edu.wpi.first.wpilibj.internal.HardwareTimer;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.util.WPILibVersion;
 
 /**
@@ -49,7 +50,7 @@ public abstract class RobotBase implements AutoCloseable {
 
       @Override
       public void reportUsbCamera(int id) {
-        HAL.report(tResourceType.kResourceType_PCVideoServer, id);
+        HAL.report(tResourceType.kResourceType_UsbCamera, id);
       }
 
       @Override
@@ -83,7 +84,6 @@ public abstract class RobotBase implements AutoCloseable {
    * to put this code into it's own task that loads on boot so ensure that it runs.
    */
   protected RobotBase() {
-    initializeHardwareConfiguration();
     NetworkTableInstance inst = NetworkTableInstance.getDefault();
     setupCameraServerShared();
     inst.setNetworkIdentity("Robot");
@@ -92,6 +92,7 @@ public abstract class RobotBase implements AutoCloseable {
     inst.getTable("LiveWindow").getSubTable(".status").getEntry("LW Enabled").setBoolean(false);
 
     LiveWindow.setEnabled(false);
+    Shuffleboard.disableActuatorWidgets();
   }
 
   @Deprecated
@@ -188,9 +189,9 @@ public abstract class RobotBase implements AutoCloseable {
     if (propVal == null) {
       return defaultValue;
     }
-    if (propVal.equalsIgnoreCase("false")) {
+    if ("false".equalsIgnoreCase(propVal)) {
       return false;
-    } else if (propVal.equalsIgnoreCase("true")) {
+    } else if ("true".equalsIgnoreCase(propVal)) {
       return true;
     } else {
       throw new IllegalStateException(propVal);
@@ -198,88 +199,63 @@ public abstract class RobotBase implements AutoCloseable {
   }
 
   /**
-   * Common initialization for all robot programs.
+   * Starting point for the applications.
    */
-  public static void initializeHardwareConfiguration() {
+  @SuppressWarnings({"PMD.AvoidInstantiatingObjectsInLoops", "PMD.AvoidCatchingThrowable",
+                     "PMD.CyclomaticComplexity", "PMD.NPathComplexity"})
+  public static <T extends RobotBase> void startRobot(Supplier<T> robotSupplier) {
     if (!HAL.initialize(500, 0)) {
       throw new IllegalStateException("Failed to initialize. Terminating");
     }
-
-    // Set some implementations so that the static methods work properly
-    Timer.SetImplementation(new HardwareTimer());
-    HLUsageReporting.SetImplementation(new HardwareHLUsageReporting());
-    RobotState.SetImplementation(DriverStation.getInstance());
 
     // Call a CameraServer JNI function to force OpenCV native library loading
     // Needed because all the OpenCV JNI functions don't have built in loading
     CameraServerJNI.enumerateSinks();
-  }
-
-  /**
-   * Starting point for the applications.
-   */
-  @SuppressWarnings("PMD.UnusedFormalParameter")
-  public static void main(String... args) {
-    if (!HAL.initialize(500, 0)) {
-      throw new IllegalStateException("Failed to initialize. Terminating");
-    }
 
     HAL.report(tResourceType.kResourceType_Language, tInstances.kLanguage_Java);
 
-    String robotName = "";
-    if (args.length > 0) {
-      robotName = args[0];
-    } else {
-      Enumeration<URL> resources = null;
-      try {
-        resources = RobotBase.class.getClassLoader().getResources("META-INF/MANIFEST.MF");
-      } catch (IOException ex) {
-        ex.printStackTrace();
-      }
-      while (resources != null && resources.hasMoreElements()) {
-        try {
-          Manifest manifest = new Manifest(resources.nextElement().openStream());
-          robotName = manifest.getMainAttributes().getValue("Robot-Class");
-        } catch (IOException ex) {
-          ex.printStackTrace();
-        }
-      }
-    }
-
     System.out.println("********** Robot program starting **********");
 
-    RobotBase robot;
+    T robot;
     try {
-      robot = (RobotBase) Class.forName(robotName).newInstance();
+      robot = robotSupplier.get();
     } catch (Throwable throwable) {
       Throwable cause = throwable.getCause();
       if (cause != null) {
         throwable = cause;
       }
+      String robotName = "Unknown";
+      StackTraceElement[] elements = throwable.getStackTrace();
+      if (elements.length > 0) {
+        robotName = elements[0].getClassName();
+      }
       DriverStation.reportError("Unhandled exception instantiating robot " + robotName + " "
-          + throwable.toString(), throwable.getStackTrace());
+          + throwable.toString(), elements);
       DriverStation.reportWarning("Robots should not quit, but yours did!", false);
       DriverStation.reportError("Could not instantiate robot " + robotName + "!", false);
       System.exit(1);
       return;
     }
 
-    try {
-      final File file = new File("/tmp/frc_versions/FRC_Lib_Version.ini");
+    if (isReal()) {
+      try {
+        final File file = new File("/tmp/frc_versions/FRC_Lib_Version.ini");
 
-      if (file.exists()) {
-        file.delete();
+        if (file.exists()) {
+          file.delete();
+        }
+
+        file.createNewFile();
+
+        try (OutputStream output = Files.newOutputStream(file.toPath())) {
+          output.write("Java ".getBytes(StandardCharsets.UTF_8));
+          output.write(WPILibVersion.Version.getBytes(StandardCharsets.UTF_8));
+        }
+
+      } catch (IOException ex) {
+        DriverStation.reportError("Could not write FRC_Lib_Version.ini: " + ex.toString(),
+                ex.getStackTrace());
       }
-
-      file.createNewFile();
-
-      try (FileOutputStream output = new FileOutputStream(file)) {
-        output.write("Java ".getBytes());
-        output.write(WPILibVersion.Version.getBytes());
-      }
-
-    } catch (IOException ex) {
-      ex.printStackTrace();
     }
 
     boolean errorOnExit = false;

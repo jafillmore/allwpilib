@@ -1,14 +1,6 @@
 apply plugin: 'maven-publish'
-apply plugin: 'edu.wpi.first.wpilib.versioning.WPILibVersioningPlugin'
 apply plugin: 'java'
-apply plugin: 'net.ltgt.errorprone'
-apply plugin: 'pmd'
-
-if (!hasProperty('releaseType')) {
-    WPILibVersion {
-        releaseType = 'dev'
-    }
-}
+//apply plugin: 'net.ltgt.errorprone'
 
 def pubVersion
 if (project.hasProperty("publishVersion")) {
@@ -88,48 +80,39 @@ publishing {
 
 test {
     useJUnitPlatform()
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
     testLogging {
         events "failed"
         exceptionFormat "full"
     }
 }
 
-if (project.hasProperty('onlyAthena')) {
+if (project.hasProperty('onlyAthena') || project.hasProperty('onlyRaspbian')) {
     test.enabled = false
-}
-
-pmd {
-    sourceSets = [sourceSets.main]
-    consoleOutput = true
-    reportsDir = file("$project.buildDir/reports/pmd")
-    ruleSetFiles = files(new File(rootDir, "styleguide/pmd-ruleset.xml"))
-    ruleSets = []
 }
 
 repositories {
     mavenCentral()
-}
-
-configurations.errorprone {
-    resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.0.9'
+    //maven.url "https://oss.sonatype.org/content/repositories/snapshots/"
 }
 
 sourceSets {
     dev
 }
 
-compileJava {
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs = ['--release', '8']
 }
 
 dependencies {
-    testCompileOnly 'junit:junit:4.12'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.2.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.2.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.2.0'
-    testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:5.2.0'
 
     devCompile sourceSets.main.output
+
+    //errorprone 'com.google.errorprone:error_prone_core:2.3.2-SNAPSHOT'
+    //errorproneJavac 'com.google.errorprone:error_prone_core:2.3.1'
 }
 
 task run(type: JavaExec) {

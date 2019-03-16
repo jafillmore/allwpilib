@@ -8,19 +8,17 @@
 #ifndef CSCORE_CVSINKIMPL_H_
 #define CSCORE_CVSINKIMPL_H_
 
+#include <stdint.h>
+
 #include <atomic>
-#include <memory>
+#include <functional>
 #include <thread>
-#include <vector>
 
-#include <wpi/NetworkAcceptor.h>
-#include <wpi/NetworkStream.h>
-#include <wpi/SmallVector.h>
-#include <wpi/StringRef.h>
-#include <wpi/raw_istream.h>
-#include <wpi/raw_ostream.h>
-#include <wpi/raw_socket_ostream.h>
+#include <opencv2/core/core.hpp>
+#include <wpi/Twine.h>
+#include <wpi/condition_variable.h>
 
+#include "Frame.h"
 #include "SinkImpl.h"
 
 namespace cs {
@@ -29,8 +27,10 @@ class SourceImpl;
 
 class CvSinkImpl : public SinkImpl {
  public:
-  explicit CvSinkImpl(wpi::StringRef name);
-  CvSinkImpl(wpi::StringRef name,
+  CvSinkImpl(const wpi::Twine& name, wpi::Logger& logger, Notifier& notifier,
+             Telemetry& telemetry);
+  CvSinkImpl(const wpi::Twine& name, wpi::Logger& logger, Notifier& notifier,
+             Telemetry& telemetry,
              std::function<void(uint64_t time)> processFrame);
   ~CvSinkImpl() override;
 

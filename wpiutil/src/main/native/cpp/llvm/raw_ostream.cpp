@@ -372,7 +372,7 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   const size_t Size = Bytes.size();
   HexPrintStyle HPS = FB.Upper ? HexPrintStyle::Upper : HexPrintStyle::Lower;
   uint64_t OffsetWidth = 0;
-  if (FB.FirstByteOffset.hasValue()) {
+  if (FB.FirstByteOffset.has_value()) {
     // Figure out how many nibbles are needed to print the largest offset
     // represented by this data set, so that we can align the offset field
     // to the right width.
@@ -392,8 +392,8 @@ raw_ostream &raw_ostream::operator<<(const FormattedBytes &FB) {
   while (!Bytes.empty()) {
     indent(FB.IndentLevel);
 
-    if (FB.FirstByteOffset.hasValue()) {
-      uint64_t Offset = FB.FirstByteOffset.getValue();
+    if (FB.FirstByteOffset.has_value()) {
+      uint64_t Offset = FB.FirstByteOffset.value();
       wpi::write_hex(*this, Offset + LineIndex, HPS, OffsetWidth);
       *this << ": ";
     }
@@ -675,23 +675,23 @@ void raw_fd_ostream::anchor() {}
 raw_ostream &wpi::outs() {
   // Set buffer settings to model stdout behavior.
   std::error_code EC;
-  static raw_fd_ostream S("-", EC, sys::fs::F_None);
+  static raw_fd_ostream* S = new raw_fd_ostream("-", EC, sys::fs::F_None);
   assert(!EC);
-  return S;
+  return *S;
 }
 
 /// errs() - This returns a reference to a raw_ostream for standard error.
 /// Use it like: errs() << "foo" << "bar";
 raw_ostream &wpi::errs() {
   // Set standard error to be unbuffered by default.
-  static raw_fd_ostream S(STDERR_FILENO, false, true);
-  return S;
+  static raw_fd_ostream* S = new raw_fd_ostream(STDERR_FILENO, false, true);
+  return *S;
 }
 
 /// nulls() - This returns a reference to a raw_ostream which discards output.
 raw_ostream &wpi::nulls() {
-  static raw_null_ostream S;
-  return S;
+  static raw_null_ostream* S = new raw_null_ostream;
+  return *S;
 }
 
 //===----------------------------------------------------------------------===//

@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/SPI.h"
-#include "HAL/Errors.h"
+#include "hal/SPI.h"
+#include "hal/Errors.h"
 
 #include "HALInitializer.h"
 #include "InterruptsInternal.h"
@@ -312,16 +312,22 @@ void HAL_ForceSPIAutoRead(HAL_SPIPort port, int32_t* status) {
  * Blocks until numToRead bytes have been read or timeout expires.
  * May be called with numToRead=0 to retrieve how many bytes are available.
  *
+ * NOTE:  The buffer is a buffer of uint32_t (32-bit ints).  The first int is
+ * a timestamp; the remainder of ints store the byte in the lower 8 bits.
+ * (This clarification provided by Thad House on 3/7/2019).
+ * 
+ * TODO:  Update implementation to match this new 32-bit int format.
+ *
  * @param buffer buffer where read bytes are stored
  * @param numToRead number of bytes to read
  * @param timeout timeout in seconds (ms resolution)
  * @return Number of bytes remaining to be read
  */
-int32_t HAL_ReadSPIAutoReceivedData(HAL_SPIPort port, uint8_t* buffer,  int32_t numToRead, double timeout,
+int32_t HAL_ReadSPIAutoReceivedData(HAL_SPIPort port, uint32_t* buffer,  int32_t numToRead, double timeout,
                                     int32_t* status) {
 	int32_t num_bytes_remaining = 0;
 	uint32_t timeout_ms = static_cast<uint32_t>(timeout * 1000);
-	mau::vmxIO->AutoTransmit_GetData(engine_handle, buffer, numToRead, timeout_ms, num_bytes_remaining, status);
+	mau::vmxIO->AutoTransmit_GetData(engine_handle, (uint8_t *)buffer, numToRead, timeout_ms, num_bytes_remaining, status);
 	return num_bytes_remaining;
 }
 

@@ -7,62 +7,28 @@
 
 package edu.wpi.cscore;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.function.Consumer;
 
 import org.opencv.core.Core;
 
-import edu.wpi.first.wpiutil.RuntimeDetector;
+import edu.wpi.first.wpiutil.RuntimeLoader;
 
 public class CameraServerJNI {
   static boolean libraryLoaded = false;
-  static File jniLibrary = null;
   static boolean cvLibraryLoaded = false;
-  static File cvJniLibrary = null;
+
+  static RuntimeLoader<CameraServerJNI> loader = null;
+  static RuntimeLoader<Core> cvLoader = null;
 
   static {
     if (!libraryLoaded) {
       try {
-        System.loadLibrary("cscore");
-      } catch (UnsatisfiedLinkError linkError) {
-        try {
-          String resname = RuntimeDetector.getLibraryResource("cscore");
-          InputStream is = CameraServerJNI.class.getResourceAsStream(resname);
-          if (is != null) {
-            // create temporary file
-            if (System.getProperty("os.name").startsWith("Windows")) {
-              jniLibrary = File.createTempFile("CameraServerJNI", ".dll");
-            } else if (System.getProperty("os.name").startsWith("Mac")) {
-              jniLibrary = File.createTempFile("libCameraServerJNI", ".dylib");
-            } else {
-              jniLibrary = File.createTempFile("libCameraServerJNI", ".so");
-            }
-            // flag for delete on exit
-            jniLibrary.deleteOnExit();
-            OutputStream os = new FileOutputStream(jniLibrary);
-
-            byte[] buffer = new byte[1024];
-            int readBytes;
-            try {
-              while ((readBytes = is.read(buffer)) != -1) {
-                os.write(buffer, 0, readBytes);
-              }
-            } finally {
-              os.close();
-              is.close();
-            }
-            System.load(jniLibrary.getAbsolutePath());
-          } else {
-            System.loadLibrary("cscore");
-          }
-        } catch (IOException ex) {
-          ex.printStackTrace();
-          System.exit(1);
-        }
+        loader = new RuntimeLoader<>("cscorejni", RuntimeLoader.getDefaultExtractionRoot(), CameraServerJNI.class);
+        loader.loadLibrary();
+      } catch (IOException ex) {
+        ex.printStackTrace();
+        System.exit(1);
       }
       libraryLoaded = true;
     }
@@ -70,43 +36,11 @@ public class CameraServerJNI {
     String opencvName = Core.NATIVE_LIBRARY_NAME;
     if (!cvLibraryLoaded) {
       try {
-
-        System.loadLibrary(opencvName);
-      } catch (UnsatisfiedLinkError linkError) {
-        try {
-          String resname = RuntimeDetector.getLibraryResource(opencvName);
-          InputStream is = CameraServerJNI.class.getResourceAsStream(resname);
-          if (is != null) {
-            // create temporary file
-            if (System.getProperty("os.name").startsWith("Windows")) {
-              cvJniLibrary = File.createTempFile("OpenCVJNI", ".dll");
-            } else if (System.getProperty("os.name").startsWith("Mac")) {
-              cvJniLibrary = File.createTempFile("libOpenCVJNI", ".dylib");
-            } else {
-              cvJniLibrary = File.createTempFile("libOpenCVJNI", ".so");
-            }
-            // flag for delete on exit
-            cvJniLibrary.deleteOnExit();
-            OutputStream os = new FileOutputStream(cvJniLibrary);
-
-            byte[] buffer = new byte[1024];
-            int readBytes;
-            try {
-              while ((readBytes = is.read(buffer)) != -1) {
-                os.write(buffer, 0, readBytes);
-              }
-            } finally {
-              os.close();
-              is.close();
-            }
-            System.load(cvJniLibrary.getAbsolutePath());
-          } else {
-            System.loadLibrary(opencvName);
-          }
-        } catch (IOException ex) {
-          ex.printStackTrace();
-          System.exit(1);
-        }
+        cvLoader = new RuntimeLoader<>(opencvName, RuntimeLoader.getDefaultExtractionRoot(), Core.class);
+        cvLoader.loadLibraryHashed();
+      } catch (IOException ex) {
+        ex.printStackTrace();
+        System.exit(1);
       }
       cvLibraryLoaded = true;
     }
@@ -145,7 +79,9 @@ public class CameraServerJNI {
   public static native String getSourceName(int source);
   public static native String getSourceDescription(int source);
   public static native long getSourceLastFrameTime(int source);
+  public static native void setSourceConnectionStrategy(int source, int strategy);
   public static native boolean isSourceConnected(int source);
+  public static native boolean isSourceEnabled(int source);
   public static native int getSourceProperty(int source, String name);
   public static native int[] enumerateSourceProperties(int source);
   public static native VideoMode getSourceVideoMode(int source);
@@ -153,6 +89,8 @@ public class CameraServerJNI {
   public static native boolean setSourcePixelFormat(int source, int pixelFormat);
   public static native boolean setSourceResolution(int source, int width, int height);
   public static native boolean setSourceFPS(int source, int fps);
+  public static native boolean setSourceConfigJson(int source, String config);
+  public static native String getSourceConfigJson(int source);
   public static native VideoMode[] enumerateSourceVideoModes(int source);
   public static native int[] enumerateSourceSinks(int source);
   public static native int copySource(int source);
@@ -174,6 +112,7 @@ public class CameraServerJNI {
   // UsbCamera Source Functions
   //
   public static native String getUsbCameraPath(int source);
+  public static native UsbCameraInfo getUsbCameraInfo(int source);
 
   //
   // HttpCamera Source Functions
@@ -206,6 +145,10 @@ public class CameraServerJNI {
   public static native int getSinkKind(int sink);
   public static native String getSinkName(int sink);
   public static native String getSinkDescription(int sink);
+  public static native int getSinkProperty(int sink, String name);
+  public static native int[] enumerateSinkProperties(int sink);
+  public static native boolean setSinkConfigJson(int sink, String config);
+  public static native String getSinkConfigJson(int sink);
   public static native void setSinkSource(int sink, int source);
   public static native int getSinkSourceProperty(int sink, String name);
   public static native int getSinkSource(int sink);
@@ -243,7 +186,7 @@ public class CameraServerJNI {
     kSourceFramesReceived(2);
 
     @SuppressWarnings("MemberName")
-    private int value;
+    private final int value;
 
     TelemetryKind(int value) {
       this.value = value;

@@ -7,27 +7,13 @@
 
 #pragma once
 
-#include "PIDBase.h"
+// clang-format off
+#ifdef _MSC_VER
+#pragma message "warning: SynchronousPID.h is deprecated; include frc/SynchronousPID.h instead"
+#else
+#warning "SynchronousPID.h is deprecated; include frc/SynchronousPID.h instead"
+#endif
 
-namespace frc {
+// clang-format on
 
-/**
- * Class implements a synchronous PID control loop.
- *
- * Provides a calculate method for the user to call at their desired update
- * rate.
- */
-class SynchronousPID : public PIDBase {
- public:
-  SynchronousPID(double Kp, double Ki, double Kd, PIDSource& source,
-                 PIDOutput& output);
-  SynchronousPID(double Kp, double Ki, double Kd, double Kf, PIDSource& source,
-                 PIDOutput& output);
-
-  SynchronousPID(const SynchronousPID&) = delete;
-  SynchronousPID& operator=(const SynchronousPID) = delete;
-
-  void Calculate() override;
-};
-
-}  // namespace frc
+#include "frc/SynchronousPID.h"

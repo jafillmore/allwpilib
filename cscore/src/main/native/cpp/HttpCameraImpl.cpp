@@ -13,6 +13,7 @@
 #include <wpi/timestamp.h>
 
 #include "Handle.h"
+#include "Instance.h"
 #include "JpegUtil.h"
 #include "Log.h"
 #include "Notifier.h"
@@ -21,11 +22,19 @@
 
 using namespace cs;
 
-HttpCameraImpl::HttpCameraImpl(wpi::StringRef name, CS_HttpCameraKind kind)
-    : SourceImpl{name}, m_kind{kind} {}
+HttpCameraImpl::HttpCameraImpl(const wpi::Twine& name, CS_HttpCameraKind kind,
+                               wpi::Logger& logger, Notifier& notifier,
+                               Telemetry& telemetry)
+    : SourceImpl{name, logger, notifier, telemetry}, m_kind{kind} {}
 
 HttpCameraImpl::~HttpCameraImpl() {
   m_active = false;
+
+  // force wakeup of monitor thread
+  m_monitorCond.notify_one();
+
+  // join monitor thread
+  if (m_monitorThread.joinable()) m_monitorThread.join();
 
   // Close file if it's open
   {
@@ -51,16 +60,32 @@ void HttpCameraImpl::Start() {
   // Kick off the stream and settings threads
   m_streamThread = std::thread(&HttpCameraImpl::StreamThreadMain, this);
   m_settingsThread = std::thread(&HttpCameraImpl::SettingsThreadMain, this);
+  m_monitorThread = std::thread(&HttpCameraImpl::MonitorThreadMain, this);
 }
 
-#ifdef __linux__
-static inline void DoFdSet(int fd, fd_set* set, int* nfds) {
-  if (fd >= 0) {
-    FD_SET(fd, set);
-    if ((fd + 1) > *nfds) *nfds = fd + 1;
+void HttpCameraImpl::MonitorThreadMain() {
+  while (m_active) {
+    std::unique_lock<wpi::mutex> lock(m_mutex);
+    // sleep for 1 second between checks
+    m_monitorCond.wait_for(lock, std::chrono::seconds(1),
+                           [=] { return !m_active; });
+
+    if (!m_active) break;
+
+    // check to see if we got any frames, and close the stream if not
+    // (this will result in an error at the read point, and ultimately
+    // a reconnect attempt)
+    if (m_streamConn && m_frameCount == 0) {
+      SWARNING("Monitor detected stream hung, disconnecting");
+      m_streamConn->stream->close();
+    }
+
+    // reset the frame counter
+    m_frameCount = 0;
   }
+
+  SDEBUG("Monitor Thread exiting");
 }
-#endif
 
 void HttpCameraImpl::StreamThreadMain() {
   while (m_active) {
@@ -69,13 +94,12 @@ void HttpCameraImpl::StreamThreadMain() {
     // sleep between retries
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
-    // disconnect if no one is listening
-    if (m_numSinksEnabled == 0) {
+    // disconnect if not enabled
+    if (!IsEnabled()) {
       std::unique_lock<wpi::mutex> lock(m_mutex);
       if (m_streamConn) m_streamConn->stream->close();
-      // Wait for a sink to enable
-      m_sinkEnabledCond.wait(
-          lock, [=] { return !m_active || m_numSinksEnabled != 0; });
+      // Wait for enable
+      m_sinkEnabledCond.wait(lock, [=] { return !m_active || IsEnabled(); });
       if (!m_active) return;
     }
 
@@ -93,6 +117,10 @@ void HttpCameraImpl::StreamThreadMain() {
 
     // stream
     DeviceStream(conn->is, boundary);
+    {
+      std::unique_lock<wpi::mutex> lock(m_mutex);
+      m_streamConn = nullptr;
+    }
   }
 
   SDEBUG("Camera Thread exiting");
@@ -116,8 +144,8 @@ wpi::HttpConnection* HttpCameraImpl::DeviceStreamConnect(
   }
 
   // Try to connect
-  auto stream = wpi::TCPConnector::connect(req.host.c_str(), req.port,
-                                           Logger::GetInstance(), 1);
+  auto stream =
+      wpi::TCPConnector::connect(req.host.c_str(), req.port, m_logger, 1);
 
   if (!m_active || !stream) return nullptr;
 
@@ -127,6 +155,7 @@ wpi::HttpConnection* HttpCameraImpl::DeviceStreamConnect(
   // update m_streamConn
   {
     std::lock_guard<wpi::mutex> lock(m_mutex);
+    m_frameCount = 1;  // avoid a race with monitor thread
     m_streamConn = std::move(connPtr);
   }
 
@@ -160,6 +189,9 @@ wpi::HttpConnection* HttpCameraImpl::DeviceStreamConnect(
     std::tie(key, value) = keyvalue.split('=');
     if (key.trim() == "boundary") {
       value = value.trim().trim('"');  // value may be quoted
+      if (value.startswith("--")) {
+        value = value.substr(2);
+      }
       boundary.append(value.begin(), value.end());
     }
   }
@@ -185,16 +217,21 @@ void HttpCameraImpl::DeviceStream(wpi::raw_istream& is,
   int numErrors = 0;
 
   // streaming loop
-  while (m_active && !is.has_error() && m_numSinksEnabled > 0 &&
-         numErrors < 3 && !m_streamSettingsUpdated) {
+  while (m_active && !is.has_error() && IsEnabled() && numErrors < 3 &&
+         !m_streamSettingsUpdated) {
     if (!FindMultipartBoundary(is, boundary, nullptr)) break;
 
     // Read the next two characters after the boundary (normally \r\n)
+    // Handle just \n for LabVIEW however
     char eol[2];
-    is.read(eol, 2);
+    is.read(eol, 1);
     if (!m_active || is.has_error()) break;
-    // End-of-stream is indicated with trailing --
-    if (eol[0] == '-' && eol[1] == '-') break;
+    if (eol[0] != '\n') {
+      is.read(eol + 1, 1);
+      if (!m_active || is.has_error()) break;
+      // End-of-stream is indicated with trailing --
+      if (eol[0] == '-' && eol[1] == '-') break;
+    }
 
     if (!DeviceStreamFrame(is, imageBuf))
       ++numErrors;
@@ -236,6 +273,7 @@ bool HttpCameraImpl::DeviceStreamFrame(wpi::raw_istream& is,
     }
     PutFrame(VideoMode::PixelFormat::kMJPEG, width, height, imageBuf,
              wpi::Now());
+    ++m_frameCount;
     return true;
   }
 
@@ -253,6 +291,7 @@ bool HttpCameraImpl::DeviceStreamFrame(wpi::raw_istream& is,
   image->width = width;
   image->height = height;
   PutFrame(std::move(image), wpi::Now());
+  ++m_frameCount;
   return true;
 }
 
@@ -278,8 +317,8 @@ void HttpCameraImpl::SettingsThreadMain() {
 
 void HttpCameraImpl::DeviceSendSettings(wpi::HttpRequest& req) {
   // Try to connect
-  auto stream = wpi::TCPConnector::connect(req.host.c_str(), req.port,
-                                           Logger::GetInstance(), 1);
+  auto stream =
+      wpi::TCPConnector::connect(req.host.c_str(), req.port, m_logger, 1);
 
   if (!m_active || !stream) return;
 
@@ -332,24 +371,24 @@ std::vector<std::string> HttpCameraImpl::GetUrls() const {
   return urls;
 }
 
-void HttpCameraImpl::CreateProperty(wpi::StringRef name,
-                                    wpi::StringRef httpParam, bool viaSettings,
-                                    CS_PropertyKind kind, int minimum,
-                                    int maximum, int step, int defaultValue,
-                                    int value) const {
+void HttpCameraImpl::CreateProperty(const wpi::Twine& name,
+                                    const wpi::Twine& httpParam,
+                                    bool viaSettings, CS_PropertyKind kind,
+                                    int minimum, int maximum, int step,
+                                    int defaultValue, int value) const {
   std::lock_guard<wpi::mutex> lock(m_mutex);
   m_propertyData.emplace_back(wpi::make_unique<PropertyData>(
       name, httpParam, viaSettings, kind, minimum, maximum, step, defaultValue,
       value));
 
-  Notifier::GetInstance().NotifySourceProperty(
-      *this, CS_SOURCE_PROPERTY_CREATED, name, m_propertyData.size() + 1, kind,
-      value, wpi::StringRef{});
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CREATED, name,
+                                  m_propertyData.size() + 1, kind, value,
+                                  wpi::Twine{});
 }
 
 template <typename T>
 void HttpCameraImpl::CreateEnumProperty(
-    wpi::StringRef name, wpi::StringRef httpParam, bool viaSettings,
+    const wpi::Twine& name, const wpi::Twine& httpParam, bool viaSettings,
     int defaultValue, int value, std::initializer_list<T> choices) const {
   std::lock_guard<wpi::mutex> lock(m_mutex);
   m_propertyData.emplace_back(wpi::make_unique<PropertyData>(
@@ -360,16 +399,16 @@ void HttpCameraImpl::CreateEnumProperty(
   enumChoices.clear();
   for (const auto& choice : choices) enumChoices.emplace_back(choice);
 
-  Notifier::GetInstance().NotifySourceProperty(
-      *this, CS_SOURCE_PROPERTY_CREATED, name, m_propertyData.size() + 1,
-      CS_PROP_ENUM, value, wpi::StringRef{});
-  Notifier::GetInstance().NotifySourceProperty(
-      *this, CS_SOURCE_PROPERTY_CHOICES_UPDATED, name,
-      m_propertyData.size() + 1, CS_PROP_ENUM, value, wpi::StringRef{});
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CREATED, name,
+                                  m_propertyData.size() + 1, CS_PROP_ENUM,
+                                  value, wpi::Twine{});
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CHOICES_UPDATED,
+                                  name, m_propertyData.size() + 1, CS_PROP_ENUM,
+                                  value, wpi::Twine{});
 }
 
 std::unique_ptr<PropertyImpl> HttpCameraImpl::CreateEmptyProperty(
-    wpi::StringRef name) const {
+    const wpi::Twine& name) const {
   return wpi::make_unique<PropertyData>(name);
 }
 
@@ -390,7 +429,7 @@ void HttpCameraImpl::SetProperty(int property, int value, CS_Status* status) {
   // TODO
 }
 
-void HttpCameraImpl::SetStringProperty(int property, wpi::StringRef value,
+void HttpCameraImpl::SetStringProperty(int property, const wpi::Twine& value,
                                        CS_Status* status) {
   // TODO
 }
@@ -474,43 +513,40 @@ bool AxisCameraImpl::CacheProperties(CS_Status* status) const {
 
 namespace cs {
 
-CS_Source CreateHttpCamera(wpi::StringRef name, wpi::StringRef url,
+CS_Source CreateHttpCamera(const wpi::Twine& name, const wpi::Twine& url,
                            CS_HttpCameraKind kind, CS_Status* status) {
+  auto& inst = Instance::GetInstance();
   std::shared_ptr<HttpCameraImpl> source;
   switch (kind) {
     case CS_HTTP_AXIS:
-      source = std::make_shared<AxisCameraImpl>(name);
+      source = std::make_shared<AxisCameraImpl>(name, inst.logger,
+                                                inst.notifier, inst.telemetry);
       break;
     default:
-      source = std::make_shared<HttpCameraImpl>(name, kind);
+      source = std::make_shared<HttpCameraImpl>(name, kind, inst.logger,
+                                                inst.notifier, inst.telemetry);
       break;
   }
-  std::string urlCopy{url};
-  if (!source->SetUrls(urlCopy, status)) return 0;
-  auto handle = Sources::GetInstance().Allocate(CS_SOURCE_HTTP, source);
-  auto& notifier = Notifier::GetInstance();
-  notifier.NotifySource(name, handle, CS_SOURCE_CREATED);
-  source->Start();
-  return handle;
+  if (!source->SetUrls(url.str(), status)) return 0;
+  return inst.CreateSource(CS_SOURCE_HTTP, source);
 }
 
-CS_Source CreateHttpCamera(wpi::StringRef name, wpi::ArrayRef<std::string> urls,
+CS_Source CreateHttpCamera(const wpi::Twine& name,
+                           wpi::ArrayRef<std::string> urls,
                            CS_HttpCameraKind kind, CS_Status* status) {
+  auto& inst = Instance::GetInstance();
   if (urls.empty()) {
     *status = CS_EMPTY_VALUE;
     return 0;
   }
-  auto source = std::make_shared<HttpCameraImpl>(name, kind);
+  auto source = std::make_shared<HttpCameraImpl>(name, kind, inst.logger,
+                                                 inst.notifier, inst.telemetry);
   if (!source->SetUrls(urls, status)) return 0;
-  auto handle = Sources::GetInstance().Allocate(CS_SOURCE_HTTP, source);
-  auto& notifier = Notifier::GetInstance();
-  notifier.NotifySource(name, handle, CS_SOURCE_CREATED);
-  source->Start();
-  return handle;
+  return inst.CreateSource(CS_SOURCE_HTTP, source);
 }
 
 CS_HttpCameraKind GetHttpCameraKind(CS_Source source, CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_HTTP) {
     *status = CS_INVALID_HANDLE;
     return CS_HTTP_UNKNOWN;
@@ -524,7 +560,7 @@ void SetHttpCameraUrls(CS_Source source, wpi::ArrayRef<std::string> urls,
     *status = CS_EMPTY_VALUE;
     return;
   }
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_HTTP) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -534,7 +570,7 @@ void SetHttpCameraUrls(CS_Source source, wpi::ArrayRef<std::string> urls,
 
 std::vector<std::string> GetHttpCameraUrls(CS_Source source,
                                            CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_HTTP) {
     *status = CS_INVALID_HANDLE;
     return std::vector<std::string>{};

@@ -25,7 +25,7 @@ model {
             x86SymbolFilter = { symbols ->
                 def retList = []
                 symbols.each { symbol ->
-                    if (symbol.startsWith('NT_') || symbol.startsWith('Java_') || symbol.startsWith('JNI_')) {
+                    if (symbol.startsWith('NT_')) {
                         retList << symbol
                     }
                 }
@@ -34,7 +34,7 @@ model {
             x64SymbolFilter = { symbols ->
                 def retList = []
                 symbols.each { symbol ->
-                    if (symbol.startsWith('NT_') || symbol.startsWith('Java_') || symbol.startsWith('JNI_')) {
+                    if (symbol.startsWith('NT_')) {
                         retList << symbol
                     }
                 }

@@ -8,9 +8,9 @@
 package edu.wpi.first.wpilibj.examples.gyro;
 
 import edu.wpi.first.wpilibj.AnalogGyro;
-import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
+import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 
 /**
@@ -18,7 +18,7 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
  * robot drive straight. This program uses a joystick to drive forwards and
  * backwards while the gyro is used for direction keeping.
  */
-public class Robot extends IterativeRobot {
+public class Robot extends TimedRobot {
   private static final double kAngleSetpoint = 0.0;
   private static final double kP = 0.005; // propotional turning constant
 
@@ -31,11 +31,11 @@ public class Robot extends IterativeRobot {
   private static final int kGyroPort = 0;
   private static final int kJoystickPort = 0;
 
-  private DifferentialDrive m_myRobot
-      = new DifferentialDrive(new Spark(kLeftMotorPort),
-      new Spark(kRightMotorPort));
-  private AnalogGyro m_gyro = new AnalogGyro(kGyroPort);
-  private Joystick m_joystick = new Joystick(kJoystickPort);
+  private final DifferentialDrive m_myRobot
+      = new DifferentialDrive(new PWMVictorSPX(kLeftMotorPort),
+      new PWMVictorSPX(kRightMotorPort));
+  private final AnalogGyro m_gyro = new AnalogGyro(kGyroPort);
+  private final Joystick m_joystick = new Joystick(kJoystickPort);
 
   @Override
   public void robotInit() {

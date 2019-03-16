@@ -5,7 +5,7 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/cpp/SerialHelper.h"
+#include "hal/cpp/SerialHelper.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -15,7 +15,7 @@
 #include <wpi/StringRef.h>
 
 #include "../visa/visa.h"
-#include "HAL/Errors.h"
+#include "hal/Errors.h"
 
 constexpr const char* OnboardResourceVISA = "ASRL1::INSTR";
 constexpr const char* MxpResourceVISA = "ASRL2::INSTR";
@@ -215,9 +215,11 @@ void SerialHelper::QueryHubPaths(int32_t* status) {
     if (matchString.equals(devNameRef)) continue;
 
     // Search directories to get a list of system accessors
+    // The directories we need are not symbolic, so we can safely
+    // disable symbolic links.
     std::error_code ec;
     for (auto p = wpi::sys::fs::recursive_directory_iterator(
-             "/sys/devices/soc0", ec);
+             "/sys/devices/soc0", ec, false);
          p != wpi::sys::fs::recursive_directory_iterator(); p.increment(ec)) {
       if (ec) break;
       wpi::StringRef path{p->path()};

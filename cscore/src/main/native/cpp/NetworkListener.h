@@ -8,26 +8,25 @@
 #ifndef CSCORE_NETWORKLISTENER_H_
 #define CSCORE_NETWORKLISTENER_H_
 
-#include <wpi/SafeThread.h>
+#include <memory>
+
+#include <wpi/Logger.h>
 
 namespace cs {
 
+class Notifier;
+
 class NetworkListener {
  public:
-  static NetworkListener& GetInstance() {
-    static NetworkListener instance;
-    return instance;
-  }
+  NetworkListener(wpi::Logger& logger, Notifier& notifier);
   ~NetworkListener();
 
   void Start();
   void Stop();
 
  private:
-  NetworkListener() = default;
-
-  class Thread;
-  wpi::SafeThreadOwner<Thread> m_owner;
+  class Impl;
+  std::unique_ptr<Impl> m_impl;
 };
 
 }  // namespace cs

@@ -8,6 +8,7 @@ cppSrcFileInclude {
 }
 
 generatedFileExclude {
+  src/main/native/cpp/http_parser\.cpp$
   src/main/native/cpp/llvm/
   src/main/native/include/llvm/
   src/main/native/include/wpi/AlignOf\.h$
@@ -22,13 +23,13 @@ generatedFileExclude {
   src/main/native/include/wpi/Format\.h$
   src/main/native/include/wpi/Hashing\.h$
   src/main/native/include/wpi/IntrusiveRefCntPtr\.h$
+  src/main/native/include/wpi/MapVector\.h$
   src/main/native/include/wpi/MathExtras\.h$
   src/main/native/include/wpi/NativeFormatting\.h$
-  src/main/native/include/wpi/None\.h$
-  src/main/native/include/wpi/Optional\.h$
   src/main/native/include/wpi/Path\.h$
   src/main/native/include/wpi/PointerLikeTypeTraits\.h$
   src/main/native/include/wpi/STLExtras\.h$
+  src/main/native/include/wpi/Signal\.h$
   src/main/native/include/wpi/SmallPtrSet\.h$
   src/main/native/include/wpi/SmallSet\.h$
   src/main/native/include/wpi/SmallString\.h$
@@ -38,6 +39,7 @@ generatedFileExclude {
   src/main/native/include/wpi/StringRef\.h$
   src/main/native/include/wpi/Twine\.h$
   src/main/native/include/wpi/WindowsError\.h$
+  src/main/native/include/wpi/http_parser\.h$
   src/main/native/include/wpi/iterator\.h$
   src/main/native/include/wpi/iterator_range\.h$
   src/main/native/include/wpi/raw_os_ostream\.h$
@@ -46,6 +48,12 @@ generatedFileExclude {
   src/main/native/cpp/json
   src/main/native/include/wpi/json
   src/test/native/cpp/json/
+  src/main/native/include/uv\.h$
+  src/main/native/include/uv/
+  src/main/native/libuv/
+  src/main/native/include/wpi/optional\.h$
+  src/test/native/cpp/test_optional\.cpp$
+  src/main/native/resources/
 }
 
 licenseUpdateExclude {

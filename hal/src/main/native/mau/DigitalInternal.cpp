@@ -8,9 +8,9 @@
 #include "DigitalInternal.h"
 
 #include "ConstantsInternal.h"
-#include "HAL/AnalogTrigger.h"
-#include "HAL/HAL.h"
-#include "HAL/Ports.h"
+#include "hal/AnalogTrigger.h"
+#include "hal/HAL.h"
+#include "hal/Ports.h"
 #include "PortsInternal.h"
 
 namespace hal {

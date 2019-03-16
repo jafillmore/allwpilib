@@ -9,6 +9,8 @@ package edu.wpi.first.wpilibj.filters;
 
 import java.util.Arrays;
 
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.CircularBuffer;
 import edu.wpi.first.wpilibj.PIDSource;
 
@@ -50,10 +52,12 @@ import edu.wpi.first.wpilibj.PIDSource;
  * to make sure PIDGet() gets called at the desired, constant frequency!
  */
 public class LinearDigitalFilter extends Filter {
-  private CircularBuffer m_inputs;
-  private CircularBuffer m_outputs;
-  private double[] m_inputGains;
-  private double[] m_outputGains;
+  private static int instances;
+
+  private final CircularBuffer m_inputs;
+  private final CircularBuffer m_outputs;
+  private final double[] m_inputGains;
+  private final double[] m_outputGains;
 
   /**
    * Create a linear FIR or IIR filter.
@@ -69,6 +73,9 @@ public class LinearDigitalFilter extends Filter {
     m_outputs = new CircularBuffer(fbGains.length);
     m_inputGains = Arrays.copyOf(ffGains, ffGains.length);
     m_outputGains = Arrays.copyOf(fbGains, fbGains.length);
+
+    instances++;
+    HAL.report(tResourceType.kResourceType_LinearFilter, instances);
   }
 
   /**

@@ -13,10 +13,11 @@ generatedFileExclude {
   ni-libraries/include/
   ni-libraries/lib/
   FRCNetComm\.java$
+  simulation/frc_gazebo_plugins/frcgazebo/
+  simulation/gz_msgs/src/include/simulation/gz_msgs/msgs\.h$
 }
 
 modifiableFileExclude {
-  shared/arm-linux-jni/
   \.so$
 }
 
@@ -25,9 +26,14 @@ repoRootNameOverride {
 }
 
 includeOtherLibs {
-  ^HAL/
+  ^cameraserver/
+  ^cscore
+  ^hal/
+  ^mockdata/
   ^networktables/
+  ^ntcore
   ^opencv2/
   ^support/
+  ^vision/
   ^wpi/
 }

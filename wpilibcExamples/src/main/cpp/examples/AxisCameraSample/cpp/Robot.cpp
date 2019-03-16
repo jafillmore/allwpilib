@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <CameraServer.h>
-#include <IterativeRobot.h>
+#include <cameraserver/CameraServer.h>
+#include <frc/TimedRobot.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -17,7 +17,7 @@
  * and sent to the dashboard. OpenCV has many methods for different types of
  * processing.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  private:
   static void VisionThread() {
     // Get the Axis camera from CameraServer
@@ -60,4 +60,6 @@ class Robot : public frc::IterativeRobot {
   }
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

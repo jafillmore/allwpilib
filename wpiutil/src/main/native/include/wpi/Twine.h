@@ -179,11 +179,6 @@ namespace wpi {
       assert(isValid() && "Invalid twine!");
     }
 
-    /// Check for the null twine.
-    bool isNull() const {
-      return getLHSKind() == NullKind;
-    }
-
     /// Check for the empty twine.
     bool isEmpty() const {
       return getLHSKind() == EmptyKind;
@@ -218,7 +213,7 @@ namespace wpi {
       // The RHS cannot be non-empty if the LHS is empty.
       if (getRHSKind() != EmptyKind && getLHSKind() == EmptyKind)
         return false;
-
+#if 0 // causes spurious warnings
       // A twine child should always be binary.
       if (getLHSKind() == TwineKind &&
           !LHS.twine->isBinary())
@@ -226,7 +221,7 @@ namespace wpi {
       if (getRHSKind() == TwineKind &&
           !RHS.twine->isBinary())
         return false;
-
+#endif
       return true;
     }
 
@@ -379,6 +374,11 @@ namespace wpi {
     /// @}
     /// @name Predicate Operations
     /// @{
+
+    /// Check for the null twine.
+    bool isNull() const {
+      return getLHSKind() == NullKind;
+    }
 
     /// Check if this twine is trivially empty; a false return value does not
     /// necessarily mean the twine is empty.

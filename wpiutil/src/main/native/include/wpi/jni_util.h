@@ -26,7 +26,10 @@
 #include "wpi/mutex.h"
 #include "wpi/raw_ostream.h"
 
+/** WPILib C++ utilities (wpiutil) namespace */
 namespace wpi {
+
+/** Java Native Interface (JNI) utility functions */
 namespace java {
 
 // Gets a Java stack trace.  Also provides the last function
@@ -223,12 +226,15 @@ class JArrayRefBase : public JArrayRefInner<JArrayRefBase<T>, T> {
     this->m_elements = elements;
   }
 
-  JArrayRefBase(JNIEnv* env, jarray jarr) {
+  JArrayRefBase(JNIEnv* env, jarray jarr, size_t size) {
     this->m_env = env;
     this->m_jarr = jarr;
-    this->m_size = jarr ? env->GetArrayLength(jarr) : 0;
+    this->m_size = size;
     this->m_elements = nullptr;
   }
+
+  JArrayRefBase(JNIEnv* env, jarray jarr)
+      : JArrayRefBase(env, jarr, jarr ? env->GetArrayLength(jarr) : 0) {}
 
   JNIEnv* m_env;
   jarray m_jarr = nullptr;
@@ -252,6 +258,14 @@ class JArrayRefBase : public JArrayRefInner<JArrayRefBase<T>, T> {
         errs() << "JArrayRef was passed a null pointer at \n"                  \
                << GetJavaStackTrace(env);                                      \
     }                                                                          \
+    J##F##ArrayRef(JNIEnv* env, T##Array jarr, int len)                        \
+        : detail::JArrayRefBase<T>(env, jarr, len) {                           \
+      if (jarr)                                                                \
+        m_elements = env->Get##F##ArrayElements(jarr, nullptr);                \
+      else                                                                     \
+        errs() << "JArrayRef was passed a null pointer at \n"                  \
+               << GetJavaStackTrace(env);                                      \
+    }                                                                          \
     J##F##ArrayRef(JNIEnv* env, T##Array jarr)                                 \
         : detail::JArrayRefBase<T>(env, jarr) {                                \
       if (jarr)                                                                \
@@ -269,6 +283,15 @@ class JArrayRefBase : public JArrayRefInner<JArrayRefBase<T>, T> {
                                                                                \
   class CriticalJ##F##ArrayRef : public detail::JArrayRefBase<T> {             \
    public:                                                                     \
+    CriticalJ##F##ArrayRef(JNIEnv* env, T##Array jarr, int len)                \
+        : detail::JArrayRefBase<T>(env, jarr, len) {                           \
+      if (jarr)                                                                \
+        m_elements =                                                           \
+            static_cast<T*>(env->GetPrimitiveArrayCritical(jarr, nullptr));    \
+      else                                                                     \
+        errs() << "JArrayRef was passed a null pointer at \n"                  \
+               << GetJavaStackTrace(env);                                      \
+    }                                                                          \
     CriticalJ##F##ArrayRef(JNIEnv* env, T##Array jarr)                         \
         : detail::JArrayRefBase<T>(env, jarr) {                                \
       if (jarr)                                                                \
@@ -456,6 +479,7 @@ class JCallbackThread : public SafeThread {
 template <typename T>
 class JCallbackManager : public SafeThreadOwner<JCallbackThread<T>> {
  public:
+  JCallbackManager() { this->SetJoinAtExit(false); }
   void SetFunc(JNIEnv* env, jobject func, jmethodID mid);
 
   template <typename... Args>

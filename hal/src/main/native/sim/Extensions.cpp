@@ -5,12 +5,12 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Extensions.h"
+#include "hal/Extensions.h"
 
 #include <wpi/SmallString.h>
 #include <wpi/StringRef.h>
 
-#include "HAL/HAL.h"
+#include "hal/HAL.h"
 
 #if defined(WIN32) || defined(_WIN32)
 #include <windows.h>
@@ -67,10 +67,6 @@ int HAL_LoadOneExtension(const char* library) {
   return rc;
 }
 
-/**
- * Load any extra halsim libraries provided in the HALSIM_EXTENSIONS
- * environment variable.
- */
 int HAL_LoadExtensions(void) {
   int rc = 1;
   wpi::SmallVector<wpi::StringRef, 2> libraries;

@@ -5,16 +5,16 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <AnalogInput.h>
-#include <Drive/DifferentialDrive.h>
-#include <IterativeRobot.h>
-#include <Spark.h>
+#include <frc/AnalogInput.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/drive/DifferentialDrive.h>
 
 /**
  * This is a sample program demonstrating how to use an ultrasonic sensor and
  * proportional control to maintain a set distance from an object.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   /**
    * Tells the robot to drive to a set distance (in inches) from an object using
@@ -45,9 +45,11 @@ class Robot : public frc::IterativeRobot {
 
   frc::AnalogInput m_ultrasonic{kUltrasonicPort};
 
-  frc::Spark m_left{kLeftMotorPort};
-  frc::Spark m_right{kRightMotorPort};
+  frc::PWMVictorSPX m_left{kLeftMotorPort};
+  frc::PWMVictorSPX m_right{kRightMotorPort};
   frc::DifferentialDrive m_robotDrive{m_left, m_right};
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

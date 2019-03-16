@@ -11,13 +11,13 @@
 
 #include <memory>
 
-#include "HAL/AnalogTrigger.h"
-#include "HAL/Ports.h"
-#include "HAL/Types.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/AnalogTrigger.h"
+#include "hal/Ports.h"
+#include "hal/Types.h"
+#include "hal/handles/HandlesInternal.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
-#include "HAL/handles/LimitedHandleResource.h"
+#include "hal/handles/LimitedHandleResource.h"
 
 namespace hal {
 

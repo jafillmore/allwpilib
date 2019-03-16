@@ -21,6 +21,7 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableValue;
 
+@SuppressWarnings("PMD.TooManyMethods")
 public class SendableBuilderImpl implements SendableBuilder {
   private static class Property {
     Property(NetworkTable table, String key) {
@@ -29,7 +30,7 @@ public class SendableBuilderImpl implements SendableBuilder {
 
     @Override
     @SuppressWarnings("NoFinalizer")
-    public synchronized void finalize() {
+    protected synchronized void finalize() {
       stopListener();
     }
 
@@ -47,7 +48,7 @@ public class SendableBuilderImpl implements SendableBuilder {
     }
 
     final NetworkTableEntry m_entry;
-    int m_listener = 0;
+    int m_listener;
     Consumer<NetworkTableEntry> m_update;
     Function<NetworkTableEntry, Integer> m_createListener;
   }
@@ -56,6 +57,8 @@ public class SendableBuilderImpl implements SendableBuilder {
   private Runnable m_safeState;
   private Runnable m_updateTable;
   private NetworkTable m_table;
+  private NetworkTableEntry m_controllableEntry;
+  private boolean m_actuator;
 
   /**
    * Set the network table.  Must be called prior to any Add* functions being
@@ -64,6 +67,7 @@ public class SendableBuilderImpl implements SendableBuilder {
    */
   public void setTable(NetworkTable table) {
     m_table = table;
+    m_controllableEntry = table.getEntry(".controllable");
   }
 
   /**
@@ -72,6 +76,14 @@ public class SendableBuilderImpl implements SendableBuilder {
    */
   public NetworkTable getTable() {
     return m_table;
+  }
+
+  /**
+   * Return whether this sendable should be treated as an actuator.
+   * @return True if actuator, false if not.
+   */
+  public boolean isActuator() {
+    return m_actuator;
   }
 
   /**
@@ -95,6 +107,9 @@ public class SendableBuilderImpl implements SendableBuilder {
     for (Property property : m_properties) {
       property.startListener();
     }
+    if (m_controllableEntry != null) {
+      m_controllableEntry.setBoolean(true);
+    }
   }
 
   /**
@@ -103,6 +118,9 @@ public class SendableBuilderImpl implements SendableBuilder {
   public void stopListeners() {
     for (Property property : m_properties) {
       property.stopListener();
+    }
+    if (m_controllableEntry != null) {
+      m_controllableEntry.setBoolean(false);
     }
   }
 
@@ -137,6 +155,18 @@ public class SendableBuilderImpl implements SendableBuilder {
   @Override
   public void setSmartDashboardType(String type) {
     m_table.getEntry(".type").setString(type);
+  }
+
+  /**
+   * Set a flag indicating if this sendable should be treated as an actuator.
+   * By default this flag is false.
+   *
+   * @param value   true if actuator, false if not
+   */
+  @Override
+  public void setActuator(boolean value) {
+    m_table.getEntry(".actuator").setBoolean(value);
+    m_actuator = value;
   }
 
   /**

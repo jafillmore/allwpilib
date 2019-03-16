@@ -1,8 +1,8 @@
 #ifndef NATIVE_DRIVEDATA_H
 
-#include "DriverStation.h"
-#include <wpi/priority_mutex.h>
-#include <wpi/priority_condition_variable.h>
+#include "hal/DriverStation.h"
+#include <wpi/mutex.h>
+#include <wpi/condition_variable.h>
 
 #define NATIVE_DRIVEDATA_H
 
@@ -19,8 +19,8 @@ struct Mau_SharedJoystick {
 };
 
 class Mau_DriveData {
-    static wpi::priority_mutex memLock;
-    static wpi::priority_condition_variable memSignal;
+    static wpi::mutex memLock;
+    static wpi::condition_variable memSignal;
 
     static HAL_AllianceStationID allianceID;
     static char infoEventName[Mau_kMatchNameLength];
@@ -64,8 +64,8 @@ public:
 	static int32_t readJoyType(int joyNumber);
 	static int32_t readJoyAxisType(int joyNumber, int axisNumber);
 
-    static wpi::priority_mutex* getMutex();
-    static wpi::priority_condition_variable* getDataSignal();
+    static wpi::mutex* getMutex();
+    static wpi::condition_variable* getDataSignal();
 };
 
 #endif //NATIVE_DRIVEDATA_H

@@ -5,10 +5,10 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <DoubleSolenoid.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Solenoid.h>
+#include <frc/DoubleSolenoid.h>
+#include <frc/Joystick.h>
+#include <frc/Solenoid.h>
+#include <frc/TimedRobot.h>
 
 /**
  * This is a sample program showing the use of the solenoid classes during
@@ -30,7 +30,7 @@
  * Additionally, double solenoids take up two channels on your PCM whereas
  * single solenoids only take a single channel.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void TeleopPeriodic() override {
     /* The output of GetRawButton is true/false depending on whether the button
@@ -67,4 +67,6 @@ class Robot : public frc::IterativeRobot {
   static constexpr int kDoubleSolenoidReverse = 3;
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

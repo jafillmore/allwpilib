@@ -1,7 +1,7 @@
 #ifndef NATIVE_CHANNELMAP_H
 #define NATIVE_CHANNELMAP_H
 
-#include "HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include "Translator/include/MauEnumConverter.h"
 #include <VMXChannel.h>
 #include <VMXResourceConfig.h>

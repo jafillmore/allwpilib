@@ -5,10 +5,10 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Relay.h"
-#include "HAL/DIO.h"
+#include "hal/Relay.h"
+#include "hal/DIO.h"
 
-#include "HAL/handles/IndexedHandleResource.h"
+#include "hal/handles/IndexedHandleResource.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauErrors.h"

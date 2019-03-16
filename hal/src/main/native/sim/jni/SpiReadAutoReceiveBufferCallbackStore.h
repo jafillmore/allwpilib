@@ -11,18 +11,18 @@
 
 #include <wpi/jni_util.h>
 
-#include "HAL/Types.h"
-#include "HAL/handles/UnlimitedHandleResource.h"
-#include "MockData/HAL_Value.h"
-#include "MockData/NotifyListener.h"
-#include "MockData/SPIData.h"
 #include "SimulatorJNI.h"
+#include "hal/Types.h"
+#include "hal/handles/UnlimitedHandleResource.h"
+#include "mockdata/HAL_Value.h"
+#include "mockdata/NotifyListener.h"
+#include "mockdata/SPIData.h"
 
 namespace sim {
 class SpiReadAutoReceiveBufferCallbackStore {
  public:
   void create(JNIEnv* env, jobject obj);
-  int32_t performCallback(const char* name, unsigned char* buffer,
+  int32_t performCallback(const char* name, uint32_t* buffer,
                           int32_t numToRead);
   void free(JNIEnv* env);
   void setCallbackId(int32_t id) { callbackId = id; }

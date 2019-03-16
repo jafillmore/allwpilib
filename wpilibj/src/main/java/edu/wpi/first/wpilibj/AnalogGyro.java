@@ -7,9 +7,9 @@
 
 package edu.wpi.first.wpilibj;
 
-import edu.wpi.first.wpilibj.hal.AnalogGyroJNI;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
+import edu.wpi.first.hal.AnalogGyroJNI;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 
 import static java.util.Objects.requireNonNull;
@@ -26,9 +26,9 @@ import static java.util.Objects.requireNonNull;
 public class AnalogGyro extends GyroBase implements Gyro, PIDSource, Sendable {
   private static final double kDefaultVoltsPerDegreePerSecond = 0.007;
   protected AnalogInput m_analog;
-  private boolean m_channelAllocated = false;
+  private boolean m_channelAllocated;
 
-  private int m_gyroHandle = 0;
+  private int m_gyroHandle;
 
   /**
    * Initialize the gyro. Calibration is handled by calibrate().

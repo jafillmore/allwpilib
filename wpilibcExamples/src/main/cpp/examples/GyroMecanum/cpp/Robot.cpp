@@ -5,18 +5,18 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <AnalogGyro.h>
-#include <Drive/MecanumDrive.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Spark.h>
+#include <frc/AnalogGyro.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/drive/MecanumDrive.h>
 
 /**
  * This is a sample program that uses mecanum drive with a gyro sensor to
  * maintian rotation vectorsin relation to the starting orientation of the robot
  * (field-oriented controls).
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void RobotInit() override {
     // Invert the left side motors. You may need to change or remove this to
@@ -47,10 +47,10 @@ class Robot : public frc::IterativeRobot {
   static constexpr int kGyroPort = 0;
   static constexpr int kJoystickPort = 0;
 
-  frc::Spark m_frontLeft{kFrontLeftMotorPort};
-  frc::Spark m_rearLeft{kRearLeftMotorPort};
-  frc::Spark m_frontRight{kFrontRightMotorPort};
-  frc::Spark m_rearRight{kRearRightMotorPort};
+  frc::PWMVictorSPX m_frontLeft{kFrontLeftMotorPort};
+  frc::PWMVictorSPX m_rearLeft{kRearLeftMotorPort};
+  frc::PWMVictorSPX m_frontRight{kFrontRightMotorPort};
+  frc::PWMVictorSPX m_rearRight{kRearRightMotorPort};
   frc::MecanumDrive m_robotDrive{m_frontLeft, m_rearLeft, m_frontRight,
                                  m_rearRight};
 
@@ -58,4 +58,6 @@ class Robot : public frc::IterativeRobot {
   frc::Joystick m_joystick{kJoystickPort};
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

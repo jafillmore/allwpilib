@@ -8,19 +8,9 @@
 #ifndef CSCORE_HANDLE_H_
 #define CSCORE_HANDLE_H_
 
-#include <atomic>
-#include <memory>
-#include <utility>
-
-#include <wpi/StringRef.h>
-
-#include "UnlimitedHandleResource.h"
 #include "cscore_c.h"
 
 namespace cs {
-
-class SinkImpl;
-class SourceImpl;
 
 // Handle data layout:
 // Bits 0-15:  Handle index
@@ -29,7 +19,14 @@ class SourceImpl;
 
 class Handle {
  public:
-  enum Type { kUndefined = 0, kProperty = 0x40, kSource, kSink, kListener };
+  enum Type {
+    kUndefined = 0,
+    kProperty = 0x40,
+    kSource,
+    kSink,
+    kListener,
+    kSinkProperty
+  };
   enum { kIndexMax = 0xffff };
 
   Handle(CS_Handle handle) : m_handle(handle) {}  // NOLINT
@@ -58,65 +55,13 @@ class Handle {
   bool IsType(Type type) const { return type == GetType(); }
   int GetTypedIndex(Type type) const { return IsType(type) ? GetIndex() : -1; }
   int GetParentIndex() const {
-    return IsType(Handle::kProperty) ? (static_cast<int>(m_handle) >> 16) & 0xff
-                                     : -1;
+    return (IsType(Handle::kProperty) || IsType(Handle::kSinkProperty))
+               ? (static_cast<int>(m_handle) >> 16) & 0xff
+               : -1;
   }
 
  private:
   CS_Handle m_handle;
-};
-
-struct SourceData {
-  SourceData(CS_SourceKind kind_, std::shared_ptr<SourceImpl> source_)
-      : kind{kind_}, refCount{0}, source{source_} {}
-
-  CS_SourceKind kind;
-  std::atomic_int refCount;
-  std::shared_ptr<SourceImpl> source;
-};
-
-class Sources
-    : public UnlimitedHandleResource<Handle, SourceData, Handle::kSource> {
- public:
-  static Sources& GetInstance() {
-    static Sources instance;
-    return instance;
-  }
-
-  std::pair<CS_Source, std::shared_ptr<SourceData>> Find(
-      const SourceImpl& source) {
-    return FindIf(
-        [&](const SourceData& data) { return data.source.get() == &source; });
-  }
-
- private:
-  Sources() = default;
-};
-
-struct SinkData {
-  explicit SinkData(CS_SinkKind kind_, std::shared_ptr<SinkImpl> sink_)
-      : kind{kind_}, refCount{0}, sourceHandle{0}, sink{sink_} {}
-
-  CS_SinkKind kind;
-  std::atomic_int refCount;
-  std::atomic<CS_Source> sourceHandle;
-  std::shared_ptr<SinkImpl> sink;
-};
-
-class Sinks : public UnlimitedHandleResource<Handle, SinkData, Handle::kSink> {
- public:
-  static Sinks& GetInstance() {
-    static Sinks instance;
-    return instance;
-  }
-
-  std::pair<CS_Sink, std::shared_ptr<SinkData>> Find(const SinkImpl& sink) {
-    return FindIf(
-        [&](const SinkData& data) { return data.sink.get() == &sink; });
-  }
-
- private:
-  Sinks() = default;
 };
 
 }  // namespace cs

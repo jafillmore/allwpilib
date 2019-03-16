@@ -7,7 +7,7 @@
 
 #include "AnalogInternal.h"
 
-#include "HAL/AnalogInput.h"
+#include "hal/AnalogInput.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"
 

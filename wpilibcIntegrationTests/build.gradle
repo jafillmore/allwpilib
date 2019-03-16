@@ -3,6 +3,7 @@ import org.gradle.language.base.internal.ProjectLayout
 apply plugin: 'cpp'
 apply plugin: 'visual-studio'
 apply plugin: 'edu.wpi.first.NativeUtils'
+apply plugin: ExtraTasks
 
 apply from: '../shared/config.gradle'
 
@@ -19,15 +20,17 @@ apply from: "${rootDir}/shared/opencv.gradle"
 apply from: "${rootDir}/shared/googletest.gradle"
 
 ext {
-    sharedUvwConfigs = [wpilibcIntegrationTests: []]
-    staticUvwConfigs = [:]
+    chipObjectComponents = ['wpilibcIntegrationTests']
+    netCommComponents = ['wpilibcIntegrationTests']
+    useNiJava = false
 }
 
-apply from: "${rootDir}/shared/libuv.gradle"
+apply from: "${rootDir}/shared/nilibraries.gradle"
 
 model {
     components {
         wpilibcIntegrationTests(NativeExecutableSpec) {
+            targetBuildTypes 'debug'
             baseName = 'FRCUserProgram'
             binaries.all { binary ->
                 if (binary.targetPlatform.architecture.name == 'athena') {
@@ -51,10 +54,12 @@ model {
                     lib project: ':wpilibc', library: 'wpilibc', linkage: 'shared'
                     lib project: ':ntcore', library: 'ntcore', linkage: 'shared'
                     lib project: ':cscore', library: 'cscore', linkage: 'shared'
-                    lib project: ':hal', library: 'hal', linkage: 'shared'
+                    lib project: ':ntcore', library: 'ntcoreJNIShared', linkage: 'shared'
+                    lib project: ':cscore', library: 'cscoreJNIShared', linkage: 'shared'
+                    project(':hal').addHalDependency(binary, 'shared')
+                    project(':hal').addHalJniDependency(binary)
                     lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
                     lib project: ':cameraserver', library: 'cameraserver', linkage: 'shared'
-                    project(':ni-libraries').addNiLibrariesToLinker(binary)
                 } else {
                     binary.sources {
                         simCpp(CppSourceSet) {

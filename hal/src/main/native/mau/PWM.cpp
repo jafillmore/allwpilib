@@ -5,11 +5,11 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/PWM.h"
+#include "hal/PWM.h"
 
 #include "ConstantsInternal.h"
 #include "DigitalInternal.h"
-#include "HAL/handles/HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include "HALInitializer.h"
 #include "PortsInternal.h"
 #include "MauInternal.h"

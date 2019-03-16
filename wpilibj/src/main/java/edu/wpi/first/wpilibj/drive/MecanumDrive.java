@@ -7,10 +7,12 @@
 
 package edu.wpi.first.wpilibj.drive;
 
+import java.util.StringJoiner;
+
+import edu.wpi.first.hal.FRCNetComm.tInstances;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.SpeedController;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tInstances;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 
 /**
@@ -57,15 +59,15 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
  * deadband of 0 is used.
  */
 public class MecanumDrive extends RobotDriveBase {
-  private static int instances = 0;
+  private static int instances;
 
-  private SpeedController m_frontLeftMotor;
-  private SpeedController m_rearLeftMotor;
-  private SpeedController m_frontRightMotor;
-  private SpeedController m_rearRightMotor;
+  private final SpeedController m_frontLeftMotor;
+  private final SpeedController m_rearLeftMotor;
+  private final SpeedController m_frontRightMotor;
+  private final SpeedController m_rearRightMotor;
 
   private double m_rightSideInvertMultiplier = -1.0;
-  private boolean m_reported = false;
+  private boolean m_reported;
 
   /**
    * Construct a MecanumDrive.
@@ -74,6 +76,7 @@ public class MecanumDrive extends RobotDriveBase {
    */
   public MecanumDrive(SpeedController frontLeftMotor, SpeedController rearLeftMotor,
                       SpeedController frontRightMotor, SpeedController rearRightMotor) {
+    verify(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
     m_frontLeftMotor = frontLeftMotor;
     m_rearLeftMotor = rearLeftMotor;
     m_frontRightMotor = frontRightMotor;
@@ -84,6 +87,36 @@ public class MecanumDrive extends RobotDriveBase {
     addChild(m_rearRightMotor);
     instances++;
     setName("MecanumDrive", instances);
+  }
+
+  /**
+   * Verifies that all motors are nonnull, throwing a NullPointerException if any of them are.
+   * The exception's error message will specify all null motors, e.g. {@code
+   * NullPointerException("frontLeftMotor, rearRightMotor")}, to give as much information as
+   * possible to the programmer.
+   *
+   * @throws NullPointerException if any of the given motors are null
+   */
+  @SuppressWarnings({"PMD.AvoidThrowingNullPointerException", "PMD.CyclomaticComplexity"})
+  private void verify(SpeedController frontLeft, SpeedController rearLeft,
+                      SpeedController frontRight, SpeedController rearRightMotor) {
+    if (frontLeft != null && rearLeft != null && frontRight != null && rearRightMotor != null) {
+      return;
+    }
+    StringJoiner joiner = new StringJoiner(", ");
+    if (frontLeft == null) {
+      joiner.add("frontLeftMotor");
+    }
+    if (rearLeft == null) {
+      joiner.add("rearLeftMotor");
+    }
+    if (frontRight == null) {
+      joiner.add("frontRightMotor");
+    }
+    if (rearRightMotor == null) {
+      joiner.add("rearRightMotor");
+    }
+    throw new NullPointerException(joiner.toString());
   }
 
   /**
@@ -119,7 +152,7 @@ public class MecanumDrive extends RobotDriveBase {
   public void driveCartesian(double ySpeed, double xSpeed, double zRotation, double gyroAngle) {
     if (!m_reported) {
       HAL.report(tResourceType.kResourceType_RobotDrive, 4,
-                 tInstances.kRobotDrive_MecanumCartesian);
+                 tInstances.kRobotDrive2_MecanumCartesian);
       m_reported = true;
     }
 
@@ -148,7 +181,7 @@ public class MecanumDrive extends RobotDriveBase {
     m_rearRightMotor.set(wheelSpeeds[MotorType.kRearRight.value] * m_maxOutput
         * m_rightSideInvertMultiplier);
 
-    m_safetyHelper.feed();
+    feed();
   }
 
   /**
@@ -165,7 +198,7 @@ public class MecanumDrive extends RobotDriveBase {
   @SuppressWarnings("ParameterName")
   public void drivePolar(double magnitude, double angle, double zRotation) {
     if (!m_reported) {
-      HAL.report(tResourceType.kResourceType_RobotDrive, 4, tInstances.kRobotDrive_MecanumPolar);
+      HAL.report(tResourceType.kResourceType_RobotDrive, 4, tInstances.kRobotDrive2_MecanumPolar);
       m_reported = true;
     }
 
@@ -197,7 +230,7 @@ public class MecanumDrive extends RobotDriveBase {
     m_frontRightMotor.stopMotor();
     m_rearLeftMotor.stopMotor();
     m_rearRightMotor.stopMotor();
-    m_safetyHelper.feed();
+    feed();
   }
 
   @Override
@@ -208,6 +241,8 @@ public class MecanumDrive extends RobotDriveBase {
   @Override
   public void initSendable(SendableBuilder builder) {
     builder.setSmartDashboardType("MecanumDrive");
+    builder.setActuator(true);
+    builder.setSafeState(this::stopMotor);
     builder.addDoubleProperty("Front Left Motor Speed",
         m_frontLeftMotor::get,
         m_frontLeftMotor::set);

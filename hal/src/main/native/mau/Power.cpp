@@ -5,7 +5,7 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Power.h"
+#include "hal/Power.h"
 
 #include "MauInternal.h"
 

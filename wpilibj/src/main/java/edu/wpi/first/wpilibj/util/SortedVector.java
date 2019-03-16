@@ -47,7 +47,8 @@ public class SortedVector<E> extends Vector<E> {
    *
    * @param element The element to add to the Vector
    */
-  public void addElement(E element) {
+  @Override
+  public synchronized void addElement(E element) {
     int highBound = size();
     int lowBound = 0;
     while (highBound - lowBound > 0) {
@@ -69,7 +70,7 @@ public class SortedVector<E> extends Vector<E> {
    * Sort the vector.
    */
   @SuppressWarnings("unchecked")
-  public void sort() {
+  public synchronized void sort() {
     Object[] array = new Object[size()];
     copyInto(array);
     removeAllElements();

@@ -1,6 +1,6 @@
 
 #include <VMXChannel.h>
-#include "HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include "Translator/include/MauEnumConverter.h"
 #include <utility>
 

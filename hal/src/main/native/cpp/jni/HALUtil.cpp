@@ -19,12 +19,12 @@
 #include <wpi/jni_util.h>
 #include <wpi/raw_ostream.h>
 
-#include "HAL/CAN.h"
-#include "HAL/DriverStation.h"
-#include "HAL/Errors.h"
-#include "HAL/HAL.h"
-#include "HAL/cpp/Log.h"
-#include "edu_wpi_first_wpilibj_hal_HALUtil.h"
+#include "edu_wpi_first_hal_HALUtil.h"
+#include "hal/CAN.h"
+#include "hal/DriverStation.h"
+#include "hal/Errors.h"
+#include "hal/HAL.h"
+#include "hal/cpp/Log.h"
 
 using namespace wpi::java;
 
@@ -45,7 +45,6 @@ TLogLevel halUtilLogLevel = logWARNING;
 #define kRIOStatusResourceNotInitialized -52010
 
 static JavaVM* jvm = nullptr;
-static JException runtimeExCls;
 static JException illegalArgExCls;
 static JException boundaryExCls;
 static JException allocationExCls;
@@ -62,29 +61,38 @@ static JClass accumulatorResultCls;
 static JClass canDataCls;
 
 static const JClassInit classes[] = {
-    {"edu/wpi/first/wpilibj/PWMConfigDataResult", &pwmConfigDataResultCls},
-    {"edu/wpi/first/wpilibj/can/CANStatus", &canStatusCls},
-    {"edu/wpi/first/wpilibj/hal/MatchInfoData", &matchInfoDataCls},
-    {"edu/wpi/first/wpilibj/AccumulatorResult", &accumulatorResultCls},
-    {"edu/wpi/first/wpilibj/CANData", &canDataCls}};
+    {"edu/wpi/first/hal/PWMConfigDataResult", &pwmConfigDataResultCls},
+    {"edu/wpi/first/hal/can/CANStatus", &canStatusCls},
+    {"edu/wpi/first/hal/MatchInfoData", &matchInfoDataCls},
+    {"edu/wpi/first/hal/AccumulatorResult", &accumulatorResultCls},
+    {"edu/wpi/first/hal/CANData", &canDataCls}};
 
 static const JExceptionInit exceptions[] = {
-    {"java/lang/RuntimeException", &runtimeExCls},
     {"java/lang/IllegalArgumentException", &illegalArgExCls},
-    {"edu/wpi/first/wpilibj/util/BoundaryException", &boundaryExCls},
-    {"edu/wpi/first/wpilibj/util/AllocationException", &allocationExCls},
-    {"edu/wpi/first/wpilibj/util/HalHandleException", &halHandleExCls},
-    {"edu/wpi/first/wpilibj/can/CANInvalidBufferException",
-     &canInvalidBufferExCls},
-    {"edu/wpi/first/wpilibj/can/CANMessageNotFoundException",
+    {"edu/wpi/first/hal/util/BoundaryException", &boundaryExCls},
+    {"edu/wpi/first/hal/util/AllocationException", &allocationExCls},
+    {"edu/wpi/first/hal/util/HalHandleException", &halHandleExCls},
+    {"edu/wpi/first/hal/can/CANInvalidBufferException", &canInvalidBufferExCls},
+    {"edu/wpi/first/hal/can/CANMessageNotFoundException",
      &canMessageNotFoundExCls},
-    {"edu/wpi/first/wpilibj/can/CANMessageNotAllowedException",
+    {"edu/wpi/first/hal/can/CANMessageNotAllowedException",
      &canMessageNotAllowedExCls},
-    {"edu/wpi/first/wpilibj/can/CANNotInitializedException",
+    {"edu/wpi/first/hal/can/CANNotInitializedException",
      &canNotInitializedExCls},
-    {"edu/wpi/first/wpilibj/util/UncleanStatusException", &uncleanStatusExCls}};
+    {"edu/wpi/first/hal/util/UncleanStatusException", &uncleanStatusExCls}};
 
 namespace frc {
+
+void ThrowUncleanStatusException(JNIEnv* env, wpi::StringRef msg,
+                                 int32_t status) {
+  static jmethodID func =
+      env->GetMethodID(uncleanStatusExCls, "<init>", "(ILjava/lang/String;)V");
+
+  jobject exception =
+      env->NewObject(uncleanStatusExCls, func, static_cast<jint>(status),
+                     MakeJString(env, msg));
+  env->Throw(static_cast<jthrowable>(exception));
+}
 
 void ThrowAllocationException(JNIEnv* env, int32_t minRange, int32_t maxRange,
                               int32_t requestedValue, int32_t status) {
@@ -116,10 +124,10 @@ void ReportError(JNIEnv* env, int32_t status, bool doThrow) {
     wpi::SmallString<1024> buf;
     wpi::raw_svector_ostream oss(buf);
     oss << " Code: " << status << ". " << message;
-    runtimeExCls.Throw(env, buf.c_str());
+    ThrowUncleanStatusException(env, buf.c_str(), status);
   } else {
     std::string func;
-    auto stack = GetJavaStackTrace(env, &func, "edu.wpi.first.wpilibj");
+    auto stack = GetJavaStackTrace(env, &func, "edu.wpi.first");
     HAL_SendError(1, status, 0, message, func.c_str(), stack.c_str(), 1);
   }
 }
@@ -138,7 +146,7 @@ void ThrowError(JNIEnv* env, int32_t status, int32_t minRange, int32_t maxRange,
   wpi::SmallString<1024> buf;
   wpi::raw_svector_ostream oss(buf);
   oss << " Code: " << status << ". " << message;
-  runtimeExCls.Throw(env, buf.c_str());
+  ThrowUncleanStatusException(env, buf.c_str(), status);
 }
 
 void ReportCANError(JNIEnv* env, int32_t status, int message_id) {
@@ -198,7 +206,7 @@ void ReportCANError(JNIEnv* env, int32_t status, int message_id) {
   }
 }
 
-void ThrowIllegalArgumentException(JNIEnv* env, const char* msg) {
+void ThrowIllegalArgumentException(JNIEnv* env, wpi::StringRef msg) {
   illegalArgExCls.Throw(env, msg);
 }
 
@@ -247,10 +255,13 @@ void SetMatchInfoObject(JNIEnv* env, jobject matchStatus,
       env->GetMethodID(matchInfoDataCls, "setData",
                        "(Ljava/lang/String;Ljava/lang/String;III)V");
 
-  env->CallVoidMethod(matchStatus, func, MakeJString(env, matchInfo.eventName),
-                      MakeJString(env, matchInfo.gameSpecificMessage),
-                      (jint)matchInfo.matchNumber, (jint)matchInfo.replayNumber,
-                      (jint)matchInfo.matchType);
+  env->CallVoidMethod(
+      matchStatus, func, MakeJString(env, matchInfo.eventName),
+      MakeJString(env, wpi::StringRef{reinterpret_cast<const char*>(
+                                          matchInfo.gameSpecificMessage),
+                                      matchInfo.gameSpecificMessageSize}),
+      (jint)matchInfo.matchNumber, (jint)matchInfo.replayNumber,
+      (jint)matchInfo.matchType);
 }
 
 void SetAccumulatorResultObject(JNIEnv* env, jobject accumulatorResult,
@@ -327,12 +338,12 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved) {
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getFPGAVersion
  * Signature: ()S
  */
 JNIEXPORT jshort JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGAVersion
+Java_edu_wpi_first_hal_HALUtil_getFPGAVersion
   (JNIEnv* env, jclass)
 {
   HALUTIL_LOG(logDEBUG) << "Calling HALUtil getFPGAVersion";
@@ -345,12 +356,12 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGAVersion
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getFPGARevision
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGARevision
+Java_edu_wpi_first_hal_HALUtil_getFPGARevision
   (JNIEnv* env, jclass)
 {
   HALUTIL_LOG(logDEBUG) << "Calling HALUtil getFPGARevision";
@@ -363,12 +374,12 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGARevision
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getFPGATime
  * Signature: ()J
  */
 JNIEXPORT jlong JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGATime
+Java_edu_wpi_first_hal_HALUtil_getFPGATime
   (JNIEnv* env, jclass)
 {
   // HALUTIL_LOG(logDEBUG) << "Calling HALUtil getFPGATime";
@@ -381,12 +392,12 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGATime
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getHALRuntimeType
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALRuntimeType
+Java_edu_wpi_first_hal_HALUtil_getHALRuntimeType
   (JNIEnv* env, jclass)
 {
   // HALUTIL_LOG(logDEBUG) << "Calling HALUtil getHALRuntimeType";
@@ -396,12 +407,12 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALRuntimeType
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getFPGAButton
  * Signature: ()Z
  */
 JNIEXPORT jboolean JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGAButton
+Java_edu_wpi_first_hal_HALUtil_getFPGAButton
   (JNIEnv* env, jclass)
 {
   // HALUTIL_LOG(logDEBUG) << "Calling HALUtil getFPGATime";
@@ -414,12 +425,12 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getFPGAButton
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getHALErrorMessage
  * Signature: (I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALErrorMessage
+Java_edu_wpi_first_hal_HALUtil_getHALErrorMessage
   (JNIEnv* paramEnv, jclass, jint paramId)
 {
   const char* msg = HAL_GetErrorMessage(paramId);
@@ -429,24 +440,24 @@ Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALErrorMessage
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getHALErrno
  * Signature: ()I
  */
 JNIEXPORT jint JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALErrno
+Java_edu_wpi_first_hal_HALUtil_getHALErrno
   (JNIEnv*, jclass)
 {
   return errno;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_HALUtil
+ * Class:     edu_wpi_first_hal_HALUtil
  * Method:    getHALstrerror
  * Signature: (I)Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL
-Java_edu_wpi_first_wpilibj_hal_HALUtil_getHALstrerror
+Java_edu_wpi_first_hal_HALUtil_getHALstrerror
   (JNIEnv* env, jclass, jint errorCode)
 {
   const char* msg = std::strerror(errno);

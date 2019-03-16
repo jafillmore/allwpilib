@@ -270,10 +270,10 @@ static jobject MakeJObject(JNIEnv* env, jobject inst,
   static jmethodID constructor =
       env->GetMethodID(rpcAnswerCls, "<init>",
                        "(Ledu/wpi/first/networktables/"
-                       "NetworkTableInstance;IILjava/lang/String;Ljava/lang/"
-                       "String;Ledu/wpi/first/networktables/ConnectionInfo;)V");
+                       "NetworkTableInstance;IILjava/lang/String;[B"
+                       "Ledu/wpi/first/networktables/ConnectionInfo;)V");
   JLocal<jstring> name{env, MakeJString(env, answer.name)};
-  JLocal<jstring> params{env, MakeJString(env, answer.params)};
+  JLocal<jbyteArray> params{env, MakeJByteArray(env, answer.params)};
   JLocal<jobject> conn{env, MakeJObject(env, answer.conn)};
   return env->NewObject(rpcAnswerCls, constructor, inst, (jint)answer.entry,
                         (jint)answer.call, name.obj(), params.obj(),
@@ -1255,17 +1255,17 @@ Java_edu_wpi_first_networktables_NetworkTablesJNI_waitForRpcCallQueue
 /*
  * Class:     edu_wpi_first_networktables_NetworkTablesJNI
  * Method:    postRpcResponse
- * Signature: (II[B)V
+ * Signature: (II[B)Z
  */
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_edu_wpi_first_networktables_NetworkTablesJNI_postRpcResponse
   (JNIEnv* env, jclass, jint entry, jint call, jbyteArray result)
 {
   if (!result) {
     nullPointerEx.Throw(env, "result cannot be null");
-    return;
+    return false;
   }
-  nt::PostRpcResponse(entry, call, JByteArrayRef{env, result});
+  return nt::PostRpcResponse(entry, call, JByteArrayRef{env, result});
 }
 
 /*

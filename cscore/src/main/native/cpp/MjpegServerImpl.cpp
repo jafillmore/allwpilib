@@ -16,6 +16,7 @@
 #include <wpi/raw_socket_ostream.h>
 
 #include "Handle.h"
+#include "Instance.h"
 #include "JpegUtil.h"
 #include "Log.h"
 #include "Notifier.h"
@@ -66,14 +67,16 @@ static const char* startRootPage =
     "</head><body>\n"
     "<div class=\"stream\">\n"
     "<img src=\"/stream.mjpg\" /><p />\n"
-    "<a href=\"/settings.json\">Settings JSON</a>\n"
+    "<a href=\"/settings.json\">Settings JSON</a> |\n"
+    "<a href=\"/config.json\">Source Config JSON</a>\n"
     "</div>\n"
     "<div class=\"settings\">\n";
 static const char* endRootPage = "</div></body></html>";
 
 class MjpegServerImpl::ConnThread : public wpi::SafeThread {
  public:
-  explicit ConnThread(wpi::StringRef name) : m_name(name) {}
+  explicit ConnThread(const wpi::Twine& name, wpi::Logger& logger)
+      : m_name(name.str()), m_logger(logger) {}
 
   void Main();
 
@@ -89,9 +92,15 @@ class MjpegServerImpl::ConnThread : public wpi::SafeThread {
   std::shared_ptr<SourceImpl> m_source;
   bool m_streaming = false;
   bool m_noStreaming = false;
+  int m_width = 0;
+  int m_height = 0;
+  int m_compression = -1;
+  int m_defaultCompression = 80;
+  int m_fps = 0;
 
  private:
   std::string m_name;
+  wpi::Logger& m_logger;
 
   wpi::StringRef GetName() { return m_name; }
 
@@ -102,20 +111,15 @@ class MjpegServerImpl::ConnThread : public wpi::SafeThread {
 
   void StartStream() {
     std::lock_guard<wpi::mutex> lock(m_mutex);
-    m_source->EnableSink();
+    if (m_source) m_source->EnableSink();
     m_streaming = true;
   }
 
   void StopStream() {
     std::lock_guard<wpi::mutex> lock(m_mutex);
-    m_source->DisableSink();
+    if (m_source) m_source->DisableSink();
     m_streaming = false;
   }
-
-  int m_width{0};
-  int m_height{0};
-  int m_compression{80};
-  int m_fps{0};
 };
 
 // Standard header to send along with other header information like mimetype.
@@ -124,9 +128,10 @@ class MjpegServerImpl::ConnThread : public wpi::SafeThread {
 // A browser should connect for each file and not serve files from its cache.
 // Using cached pictures would lead to showing old/outdated pictures.
 // Many browsers seem to ignore, or at least not always obey, those headers.
-static void SendHeader(wpi::raw_ostream& os, int code, wpi::StringRef codeText,
-                       wpi::StringRef contentType,
-                       wpi::StringRef extra = wpi::StringRef{}) {
+static void SendHeader(wpi::raw_ostream& os, int code,
+                       const wpi::Twine& codeText,
+                       const wpi::Twine& contentType,
+                       const wpi::Twine& extra = wpi::Twine{}) {
   os << "HTTP/1.0 " << code << ' ' << codeText << "\r\n";
   os << "Connection: close\r\n"
         "Server: CameraServer/1.0\r\n"
@@ -136,14 +141,17 @@ static void SendHeader(wpi::raw_ostream& os, int code, wpi::StringRef codeText,
         "Expires: Mon, 3 Jan 2000 12:34:56 GMT\r\n";
   os << "Content-Type: " << contentType << "\r\n";
   os << "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: *\r\n";
-  if (!extra.empty()) os << extra << "\r\n";
+  wpi::SmallString<128> extraBuf;
+  wpi::StringRef extraStr = extra.toStringRef(extraBuf);
+  if (!extraStr.empty()) os << extraStr << "\r\n";
   os << "\r\n";  // header ends with a blank line
 }
 
 // Send error header and message
 // @param code HTTP error code (e.g. 404)
 // @param message Additional message text
-static void SendError(wpi::raw_ostream& os, int code, wpi::StringRef message) {
+static void SendError(wpi::raw_ostream& os, int code,
+                      const wpi::Twine& message) {
   wpi::StringRef codeText, extra, baseMessage;
   switch (code) {
     case 401:
@@ -293,7 +301,7 @@ bool MjpegServerImpl::ConnThread::ProcessCommand(wpi::raw_ostream& os,
       case CS_PROP_BOOLEAN:
       case CS_PROP_INTEGER:
       case CS_PROP_ENUM: {
-        int val;
+        int val = 0;
         if (value.getAsInteger(10, val)) {
           response << param << ": \"invalid integer\"\r\n";
           SWARNING("HTTP parameter \"" << param << "\" value \"" << value
@@ -327,13 +335,14 @@ bool MjpegServerImpl::ConnThread::ProcessCommand(wpi::raw_ostream& os,
 
 void MjpegServerImpl::ConnThread::SendHTMLHeadTitle(
     wpi::raw_ostream& os) const {
-  os << "<html><head><title>" << m_name << " CameraServer</title>";
+  os << "<html><head><title>" << m_name << " CameraServer</title>"
+     << "<meta charset=\"UTF-8\">";
 }
 
 // Send the root html file with controls for all the settable properties.
 void MjpegServerImpl::ConnThread::SendHTML(wpi::raw_ostream& os,
                                            SourceImpl& source, bool header) {
-  if (header) SendHeader(os, 200, "OK", "application/x-javascript");
+  if (header) SendHeader(os, 200, "OK", "text/html");
 
   SendHTMLHeadTitle(os);
   os << startRootPage;
@@ -405,6 +414,15 @@ void MjpegServerImpl::ConnThread::SendHTML(wpi::raw_ostream& os,
     }
   }
 
+  status = 0;
+  auto info = GetUsbCameraInfo(Instance::GetInstance().FindSource(source).first,
+                               &status);
+  if (status == CS_OK) {
+    os << "<p>USB device path: " << info.path << '\n';
+    for (auto&& path : info.otherPaths)
+      os << "<p>Alternate device path: " << path << '\n';
+  }
+
   os << "<p>Supported Video Modes:</p>\n";
   os << "<table cols=\"4\" style=\"border: 1px solid black\">\n";
   os << "<tr><th>Pixel Format</th>"
@@ -446,7 +464,7 @@ void MjpegServerImpl::ConnThread::SendHTML(wpi::raw_ostream& os,
 // Send a JSON file which is contains information about the source parameters.
 void MjpegServerImpl::ConnThread::SendJSON(wpi::raw_ostream& os,
                                            SourceImpl& source, bool header) {
-  if (header) SendHeader(os, 200, "OK", "application/x-javascript");
+  if (header) SendHeader(os, 200, "OK", "application/json");
 
   os << "{\n\"controls\": [\n";
   wpi::SmallVector<int, 32> properties_vec;
@@ -544,11 +562,12 @@ void MjpegServerImpl::ConnThread::SendJSON(wpi::raw_ostream& os,
   os.flush();
 }
 
-MjpegServerImpl::MjpegServerImpl(wpi::StringRef name,
-                                 wpi::StringRef listenAddress, int port,
+MjpegServerImpl::MjpegServerImpl(const wpi::Twine& name, wpi::Logger& logger,
+                                 Notifier& notifier, Telemetry& telemetry,
+                                 const wpi::Twine& listenAddress, int port,
                                  std::unique_ptr<wpi::NetworkAcceptor> acceptor)
-    : SinkImpl{name},
-      m_listenAddress(listenAddress),
+    : SinkImpl{name, logger, notifier, telemetry},
+      m_listenAddress(listenAddress.str()),
       m_port(port),
       m_acceptor{std::move(acceptor)} {
   m_active = true;
@@ -557,6 +576,25 @@ MjpegServerImpl::MjpegServerImpl(wpi::StringRef name,
   wpi::raw_svector_ostream desc{descBuf};
   desc << "HTTP Server on port " << port;
   SetDescription(desc.str());
+
+  // Create properties
+  m_widthProp = CreateProperty("width", [] {
+    return std::make_unique<PropertyImpl>("width", CS_PROP_INTEGER, 1, 0, 0);
+  });
+  m_heightProp = CreateProperty("height", [] {
+    return std::make_unique<PropertyImpl>("height", CS_PROP_INTEGER, 1, 0, 0);
+  });
+  m_compressionProp = CreateProperty("compression", [] {
+    return std::make_unique<PropertyImpl>("compression", CS_PROP_INTEGER, -1,
+                                          100, 1, -1, -1);
+  });
+  m_defaultCompressionProp = CreateProperty("default_compression", [] {
+    return std::make_unique<PropertyImpl>("default_compression",
+                                          CS_PROP_INTEGER, 0, 100, 1, 80, 80);
+  });
+  m_fpsProp = CreateProperty("fps", [] {
+    return std::make_unique<PropertyImpl>("fps", CS_PROP_INTEGER, 1, 0, 0);
+  });
 
   m_serverThread = std::thread(&MjpegServerImpl::ServerThreadMain, this);
 }
@@ -605,8 +643,9 @@ void MjpegServerImpl::ConnThread::SendStream(wpi::raw_socket_ostream& os) {
   Frame::Time lastFrameTime = 0;
   Frame::Time timePerFrame = 0;
   if (m_fps != 0) timePerFrame = 1000000.0 / m_fps;
-  // Allow fudge factor of 1 ms in frame rate
-  if (timePerFrame >= 1000) timePerFrame -= 1000;
+  Frame::Time averageFrameTime = 0;
+  Frame::Time averagePeriod = 1000000;  // 1 second window
+  if (averagePeriod < timePerFrame) averagePeriod = timePerFrame * 10;
 
   StartStream();
   while (m_active && !os.has_error()) {
@@ -627,16 +666,33 @@ void MjpegServerImpl::ConnThread::SendStream(wpi::raw_socket_ostream& os) {
       continue;
     }
 
-    if (frame.GetTime() < (lastFrameTime + timePerFrame)) {
-      // Limit FPS; sleep for 10 ms so we don't consume all processor time
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      continue;
+    auto thisFrameTime = frame.GetTime();
+    if (thisFrameTime != 0 && timePerFrame != 0 && lastFrameTime != 0) {
+      Frame::Time deltaTime = thisFrameTime - lastFrameTime;
+
+      // drop frame if it is early compared to the desired frame rate AND
+      // the current average is higher than the desired average
+      if (deltaTime < timePerFrame && averageFrameTime < timePerFrame) {
+        // sleep for 1 ms so we don't consume all processor time
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        continue;
+      }
+
+      // update average
+      if (averageFrameTime != 0) {
+        averageFrameTime =
+            averageFrameTime * (averagePeriod - timePerFrame) / averagePeriod +
+            deltaTime * timePerFrame / averagePeriod;
+      } else {
+        averageFrameTime = deltaTime;
+      }
     }
 
     int width = m_width != 0 ? m_width : frame.GetOriginalWidth();
     int height = m_height != 0 ? m_height : frame.GetOriginalHeight();
-    Image* image =
-        frame.GetImage(width, height, VideoMode::kMJPEG, m_compression);
+    Image* image = frame.GetImageMJPEG(
+        width, height, m_compression,
+        m_compression == -1 ? m_defaultCompression : m_compression);
     if (!image) {
       // Shouldn't happen, but just in case...
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -666,7 +722,7 @@ void MjpegServerImpl::ConnThread::SendStream(wpi::raw_socket_ostream& os) {
     // print the individual mimetype and the length
     // sending the content-length fixes random stream disruption observed
     // with firefox
-    lastFrameTime = frame.GetTime();
+    lastFrameTime = thisFrameTime;
     double timestamp = lastFrameTime / 1000000.0;
     header.clear();
     oss << "\r\n--" BOUNDARY "\r\n"
@@ -692,12 +748,6 @@ void MjpegServerImpl::ConnThread::ProcessRequest() {
   wpi::raw_socket_istream is{*m_stream};
   wpi::raw_socket_ostream os{*m_stream, true};
 
-  // Reset per-request settings
-  m_width = 0;
-  m_height = 0;
-  m_compression = 80;
-  m_fps = 0;
-
   // Read the request string from the stream
   wpi::SmallString<128> reqBuf;
   wpi::StringRef req = is.getline(reqBuf, 4096);
@@ -706,7 +756,7 @@ void MjpegServerImpl::ConnThread::ProcessRequest() {
     return;
   }
 
-  enum { kCommand, kStream, kGetSettings, kRootPage } kind;
+  enum { kCommand, kStream, kGetSettings, kGetSourceConfig, kRootPage } kind;
   wpi::StringRef parameters;
   size_t pos;
 
@@ -726,6 +776,9 @@ void MjpegServerImpl::ConnThread::ProcessRequest() {
   } else if (req.find("GET /settings") != wpi::StringRef::npos &&
              req.find(".json") != wpi::StringRef::npos) {
     kind = kGetSettings;
+  } else if (req.find("GET /config") != wpi::StringRef::npos &&
+             req.find(".json") != wpi::StringRef::npos) {
+    kind = kGetSourceConfig;
   } else if (req.find("GET /input") != wpi::StringRef::npos &&
              req.find(".json") != wpi::StringRef::npos) {
     kind = kGetSettings;
@@ -783,6 +836,17 @@ void MjpegServerImpl::ConnThread::ProcessRequest() {
         SendJSON(os, *source, true);
       else
         SendError(os, 404, "Resource not found");
+      break;
+    case kGetSourceConfig:
+      SDEBUG("request for JSON file");
+      if (auto source = GetSource()) {
+        SendHeader(os, 200, "OK", "application/json");
+        CS_Status status = CS_OK;
+        os << source->GetConfigJson(&status);
+        os.flush();
+      } else {
+        SendError(os, 404, "Resource not found");
+      }
       break;
     case kRootPage:
       SDEBUG("request for root page");
@@ -847,10 +911,7 @@ void MjpegServerImpl::ServerThreadMain() {
     }
 
     // Start it if not already started
-    {
-      auto thr = it->GetThread();
-      if (!thr) it->Start(new ConnThread{GetName()});
-    }
+    it->Start(GetName(), m_logger);
 
     auto nstreams =
         std::count_if(m_connThreads.begin(), m_connThreads.end(),
@@ -864,6 +925,11 @@ void MjpegServerImpl::ServerThreadMain() {
     thr->m_stream = std::move(stream);
     thr->m_source = source;
     thr->m_noStreaming = nstreams >= 10;
+    thr->m_width = GetProperty(m_widthProp)->value;
+    thr->m_height = GetProperty(m_heightProp)->value;
+    thr->m_compression = GetProperty(m_compressionProp)->value;
+    thr->m_defaultCompression = GetProperty(m_defaultCompressionProp)->value;
+    thr->m_fps = GetProperty(m_fpsProp)->value;
     thr->m_cond.notify_one();
   }
 
@@ -886,20 +952,23 @@ void MjpegServerImpl::SetSourceImpl(std::shared_ptr<SourceImpl> source) {
 
 namespace cs {
 
-CS_Sink CreateMjpegServer(wpi::StringRef name, wpi::StringRef listenAddress,
-                          int port, CS_Status* status) {
-  wpi::SmallString<128> str{listenAddress};
-  auto sink = std::make_shared<MjpegServerImpl>(
-      name, listenAddress, port,
-      std::unique_ptr<wpi::NetworkAcceptor>(
-          new wpi::TCPAcceptor(port, str.c_str(), Logger::GetInstance())));
-  auto handle = Sinks::GetInstance().Allocate(CS_SINK_MJPEG, sink);
-  Notifier::GetInstance().NotifySink(name, handle, CS_SINK_CREATED);
-  return handle;
+CS_Sink CreateMjpegServer(const wpi::Twine& name,
+                          const wpi::Twine& listenAddress, int port,
+                          CS_Status* status) {
+  auto& inst = Instance::GetInstance();
+  wpi::SmallString<128> listenAddressBuf;
+  return inst.CreateSink(
+      CS_SINK_MJPEG,
+      std::make_shared<MjpegServerImpl>(
+          name, inst.logger, inst.notifier, inst.telemetry, listenAddress, port,
+          std::unique_ptr<wpi::NetworkAcceptor>(new wpi::TCPAcceptor(
+              port,
+              listenAddress.toNullTerminatedStringRef(listenAddressBuf).data(),
+              inst.logger))));
 }
 
 std::string GetMjpegServerListenAddress(CS_Sink sink, CS_Status* status) {
-  auto data = Sinks::GetInstance().Get(sink);
+  auto data = Instance::GetInstance().GetSink(sink);
   if (!data || data->kind != CS_SINK_MJPEG) {
     *status = CS_INVALID_HANDLE;
     return std::string{};
@@ -908,7 +977,7 @@ std::string GetMjpegServerListenAddress(CS_Sink sink, CS_Status* status) {
 }
 
 int GetMjpegServerPort(CS_Sink sink, CS_Status* status) {
-  auto data = Sinks::GetInstance().Get(sink);
+  auto data = Instance::GetInstance().GetSink(sink);
   if (!data || data->kind != CS_SINK_MJPEG) {
     *status = CS_INVALID_HANDLE;
     return 0;

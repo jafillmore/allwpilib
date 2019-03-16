@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/SerialPort.h"
-#include "HAL/OSSerialPort.h"
+#include "hal/SerialPort.h"
+#include "OSSerialPort.h"
 
 #include "HALInitializer.h"
 

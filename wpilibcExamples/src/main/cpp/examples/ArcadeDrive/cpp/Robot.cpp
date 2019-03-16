@@ -5,18 +5,18 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <Drive/DifferentialDrive.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Spark.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/drive/DifferentialDrive.h>
 
 /**
  * This is a demo program showing the use of the DifferentialDrive class.
  * Runs the motors with arcade steering.
  */
-class Robot : public frc::IterativeRobot {
-  frc::Spark m_leftMotor{0};
-  frc::Spark m_rightMotor{1};
+class Robot : public frc::TimedRobot {
+  frc::PWMVictorSPX m_leftMotor{0};
+  frc::PWMVictorSPX m_rightMotor{1};
   frc::DifferentialDrive m_robotDrive{m_leftMotor, m_rightMotor};
   frc::Joystick m_stick{0};
 
@@ -27,4 +27,6 @@ class Robot : public frc::IterativeRobot {
   }
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

@@ -23,10 +23,7 @@ class Notifier {
   friend class NotifierTest;
 
  public:
-  static Notifier& GetInstance() {
-    static Notifier instance;
-    return instance;
-  }
+  Notifier();
   ~Notifier();
 
   void Start();
@@ -42,23 +39,26 @@ class Notifier {
   void RemoveListener(int uid);
 
   // Notification events
-  void NotifySource(wpi::StringRef name, CS_Source source, CS_EventKind kind);
+  void NotifySource(const wpi::Twine& name, CS_Source source,
+                    CS_EventKind kind);
   void NotifySource(const SourceImpl& source, CS_EventKind kind);
   void NotifySourceVideoMode(const SourceImpl& source, const VideoMode& mode);
   void NotifySourceProperty(const SourceImpl& source, CS_EventKind kind,
-                            wpi::StringRef propertyName, int property,
+                            const wpi::Twine& propertyName, int property,
                             CS_PropertyKind propertyKind, int value,
-                            wpi::StringRef valueStr);
-  void NotifySink(wpi::StringRef name, CS_Sink sink, CS_EventKind kind);
+                            const wpi::Twine& valueStr);
+  void NotifySink(const wpi::Twine& name, CS_Sink sink, CS_EventKind kind);
   void NotifySink(const SinkImpl& sink, CS_EventKind kind);
-  void NotifySinkSourceChanged(wpi::StringRef name, CS_Sink sink,
+  void NotifySinkSourceChanged(const wpi::Twine& name, CS_Sink sink,
                                CS_Source source);
+  void NotifySinkProperty(const SinkImpl& sink, CS_EventKind kind,
+                          const wpi::Twine& propertyName, int property,
+                          CS_PropertyKind propertyKind, int value,
+                          const wpi::Twine& valueStr);
   void NotifyNetworkInterfacesChanged();
   void NotifyTelemetryUpdated();
 
  private:
-  Notifier();
-
   class Thread;
   wpi::SafeThreadOwner<Thread> m_owner;
 

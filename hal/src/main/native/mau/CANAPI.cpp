@@ -5,17 +5,17 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/CANAPI.h"
+#include "hal/CANAPI.h"
 
 #include <atomic>
 #include <ctime>
 
 #include <wpi/DenseMap.h>
 
-#include "HAL/CAN.h"
-#include "HAL/Errors.h"
-#include "HAL/HAL.h"
-#include "HAL/handles/UnlimitedHandleResource.h"
+#include "hal/CAN.h"
+#include "hal/Errors.h"
+#include "hal/HAL.h"
+#include "hal/handles/UnlimitedHandleResource.h"
 #include "HALInitializer.h"
 
 using namespace hal;

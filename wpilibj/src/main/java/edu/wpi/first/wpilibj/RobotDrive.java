@@ -7,9 +7,9 @@
 
 package edu.wpi.first.wpilibj;
 
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tInstances;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
+import edu.wpi.first.hal.FRCNetComm.tInstances;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 
 import static java.util.Objects.requireNonNull;
 
@@ -25,9 +25,8 @@ import static java.util.Objects.requireNonNull;
  *             or {@link edu.wpi.first.wpilibj.drive.MecanumDrive} classes instead.
  */
 @Deprecated
-public class RobotDrive implements MotorSafety, AutoCloseable {
-  protected MotorSafetyHelper m_safetyHelper;
-
+@SuppressWarnings({"PMD.GodClass", "PMD.TooManyMethods"})
+public class RobotDrive extends MotorSafety implements AutoCloseable {
   /**
    * The location of a motor on the robot for the purpose of driving.
    */
@@ -53,11 +52,11 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
   protected SpeedController m_rearLeftMotor;
   protected SpeedController m_rearRightMotor;
   protected boolean m_allocatedSpeedControllers;
-  protected static boolean kArcadeRatioCurve_Reported = false;
-  protected static boolean kTank_Reported = false;
-  protected static boolean kArcadeStandard_Reported = false;
-  protected static boolean kMecanumCartesian_Reported = false;
-  protected static boolean kMecanumPolar_Reported = false;
+  protected static boolean kArcadeRatioCurve_Reported;
+  protected static boolean kTank_Reported;
+  protected static boolean kArcadeStandard_Reported;
+  protected static boolean kMecanumCartesian_Reported;
+  protected static boolean kMecanumPolar_Reported;
 
   /**
    * Constructor for RobotDrive with 2 motors specified with channel numbers. Set up parameters for
@@ -75,7 +74,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_frontRightMotor = null;
     m_rearRightMotor = new Talon(rightMotorChannel);
     m_allocatedSpeedControllers = true;
-    setupMotorSafety();
+    setSafetyEnabled(true);
     drive(0, 0);
   }
 
@@ -98,7 +97,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_frontLeftMotor = new Talon(frontLeftMotor);
     m_frontRightMotor = new Talon(frontRightMotor);
     m_allocatedSpeedControllers = true;
-    setupMotorSafety();
+    setSafetyEnabled(true);
     drive(0, 0);
   }
 
@@ -122,7 +121,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_sensitivity = kDefaultSensitivity;
     m_maxOutput = kDefaultMaxOutput;
     m_allocatedSpeedControllers = false;
-    setupMotorSafety();
+    setSafetyEnabled(true);
     drive(0, 0);
   }
 
@@ -144,7 +143,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_sensitivity = kDefaultSensitivity;
     m_maxOutput = kDefaultMaxOutput;
     m_allocatedSpeedControllers = false;
-    setupMotorSafety();
+    setSafetyEnabled(true);
     drive(0, 0);
   }
 
@@ -479,9 +478,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_rearLeftMotor.set(wheelSpeeds[MotorType.kRearLeft.value] * m_maxOutput);
     m_rearRightMotor.set(wheelSpeeds[MotorType.kRearRight.value] * m_maxOutput);
 
-    if (m_safetyHelper != null) {
-      m_safetyHelper.feed();
-    }
+    feed();
   }
 
   /**
@@ -523,9 +520,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     m_rearLeftMotor.set(wheelSpeeds[MotorType.kRearLeft.value] * m_maxOutput);
     m_rearRightMotor.set(wheelSpeeds[MotorType.kRearRight.value] * m_maxOutput);
 
-    if (m_safetyHelper != null) {
-      m_safetyHelper.feed();
-    }
+    feed();
   }
 
   /**
@@ -565,9 +560,7 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     }
     m_rearRightMotor.set(-limit(rightOutput) * m_maxOutput);
 
-    if (m_safetyHelper != null) {
-      m_safetyHelper.feed();
-    }
+    feed();
   }
 
   /**
@@ -689,31 +682,6 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
   }
 
   @Override
-  public void setExpiration(double timeout) {
-    m_safetyHelper.setExpiration(timeout);
-  }
-
-  @Override
-  public double getExpiration() {
-    return m_safetyHelper.getExpiration();
-  }
-
-  @Override
-  public boolean isAlive() {
-    return m_safetyHelper.isAlive();
-  }
-
-  @Override
-  public boolean isSafetyEnabled() {
-    return m_safetyHelper.isSafetyEnabled();
-  }
-
-  @Override
-  public void setSafetyEnabled(boolean enabled) {
-    m_safetyHelper.setSafetyEnabled(enabled);
-  }
-
-  @Override
   public String getDescription() {
     return "Robot Drive";
   }
@@ -732,15 +700,8 @@ public class RobotDrive implements MotorSafety, AutoCloseable {
     if (m_rearRightMotor != null) {
       m_rearRightMotor.stopMotor();
     }
-    if (m_safetyHelper != null) {
-      m_safetyHelper.feed();
-    }
-  }
 
-  private void setupMotorSafety() {
-    m_safetyHelper = new MotorSafetyHelper(this);
-    m_safetyHelper.setExpiration(kDefaultExpirationTime);
-    m_safetyHelper.setSafetyEnabled(true);
+    feed();
   }
 
   protected int getNumMotors() {

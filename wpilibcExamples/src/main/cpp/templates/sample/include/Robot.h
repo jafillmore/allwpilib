@@ -9,11 +9,11 @@
 
 #include <string>
 
-#include <Drive/DifferentialDrive.h>
-#include <Joystick.h>
-#include <SampleRobot.h>
-#include <SmartDashboard/SendableChooser.h>
-#include <Spark.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/SampleRobot.h>
+#include <frc/drive/DifferentialDrive.h>
+#include <frc/smartdashboard/SendableChooser.h>
 
 /**
  * This is a demo program showing the use of the DifferentialDrive class. The
@@ -23,7 +23,7 @@
  *
  * WARNING: While it may look like a good choice to use for your code if you're
  * inexperienced, don't. Unless you know what you are doing, complex code will
- * be much more difficult under this system. Use IterativeRobot or Command-Based
+ * be much more difficult under this system. Use TimedRobot or Command-Based
  * instead if you're new.
  */
 class Robot : public frc::SampleRobot {
@@ -37,8 +37,8 @@ class Robot : public frc::SampleRobot {
 
  private:
   // Robot drive system
-  frc::Spark m_leftMotor{0};
-  frc::Spark m_rightMotor{1};
+  frc::PWMVictorSPX m_leftMotor{0};
+  frc::PWMVictorSPX m_rightMotor{1};
   frc::DifferentialDrive m_robotDrive{m_leftMotor, m_rightMotor};
 
   frc::Joystick m_stick{0};

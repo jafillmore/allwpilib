@@ -5,16 +5,16 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include <IterativeRobot.h>
-#include <PowerDistributionPanel.h>
-#include <SmartDashboard/SmartDashboard.h>
+#include <frc/PowerDistributionPanel.h>
+#include <frc/TimedRobot.h>
+#include <frc/smartdashboard/SmartDashboard.h>
 
 /**
  * This is a sample program showing how to retrieve information from the Power
  * Distribution Panel via CAN. The information will be displayed under variables
  * through the SmartDashboard.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void TeleopPeriodic() override {
     /* Get the current going through channel 7, in Amperes. The PDP returns the
@@ -37,4 +37,6 @@ class Robot : public frc::IterativeRobot {
   frc::PowerDistributionPanel m_pdp;
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

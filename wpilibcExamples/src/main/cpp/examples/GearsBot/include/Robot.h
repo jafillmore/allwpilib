@@ -7,20 +7,20 @@
 
 #pragma once
 
-#include <Commands/Command.h>
-#include <Commands/Scheduler.h>
-#include <IterativeRobot.h>
-#include <LiveWindow/LiveWindow.h>
-#include <SmartDashboard/SmartDashboard.h>
+#include <frc/TimedRobot.h>
+#include <frc/commands/Command.h>
+#include <frc/commands/Scheduler.h>
+#include <frc/livewindow/LiveWindow.h>
+#include <frc/smartdashboard/SmartDashboard.h>
 
-#include "Commands/Autonomous.h"
 #include "OI.h"
-#include "Subsystems/Claw.h"
-#include "Subsystems/DriveTrain.h"
-#include "Subsystems/Elevator.h"
-#include "Subsystems/Wrist.h"
+#include "commands/Autonomous.h"
+#include "subsystems/Claw.h"
+#include "subsystems/DriveTrain.h"
+#include "subsystems/Elevator.h"
+#include "subsystems/Wrist.h"
 
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   static DriveTrain drivetrain;
   static Elevator elevator;

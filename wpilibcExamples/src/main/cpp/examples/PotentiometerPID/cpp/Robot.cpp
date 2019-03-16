@@ -7,18 +7,18 @@
 
 #include <array>
 
-#include <AnalogInput.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <PIDController.h>
-#include <Spark.h>
+#include <frc/AnalogInput.h>
+#include <frc/Joystick.h>
+#include <frc/PIDController.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
 
 /**
  * This is a sample program to demonstrate how to use a soft potentiometer and a
  * PID Controller to reach and maintain position setpoints on an elevator
  * mechanism.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void RobotInit() override { m_pidController.SetInputRange(0, 5); }
 
@@ -62,7 +62,7 @@ class Robot : public frc::IterativeRobot {
 
   frc::AnalogInput m_potentiometer{kPotChannel};
   frc::Joystick m_joystick{kJoystickChannel};
-  frc::Spark m_elevatorMotor{kMotorChannel};
+  frc::PWMVictorSPX m_elevatorMotor{kMotorChannel};
 
   /* Potentiometer (AnalogInput) and elevatorMotor (Victor) can be used as a
    * PIDSource and PIDOutput respectively.
@@ -73,4 +73,6 @@ class Robot : public frc::IterativeRobot {
 
 constexpr std::array<double, 3> Robot::kSetPoints;
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

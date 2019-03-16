@@ -7,13 +7,14 @@
 
 package edu.wpi.first.wpilibj;
 
-import edu.wpi.first.wpilibj.hal.InterruptJNI;
-import edu.wpi.first.wpilibj.util.AllocationException;
+import edu.wpi.first.hal.InterruptJNI;
+import edu.wpi.first.hal.util.AllocationException;
 
 
 /**
  * Base for sensors to be used with interrupts.
  */
+@SuppressWarnings("PMD.TooManyMethods")
 public abstract class InterruptableSensorBase extends SendableBase {
   @SuppressWarnings("JavadocMethod")
   public enum WaitResult {
@@ -35,7 +36,7 @@ public abstract class InterruptableSensorBase extends SendableBase {
   /**
    * Flags if the interrupt being allocated is synchronous.
    */
-  protected boolean m_isSynchronousInterrupt = false;
+  protected boolean m_isSynchronousInterrupt;
 
   /**
    * Create a new InterrupatableSensorBase.
@@ -214,7 +215,7 @@ public abstract class InterruptableSensorBase extends SendableBase {
     if (m_interrupt == 0) {
       throw new IllegalStateException("The interrupt is not allocated.");
     }
-    return InterruptJNI.readInterruptRisingTimestamp(m_interrupt);
+    return InterruptJNI.readInterruptRisingTimestamp(m_interrupt) * 1e-6;
   }
 
   /**
@@ -228,7 +229,7 @@ public abstract class InterruptableSensorBase extends SendableBase {
     if (m_interrupt == 0) {
       throw new IllegalStateException("The interrupt is not allocated.");
     }
-    return InterruptJNI.readInterruptFallingTimestamp(m_interrupt);
+    return InterruptJNI.readInterruptFallingTimestamp(m_interrupt) * 1e-6;
   }
 
   /**

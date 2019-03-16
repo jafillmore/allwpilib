@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "HAL/handles/HandlesInternal.h"
-#include "HAL/handles/LimitedHandleResource.h"
-#include "HAL/Counter.h"
+#include "hal/handles/HandlesInternal.h"
+#include "hal/handles/LimitedHandleResource.h"
+#include "hal/Counter.h"
 #include "PortsInternal.h"
 #include <VMXResource.h>
 #include <VMXResourceConfig.h>

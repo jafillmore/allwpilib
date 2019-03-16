@@ -8,18 +8,18 @@
 package edu.wpi.first.wpilibj.examples.potentiometerpid;
 
 import edu.wpi.first.wpilibj.AnalogInput;
-import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
-import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.TimedRobot;
 
 /**
  * This is a sample program to demonstrate how to use a soft potentiometer and a
  * PID controller to reach and maintain position setpoints on an elevator
  * mechanism.
  */
-public class Robot extends IterativeRobot {
+public class Robot extends TimedRobot {
   private static final int kPotChannel = 1;
   private static final int kMotorChannel = 7;
   private static final int kJoystickChannel = 0;
@@ -36,21 +36,22 @@ public class Robot extends IterativeRobot {
   private static final double kD = -2.0;
 
   private PIDController m_pidController;
+  @SuppressWarnings("PMD.SingularField")
   private AnalogInput m_potentiometer;
+  @SuppressWarnings("PMD.SingularField")
   private SpeedController m_elevatorMotor;
   private Joystick m_joystick;
 
-  private int m_index = 0;
-  private boolean m_previousButtonValue = false;
+  private int m_index;
+  private boolean m_previousButtonValue;
 
   @Override
   public void robotInit() {
     m_potentiometer = new AnalogInput(kPotChannel);
-    m_elevatorMotor = new Spark(kMotorChannel);
+    m_elevatorMotor = new PWMVictorSPX(kMotorChannel);
     m_joystick = new Joystick(kJoystickChannel);
 
-    m_pidController
-        = new PIDController(kP, kI, kD, m_potentiometer, m_elevatorMotor);
+    m_pidController = new PIDController(kP, kI, kD, m_potentiometer, m_elevatorMotor);
     m_pidController.setInputRange(0, 5);
   }
 

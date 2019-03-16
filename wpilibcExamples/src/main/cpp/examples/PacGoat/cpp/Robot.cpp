@@ -9,9 +9,9 @@
 
 #include <iostream>
 
-#include <Commands/Scheduler.h>
-#include <LiveWindow/LiveWindow.h>
-#include <SmartDashboard/SmartDashboard.h>
+#include <frc/commands/Scheduler.h>
+#include <frc/livewindow/LiveWindow.h>
+#include <frc/smartdashboard/SmartDashboard.h>
 
 DriveTrain Robot::drivetrain;
 Pivot Robot::pivot;
@@ -29,8 +29,8 @@ void Robot::RobotInit() {
   frc::SmartDashboard::PutData(&pneumatics);
 
   // instantiate the command used for the autonomous period
-  m_autoChooser.AddDefault("Drive and Shoot", &m_driveAndShootAuto);
-  m_autoChooser.AddObject("Drive Forward", &m_driveForwardAuto);
+  m_autoChooser.SetDefaultOption("Drive and Shoot", &m_driveAndShootAuto);
+  m_autoChooser.AddOption("Drive Forward", &m_driveForwardAuto);
   frc::SmartDashboard::PutData("Auto Mode", &m_autoChooser);
 
   pneumatics.Start();  // Pressurize the pneumatics.
@@ -80,4 +80,6 @@ void Robot::Log() {
                                  drivetrain.GetRightEncoder().GetDistance());
 }
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

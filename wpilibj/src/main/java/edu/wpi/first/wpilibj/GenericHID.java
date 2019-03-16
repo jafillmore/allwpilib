@@ -10,7 +10,7 @@ package edu.wpi.first.wpilibj;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.wpi.first.wpilibj.hal.HAL;
+import edu.wpi.first.hal.HAL;
 
 /**
  * GenericHID Interface.
@@ -44,6 +44,7 @@ public abstract class GenericHID {
 
     @SuppressWarnings("MemberName")
     public final int value;
+    @SuppressWarnings("PMD.UseConcurrentHashMap")
     private static final Map<Integer, HIDType> map = new HashMap<>();
 
     HIDType(int value) {
@@ -57,7 +58,7 @@ public abstract class GenericHID {
     }
 
     public static HIDType of(int value) {
-      return (HIDType) map.get(value);
+      return map.get(value);
     }
   }
 

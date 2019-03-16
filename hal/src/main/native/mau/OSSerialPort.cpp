@@ -5,7 +5,7 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/OSSerialPort.h"
+#include "OSSerialPort.h"
 
 #include <stdlib.h>
 #include <dirent.h>
@@ -23,8 +23,8 @@
 #include <cstring>
 #include <string>
 
-#include "HAL/Errors.h"
-#include "HAL/cpp/SerialHelper.h"
+#include "hal/Errors.h"
+#include "hal/cpp/SerialHelper.h"
 #include "HALInitializer.h"
 #include "RaspberryPiInfo.h"
 

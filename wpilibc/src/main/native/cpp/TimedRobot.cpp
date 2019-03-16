@@ -5,28 +5,25 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "TimedRobot.h"
+#include "frc/TimedRobot.h"
 
 #include <stdint.h>
 
-#include <HAL/HAL.h>
+#include <utility>
 
-#include "Timer.h"
-#include "Utility.h"
-#include "WPIErrors.h"
+#include <hal/HAL.h>
+
+#include "frc/Timer.h"
+#include "frc/Utility.h"
+#include "frc/WPIErrors.h"
 
 using namespace frc;
 
-/**
- * Provide an alternate "main loop" via StartCompetition().
- */
 void TimedRobot::StartCompetition() {
   RobotInit();
 
   // Tell the DS that the robot is ready to be enabled
   HAL_ObserveUserProgramStarting();
-
-  m_startLoop = true;
 
   m_expirationTime = Timer::GetFPGATimestamp() + m_period;
   UpdateAlarm();
@@ -46,38 +43,15 @@ void TimedRobot::StartCompetition() {
   }
 }
 
-/**
- * Set time period between calls to Periodic() functions.
- *
- * A timer event is queued for periodic event notification. Each time the
- * interrupt occurs, the event will be immediately requeued for the same time
- * interval.
- *
- * @param period Period in seconds.
- */
-void TimedRobot::SetPeriod(double period) {
-  m_period = period;
-
-  if (m_startLoop) {
-    m_expirationTime = Timer::GetFPGATimestamp() + period;
-    UpdateAlarm();
-  }
-}
-
-/**
- * Get time period between calls to Periodic() functions.
- */
 double TimedRobot::GetPeriod() const { return m_period; }
 
-TimedRobot::TimedRobot() {
+TimedRobot::TimedRobot(double period) : IterativeRobotBase(period) {
   int32_t status = 0;
   m_notifier = HAL_InitializeNotifier(&status);
   wpi_setErrorWithContext(status, HAL_GetErrorMessage(status));
 
-  // HAL_Report(HALUsageReporting::kResourceType_Framework,
-  //            HALUsageReporting::kFramework_Periodic);
   HAL_Report(HALUsageReporting::kResourceType_Framework,
-             HALUsageReporting::kFramework_Iterative);
+             HALUsageReporting::kFramework_Timed);
 }
 
 TimedRobot::~TimedRobot() {
@@ -89,9 +63,22 @@ TimedRobot::~TimedRobot() {
   HAL_CleanNotifier(m_notifier, &status);
 }
 
-/**
- * Update the HAL alarm time.
- */
+TimedRobot::TimedRobot(TimedRobot&& rhs)
+    : IterativeRobotBase(std::move(rhs)),
+      m_expirationTime(std::move(rhs.m_expirationTime)) {
+  std::swap(m_notifier, rhs.m_notifier);
+}
+
+TimedRobot& TimedRobot::operator=(TimedRobot&& rhs) {
+  IterativeRobotBase::operator=(std::move(rhs));
+  ErrorBase::operator=(std::move(rhs));
+
+  std::swap(m_notifier, rhs.m_notifier);
+  m_expirationTime = std::move(rhs.m_expirationTime);
+
+  return *this;
+}
+
 void TimedRobot::UpdateAlarm() {
   int32_t status = 0;
   HAL_UpdateNotifierAlarm(

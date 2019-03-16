@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include <wpi/STLExtras.h>
+#include <wpi/json.h>
 #include <wpi/timestamp.h>
 
 #include "Log.h"
@@ -21,7 +22,12 @@ using namespace cs;
 
 static constexpr size_t kMaxImagesAvail = 32;
 
-SourceImpl::SourceImpl(wpi::StringRef name) : m_name{name} {
+SourceImpl::SourceImpl(const wpi::Twine& name, wpi::Logger& logger,
+                       Notifier& notifier, Telemetry& telemetry)
+    : m_logger(logger),
+      m_notifier(notifier),
+      m_telemetry(telemetry),
+      m_name{name.str()} {
   m_frame = Frame{*this, wpi::StringRef{}, 0};
 }
 
@@ -38,9 +44,9 @@ SourceImpl::~SourceImpl() {
   // Everything else can clean up itself.
 }
 
-void SourceImpl::SetDescription(wpi::StringRef description) {
+void SourceImpl::SetDescription(const wpi::Twine& description) {
   std::lock_guard<wpi::mutex> lock(m_mutex);
-  m_description = description;
+  m_description = description.str();
 }
 
 wpi::StringRef SourceImpl::GetDescription(
@@ -53,9 +59,9 @@ wpi::StringRef SourceImpl::GetDescription(
 void SourceImpl::SetConnected(bool connected) {
   bool wasConnected = m_connected.exchange(connected);
   if (wasConnected && !connected)
-    Notifier::GetInstance().NotifySource(*this, CS_SOURCE_DISCONNECTED);
+    m_notifier.NotifySource(*this, CS_SOURCE_DISCONNECTED);
   else if (!wasConnected && connected)
-    Notifier::GetInstance().NotifySource(*this, CS_SOURCE_CONNECTED);
+    m_notifier.NotifySource(*this, CS_SOURCE_CONNECTED);
 }
 
 uint64_t SourceImpl::GetCurFrameTime() {
@@ -94,148 +100,37 @@ void SourceImpl::Wakeup() {
   m_frameCv.notify_all();
 }
 
-int SourceImpl::GetPropertyIndex(wpi::StringRef name) const {
-  // We can't fail, so instead we create a new index if caching fails.
-  CS_Status status = 0;
-  if (!m_properties_cached) CacheProperties(&status);
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  int& ndx = m_properties[name];
-  if (ndx == 0) {
-    // create a new index
-    ndx = m_propertyData.size() + 1;
-    m_propertyData.emplace_back(CreateEmptyProperty(name));
-  }
-  return ndx;
+void SourceImpl::SetBrightness(int brightness, CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-wpi::ArrayRef<int> SourceImpl::EnumerateProperties(
-    wpi::SmallVectorImpl<int>& vec, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status))
-    return wpi::ArrayRef<int>{};
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  for (int i = 0; i < static_cast<int>(m_propertyData.size()); ++i) {
-    if (m_propertyData[i]) vec.push_back(i + 1);
-  }
-  return vec;
+int SourceImpl::GetBrightness(CS_Status* status) const {
+  *status = CS_INVALID_HANDLE;
+  return 0;
 }
 
-CS_PropertyKind SourceImpl::GetPropertyKind(int property) const {
-  CS_Status status = 0;
-  if (!m_properties_cached && !CacheProperties(&status)) return CS_PROP_NONE;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) return CS_PROP_NONE;
-  return prop->propKind;
+void SourceImpl::SetWhiteBalanceAuto(CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-wpi::StringRef SourceImpl::GetPropertyName(int property,
-                                           wpi::SmallVectorImpl<char>& buf,
-                                           CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return wpi::StringRef{};
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return wpi::StringRef{};
-  }
-  // safe to not copy because we never modify it after caching
-  return prop->name;
+void SourceImpl::SetWhiteBalanceHoldCurrent(CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-int SourceImpl::GetProperty(int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return 0;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return 0;
-  }
-  if ((prop->propKind & (CS_PROP_BOOLEAN | CS_PROP_INTEGER | CS_PROP_ENUM)) ==
-      0) {
-    *status = CS_WRONG_PROPERTY_TYPE;
-    return 0;
-  }
-  return prop->value;
+void SourceImpl::SetWhiteBalanceManual(int value, CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-int SourceImpl::GetPropertyMin(int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return 0;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return 0;
-  }
-  return prop->minimum;
+void SourceImpl::SetExposureAuto(CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-int SourceImpl::GetPropertyMax(int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return 0;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return 0;
-  }
-  return prop->maximum;
+void SourceImpl::SetExposureHoldCurrent(CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
-int SourceImpl::GetPropertyStep(int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return 0;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return 0;
-  }
-  return prop->step;
-}
-
-int SourceImpl::GetPropertyDefault(int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return 0;
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return 0;
-  }
-  return prop->defaultValue;
-}
-
-wpi::StringRef SourceImpl::GetStringProperty(int property,
-                                             wpi::SmallVectorImpl<char>& buf,
-                                             CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status)) return wpi::StringRef{};
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return wpi::StringRef{};
-  }
-  if (prop->propKind != CS_PROP_STRING) {
-    *status = CS_WRONG_PROPERTY_TYPE;
-    return wpi::StringRef{};
-  }
-  buf.clear();
-  buf.append(prop->valueStr.begin(), prop->valueStr.end());
-  return wpi::StringRef(buf.data(), buf.size());
-}
-
-std::vector<std::string> SourceImpl::GetEnumPropertyChoices(
-    int property, CS_Status* status) const {
-  if (!m_properties_cached && !CacheProperties(status))
-    return std::vector<std::string>{};
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = GetProperty(property);
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return std::vector<std::string>{};
-  }
-  if (prop->propKind != CS_PROP_ENUM) {
-    *status = CS_WRONG_PROPERTY_TYPE;
-    return std::vector<std::string>{};
-  }
-  return prop->enumChoices;
+void SourceImpl::SetExposureManual(int value, CS_Status* status) {
+  *status = CS_INVALID_HANDLE;
 }
 
 VideoMode SourceImpl::GetVideoMode(CS_Status* status) const {
@@ -265,6 +160,221 @@ bool SourceImpl::SetFPS(int fps, CS_Status* status) {
   if (!mode) return false;
   mode.fps = fps;
   return SetVideoMode(mode, status);
+}
+
+bool SourceImpl::SetConfigJson(wpi::StringRef config, CS_Status* status) {
+  wpi::json j;
+  try {
+    j = wpi::json::parse(config);
+  } catch (const wpi::json::parse_error& e) {
+    SWARNING("SetConfigJson: parse error at byte " << e.byte << ": "
+                                                   << e.what());
+    *status = CS_PROPERTY_WRITE_FAILED;
+    return false;
+  }
+  return SetConfigJson(j, status);
+}
+
+bool SourceImpl::SetConfigJson(const wpi::json& config, CS_Status* status) {
+  VideoMode mode;
+
+  // pixel format
+  if (config.count("pixel format") != 0) {
+    try {
+      auto str = config.at("pixel format").get<std::string>();
+      wpi::StringRef s(str);
+      if (s.equals_lower("mjpeg")) {
+        mode.pixelFormat = cs::VideoMode::kMJPEG;
+      } else if (s.equals_lower("yuyv")) {
+        mode.pixelFormat = cs::VideoMode::kYUYV;
+      } else if (s.equals_lower("rgb565")) {
+        mode.pixelFormat = cs::VideoMode::kRGB565;
+      } else if (s.equals_lower("bgr")) {
+        mode.pixelFormat = cs::VideoMode::kBGR;
+      } else if (s.equals_lower("gray")) {
+        mode.pixelFormat = cs::VideoMode::kGray;
+      } else {
+        SWARNING("SetConfigJson: could not understand pixel format value '"
+                 << str << '\'');
+      }
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read pixel format: " << e.what());
+    }
+  }
+
+  // width
+  if (config.count("width") != 0) {
+    try {
+      mode.width = config.at("width").get<unsigned int>();
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read width: " << e.what());
+    }
+  }
+
+  // height
+  if (config.count("height") != 0) {
+    try {
+      mode.height = config.at("height").get<unsigned int>();
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read height: " << e.what());
+    }
+  }
+
+  // fps
+  if (config.count("fps") != 0) {
+    try {
+      mode.fps = config.at("fps").get<unsigned int>();
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read fps: " << e.what());
+    }
+  }
+
+  // if all of video mode is set, use SetVideoMode, otherwise piecemeal it
+  if (mode.pixelFormat != VideoMode::kUnknown && mode.width != 0 &&
+      mode.height != 0 && mode.fps != 0) {
+    SINFO("SetConfigJson: setting video mode to pixelFormat "
+          << mode.pixelFormat << ", width " << mode.width << ", height "
+          << mode.height << ", fps " << mode.fps);
+    SetVideoMode(mode, status);
+  } else {
+    if (mode.pixelFormat != cs::VideoMode::kUnknown) {
+      SINFO("SetConfigJson: setting pixelFormat " << mode.pixelFormat);
+      SetPixelFormat(static_cast<cs::VideoMode::PixelFormat>(mode.pixelFormat),
+                     status);
+    }
+    if (mode.width != 0 && mode.height != 0) {
+      SINFO("SetConfigJson: setting width " << mode.width << ", height "
+                                            << mode.height);
+      SetResolution(mode.width, mode.height, status);
+    }
+    if (mode.fps != 0) {
+      SINFO("SetConfigJson: setting fps " << mode.fps);
+      SetFPS(mode.fps, status);
+    }
+  }
+
+  // brightness
+  if (config.count("brightness") != 0) {
+    try {
+      int val = config.at("brightness").get<int>();
+      SINFO("SetConfigJson: setting brightness to " << val);
+      SetBrightness(val, status);
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read brightness: " << e.what());
+    }
+  }
+
+  // white balance
+  if (config.count("white balance") != 0) {
+    try {
+      auto& setting = config.at("white balance");
+      if (setting.is_string()) {
+        auto str = setting.get<std::string>();
+        wpi::StringRef s(str);
+        if (s.equals_lower("auto")) {
+          SINFO("SetConfigJson: setting white balance to auto");
+          SetWhiteBalanceAuto(status);
+        } else if (s.equals_lower("hold")) {
+          SINFO("SetConfigJson: setting white balance to hold current");
+          SetWhiteBalanceHoldCurrent(status);
+        } else {
+          SWARNING("SetConfigJson: could not understand white balance value '"
+                   << str << '\'');
+        }
+      } else {
+        int val = setting.get<int>();
+        SINFO("SetConfigJson: setting white balance to " << val);
+        SetWhiteBalanceManual(val, status);
+      }
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read white balance: " << e.what());
+    }
+  }
+
+  // exposure
+  if (config.count("exposure") != 0) {
+    try {
+      auto& setting = config.at("exposure");
+      if (setting.is_string()) {
+        auto str = setting.get<std::string>();
+        wpi::StringRef s(str);
+        if (s.equals_lower("auto")) {
+          SINFO("SetConfigJson: setting exposure to auto");
+          SetExposureAuto(status);
+        } else if (s.equals_lower("hold")) {
+          SINFO("SetConfigJson: setting exposure to hold current");
+          SetExposureHoldCurrent(status);
+        } else {
+          SWARNING("SetConfigJson: could not understand exposure value '"
+                   << str << '\'');
+        }
+      } else {
+        int val = setting.get<int>();
+        SINFO("SetConfigJson: setting exposure to " << val);
+        SetExposureManual(val, status);
+      }
+    } catch (const wpi::json::exception& e) {
+      SWARNING("SetConfigJson: could not read exposure: " << e.what());
+    }
+  }
+
+  // properties
+  if (config.count("properties") != 0)
+    SetPropertiesJson(config.at("properties"), m_logger, GetName(), status);
+
+  return true;
+}
+
+std::string SourceImpl::GetConfigJson(CS_Status* status) {
+  std::string rv;
+  wpi::raw_string_ostream os(rv);
+  GetConfigJsonObject(status).dump(os, 4);
+  os.flush();
+  return rv;
+}
+
+wpi::json SourceImpl::GetConfigJsonObject(CS_Status* status) {
+  wpi::json j;
+
+  // pixel format
+  wpi::StringRef pixelFormat;
+  switch (m_mode.pixelFormat) {
+    case VideoMode::kMJPEG:
+      pixelFormat = "mjpeg";
+      break;
+    case VideoMode::kYUYV:
+      pixelFormat = "yuyv";
+      break;
+    case VideoMode::kRGB565:
+      pixelFormat = "rgb565";
+      break;
+    case VideoMode::kBGR:
+      pixelFormat = "bgr";
+      break;
+    case VideoMode::kGray:
+      pixelFormat = "gray";
+      break;
+    default:
+      break;
+  }
+  if (!pixelFormat.empty()) j.emplace("pixel format", pixelFormat);
+
+  // width
+  if (m_mode.width != 0) j.emplace("width", m_mode.width);
+
+  // height
+  if (m_mode.height != 0) j.emplace("height", m_mode.height);
+
+  // fps
+  if (m_mode.fps != 0) j.emplace("fps", m_mode.fps);
+
+  // TODO: output brightness, white balance, and exposure?
+
+  // properties
+  wpi::json props = GetPropertiesJsonObject(status);
+  if (props.is_array()) j.emplace("properties", props);
+
+  return j;
 }
 
 std::vector<VideoMode> SourceImpl::EnumerateVideoModes(
@@ -326,9 +436,8 @@ void SourceImpl::PutFrame(VideoMode::PixelFormat pixelFormat, int width,
 
 void SourceImpl::PutFrame(std::unique_ptr<Image> image, Frame::Time time) {
   // Update telemetry
-  Telemetry::GetInstance().RecordSourceFrames(*this, 1);
-  Telemetry::GetInstance().RecordSourceBytes(*this,
-                                             static_cast<int>(image->size()));
+  m_telemetry.RecordSourceFrames(*this, 1);
+  m_telemetry.RecordSourceBytes(*this, static_cast<int>(image->size()));
 
   // Update frame
   {
@@ -340,7 +449,7 @@ void SourceImpl::PutFrame(std::unique_ptr<Image> image, Frame::Time time) {
   m_frameCv.notify_all();
 }
 
-void SourceImpl::PutError(wpi::StringRef msg, Frame::Time time) {
+void SourceImpl::PutError(const wpi::Twine& msg, Frame::Time time) {
   // Update frame
   {
     std::lock_guard<wpi::mutex> lock{m_frameMutex};
@@ -352,19 +461,18 @@ void SourceImpl::PutError(wpi::StringRef msg, Frame::Time time) {
 }
 
 void SourceImpl::NotifyPropertyCreated(int propIndex, PropertyImpl& prop) {
-  auto& notifier = Notifier::GetInstance();
-  notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CREATED, prop.name,
-                                propIndex, prop.propKind, prop.value,
-                                prop.valueStr);
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CREATED, prop.name,
+                                  propIndex, prop.propKind, prop.value,
+                                  prop.valueStr);
   // also notify choices updated event for enum types
   if (prop.propKind == CS_PROP_ENUM)
-    notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CHOICES_UPDATED,
-                                  prop.name, propIndex, prop.propKind,
-                                  prop.value, wpi::StringRef{});
+    m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CHOICES_UPDATED,
+                                    prop.name, propIndex, prop.propKind,
+                                    prop.value, wpi::Twine{});
 }
 
 void SourceImpl::UpdatePropertyValue(int property, bool setString, int value,
-                                     wpi::StringRef valueStr) {
+                                     const wpi::Twine& valueStr) {
   auto prop = GetProperty(property);
   if (!prop) return;
 
@@ -374,10 +482,11 @@ void SourceImpl::UpdatePropertyValue(int property, bool setString, int value,
     prop->SetValue(value);
 
   // Only notify updates after we've notified created
-  if (m_properties_cached)
-    Notifier::GetInstance().NotifySourceProperty(
-        *this, CS_SOURCE_PROPERTY_VALUE_UPDATED, prop->name, property,
-        prop->propKind, prop->value, prop->valueStr);
+  if (m_properties_cached) {
+    m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_VALUE_UPDATED,
+                                    prop->name, property, prop->propKind,
+                                    prop->value, prop->valueStr);
+  }
 }
 
 void SourceImpl::ReleaseImage(std::unique_ptr<Image> image) {

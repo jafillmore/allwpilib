@@ -35,13 +35,16 @@ public abstract class PIDSubsystem extends Subsystem {
    * A source which calls {@link PIDCommand#returnPIDInput()}.
    */
   private final PIDSource m_source = new PIDSource() {
+    @Override
     public void setPIDSourceType(PIDSourceType pidSource) {
     }
 
+    @Override
     public PIDSourceType getPIDSourceType() {
       return PIDSourceType.kDisplacement;
     }
 
+    @Override
     public double pidGet() {
       return returnPIDInput();
     }
@@ -86,6 +89,7 @@ public abstract class PIDSubsystem extends Subsystem {
    * @param p      the proportional value
    * @param i      the integral value
    * @param d      the derivative value
+   * @param f      the feed forward value
    * @param period the time (in seconds) between calculations
    */
   @SuppressWarnings("ParameterName")
@@ -121,7 +125,7 @@ public abstract class PIDSubsystem extends Subsystem {
    * @param period the time (in seconds) between calculations
    */
   @SuppressWarnings("ParameterName")
-  public PIDSubsystem(double p, double i, double d, double period, double f) {
+  public PIDSubsystem(double p, double i, double d, double f, double period) {
     m_controller = new PIDController(p, i, d, f, m_source, m_output, period);
     addChild("PIDController", m_controller);
   }

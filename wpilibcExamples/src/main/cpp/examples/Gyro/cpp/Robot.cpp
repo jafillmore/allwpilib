@@ -7,18 +7,18 @@
 
 #include <cmath>
 
-#include <AnalogGyro.h>
-#include <Drive/DifferentialDrive.h>
-#include <IterativeRobot.h>
-#include <Joystick.h>
-#include <Spark.h>
+#include <frc/AnalogGyro.h>
+#include <frc/Joystick.h>
+#include <frc/PWMVictorSPX.h>
+#include <frc/TimedRobot.h>
+#include <frc/drive/DifferentialDrive.h>
 
 /**
  * This is a sample program to demonstrate how to use a gyro sensor to make a
  * robot drive straight. This program uses a joystick to drive forwards and
  * backwards while the gyro is used for direction keeping.
  */
-class Robot : public frc::IterativeRobot {
+class Robot : public frc::TimedRobot {
  public:
   void RobotInit() override { m_gyro.SetSensitivity(kVoltsPerDegreePerSecond); }
 
@@ -47,12 +47,14 @@ class Robot : public frc::IterativeRobot {
   static constexpr int kGyroPort = 0;
   static constexpr int kJoystickPort = 0;
 
-  frc::Spark m_left{kLeftMotorPort};
-  frc::Spark m_right{kRightMotorPort};
+  frc::PWMVictorSPX m_left{kLeftMotorPort};
+  frc::PWMVictorSPX m_right{kRightMotorPort};
   frc::DifferentialDrive m_robotDrive{m_left, m_right};
 
   frc::AnalogGyro m_gyro{kGyroPort};
   frc::Joystick m_joystick{kJoystickPort};
 };
 
+#ifndef RUNNING_FRC_TESTS
 int main() { return frc::StartRobot<Robot>(); }
+#endif

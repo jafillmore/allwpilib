@@ -9,7 +9,7 @@
 
 #include <cstring>
 
-#include "MockData/I2CData.h"
+#include <mockdata/I2CData.h>
 
 using namespace hal;
 
@@ -38,6 +38,10 @@ ADXL345_I2CData::ADXL345_I2CData(int port) : m_port(port) {
 ADXL345_I2CData::~ADXL345_I2CData() {
   HALSIM_CancelI2CReadCallback(m_port, m_readCallbackId);
   HALSIM_CancelI2CWriteCallback(m_port, m_writeCallbackId);
+}
+
+bool ADXL345_I2CData::GetInitialized() const {
+  return HALSIM_GetI2CInitialized(m_port);
 }
 
 void ADXL345_I2CData::ADXL345_I2CData::HandleWrite(const uint8_t* buffer,

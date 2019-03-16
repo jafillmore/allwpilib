@@ -28,10 +28,13 @@ public class VideoEvent {
     kSinkEnabled(0x1000),
     kSinkDisabled(0x2000),
     kNetworkInterfacesChanged(0x4000),
-    kTelemetryUpdated(0x8000);
+    kTelemetryUpdated(0x8000),
+    kSinkPropertyCreated(0x10000),
+    kSinkPropertyValueUpdated(0x20000),
+    kSinkPropertyChoicesUpdated(0x40000);
 
     @SuppressWarnings("MemberName")
-    private int value;
+    private final int value;
 
     Kind(int value) {
       this.value = value;
@@ -48,6 +51,7 @@ public class VideoEvent {
    * @param kind The numerical representation of kind
    * @return The kind
    */
+  @SuppressWarnings("PMD.CyclomaticComplexity")
   public static Kind getKindFromInt(int kind) {
     switch (kind) {
       case 0x0001: return Kind.kSourceCreated;
@@ -65,10 +69,14 @@ public class VideoEvent {
       case 0x1000: return Kind.kSinkEnabled;
       case 0x2000: return Kind.kSinkDisabled;
       case 0x4000: return Kind.kNetworkInterfacesChanged;
+      case 0x10000: return Kind.kSinkPropertyCreated;
+      case 0x20000: return Kind.kSinkPropertyValueUpdated;
+      case 0x40000: return Kind.kSinkPropertyChoicesUpdated;
       default: return Kind.kUnknown;
     }
   }
 
+  @SuppressWarnings("PMD.ExcessiveParameterList")
   VideoEvent(int kind, int source, int sink, String name, int pixelFormat,
              int width, int height, int fps, int property, int propertyKind,
              int value, String valueStr) {

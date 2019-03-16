@@ -5,14 +5,14 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/AnalogGyro.h"
+#include "hal/AnalogGyro.h"
 
 #include <thread>
 
 #include "AnalogInternal.h"
-#include "HAL/AnalogAccumulator.h"
-#include "HAL/AnalogInput.h"
-#include "HAL/handles/IndexedHandleResource.h"
+#include "hal/AnalogAccumulator.h"
+#include "hal/AnalogInput.h"
+#include "hal/handles/IndexedHandleResource.h"
 #include "HALInitializer.h"
 
 namespace {

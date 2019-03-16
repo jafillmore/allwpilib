@@ -5,7 +5,7 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/Notifier.h"
+#include "hal/Notifier.h"
 
 #include <chrono>
 
@@ -13,9 +13,8 @@
 #include <wpi/mutex.h>
 #include <wpi/timestamp.h>
 
-#include "HAL/HAL.h"
-//#include "HAL/cpp/fpga_clock.h"
-#include "HAL/handles/UnlimitedHandleResource.h"
+#include "hal/HAL.h"
+#include "hal/handles/UnlimitedHandleResource.h"
 #include "HALInitializer.h"
 
 namespace {

@@ -7,7 +7,7 @@
 
 #include <AHRS.h>
 #include "HALInitializer.h"
-#include "HAL/Accelerometer.h"
+#include "hal/Accelerometer.h"
 #include "MauInternal.h"
 
 namespace hal {

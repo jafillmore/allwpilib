@@ -14,6 +14,7 @@
 #include <wpi/timestamp.h>
 
 #include "Handle.h"
+#include "Instance.h"
 #include "Log.h"
 #include "Notifier.h"
 #include "c_util.h"
@@ -21,100 +22,20 @@
 
 using namespace cs;
 
-CvSourceImpl::CvSourceImpl(wpi::StringRef name, const VideoMode& mode)
-    : SourceImpl{name} {
+CvSourceImpl::CvSourceImpl(const wpi::Twine& name, wpi::Logger& logger,
+                           Notifier& notifier, Telemetry& telemetry,
+                           const VideoMode& mode)
+    : SourceImpl{name, logger, notifier, telemetry} {
   m_mode = mode;
   m_videoModes.push_back(m_mode);
 }
 
 CvSourceImpl::~CvSourceImpl() {}
 
-void CvSourceImpl::Start() {}
-
-std::unique_ptr<PropertyImpl> CvSourceImpl::CreateEmptyProperty(
-    wpi::StringRef name) const {
-  return wpi::make_unique<PropertyData>(name);
-}
-
-bool CvSourceImpl::CacheProperties(CS_Status* status) const {
-  // Doesn't need to do anything.
-  m_properties_cached = true;
-  return true;
-}
-
-void CvSourceImpl::SetProperty(int property, int value, CS_Status* status) {
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = static_cast<PropertyData*>(GetProperty(property));
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return;
-  }
-
-  // Guess it's integer if we've set before get
-  if (prop->propKind == CS_PROP_NONE) prop->propKind = CS_PROP_INTEGER;
-
-  if ((prop->propKind & (CS_PROP_BOOLEAN | CS_PROP_INTEGER | CS_PROP_ENUM)) ==
-      0) {
-    *status = CS_WRONG_PROPERTY_TYPE;
-    return;
-  }
-
-  UpdatePropertyValue(property, false, value, wpi::StringRef{});
-}
-
-void CvSourceImpl::SetStringProperty(int property, wpi::StringRef value,
-                                     CS_Status* status) {
-  std::lock_guard<wpi::mutex> lock(m_mutex);
-  auto prop = static_cast<PropertyData*>(GetProperty(property));
-  if (!prop) {
-    *status = CS_INVALID_PROPERTY;
-    return;
-  }
-
-  // Guess it's string if we've set before get
-  if (prop->propKind == CS_PROP_NONE) prop->propKind = CS_PROP_STRING;
-
-  if (prop->propKind != CS_PROP_STRING) {
-    *status = CS_WRONG_PROPERTY_TYPE;
-    return;
-  }
-
-  UpdatePropertyValue(property, true, 0, value);
-}
-
-// These are only valid for cameras (should never get called)
-
-void CvSourceImpl::SetBrightness(int brightness, CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-int CvSourceImpl::GetBrightness(CS_Status* status) const {
-  *status = CS_INVALID_HANDLE;
-  return 0;
-}
-
-void CvSourceImpl::SetWhiteBalanceAuto(CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-void CvSourceImpl::SetWhiteBalanceHoldCurrent(CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-void CvSourceImpl::SetWhiteBalanceManual(int value, CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-void CvSourceImpl::SetExposureAuto(CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-void CvSourceImpl::SetExposureHoldCurrent(CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
-}
-
-void CvSourceImpl::SetExposureManual(int value, CS_Status* status) {
-  *status = CS_INVALID_HANDLE;
+void CvSourceImpl::Start() {
+  m_notifier.NotifySource(*this, CS_SOURCE_CONNECTED);
+  m_notifier.NotifySource(*this, CS_SOURCE_VIDEOMODES_UPDATED);
+  m_notifier.NotifySourceVideoMode(*this, m_mode);
 }
 
 bool CvSourceImpl::SetVideoMode(const VideoMode& mode, CS_Status* status) {
@@ -123,7 +44,7 @@ bool CvSourceImpl::SetVideoMode(const VideoMode& mode, CS_Status* status) {
     m_mode = mode;
     m_videoModes[0] = mode;
   }
-  Notifier::GetInstance().NotifySourceVideoMode(*this, mode);
+  m_notifier.NotifySourceVideoMode(*this, mode);
   return true;
 }
 
@@ -168,38 +89,36 @@ void CvSourceImpl::PutFrame(cv::Mat& image) {
   SourceImpl::PutFrame(std::move(dest), wpi::Now());
 }
 
-void CvSourceImpl::NotifyError(wpi::StringRef msg) {
+void CvSourceImpl::NotifyError(const wpi::Twine& msg) {
   PutError(msg, wpi::Now());
 }
 
-int CvSourceImpl::CreateProperty(wpi::StringRef name, CS_PropertyKind kind,
+int CvSourceImpl::CreateProperty(const wpi::Twine& name, CS_PropertyKind kind,
                                  int minimum, int maximum, int step,
                                  int defaultValue, int value) {
   std::lock_guard<wpi::mutex> lock(m_mutex);
-  int& ndx = m_properties[name];
-  if (ndx == 0) {
-    // create a new index
-    ndx = m_propertyData.size() + 1;
-    m_propertyData.emplace_back(wpi::make_unique<PropertyData>(
-        name, kind, minimum, maximum, step, defaultValue, value));
-  } else {
-    // update all but value
-    auto prop = GetProperty(ndx);
-    prop->propKind = kind;
-    prop->minimum = minimum;
-    prop->maximum = maximum;
-    prop->step = step;
-    prop->defaultValue = defaultValue;
-    value = prop->value;
-  }
-  Notifier::GetInstance().NotifySourceProperty(
-      *this, CS_SOURCE_PROPERTY_CREATED, name, ndx, kind, value,
-      wpi::StringRef{});
+  int ndx = CreateOrUpdateProperty(name,
+                                   [=] {
+                                     return wpi::make_unique<PropertyImpl>(
+                                         name, kind, minimum, maximum, step,
+                                         defaultValue, value);
+                                   },
+                                   [&](PropertyImpl& prop) {
+                                     // update all but value
+                                     prop.propKind = kind;
+                                     prop.minimum = minimum;
+                                     prop.maximum = maximum;
+                                     prop.step = step;
+                                     prop.defaultValue = defaultValue;
+                                     value = prop.value;
+                                   });
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CREATED, name, ndx,
+                                  kind, value, wpi::Twine{});
   return ndx;
 }
 
 int CvSourceImpl::CreateProperty(
-    wpi::StringRef name, CS_PropertyKind kind, int minimum, int maximum,
+    const wpi::Twine& name, CS_PropertyKind kind, int minimum, int maximum,
     int step, int defaultValue, int value,
     std::function<void(CS_Property property)> onChange) {
   // TODO
@@ -220,29 +139,23 @@ void CvSourceImpl::SetEnumPropertyChoices(int property,
     return;
   }
   prop->enumChoices = choices;
-  Notifier::GetInstance().NotifySourceProperty(
-      *this, CS_SOURCE_PROPERTY_CHOICES_UPDATED, prop->name, property,
-      CS_PROP_ENUM, prop->value, wpi::StringRef{});
+  m_notifier.NotifySourceProperty(*this, CS_SOURCE_PROPERTY_CHOICES_UPDATED,
+                                  prop->name, property, CS_PROP_ENUM,
+                                  prop->value, wpi::Twine{});
 }
 
 namespace cs {
 
-CS_Source CreateCvSource(wpi::StringRef name, const VideoMode& mode,
+CS_Source CreateCvSource(const wpi::Twine& name, const VideoMode& mode,
                          CS_Status* status) {
-  auto source = std::make_shared<CvSourceImpl>(name, mode);
-  auto handle = Sources::GetInstance().Allocate(CS_SOURCE_CV, source);
-  auto& notifier = Notifier::GetInstance();
-  notifier.NotifySource(name, handle, CS_SOURCE_CREATED);
-  // Generate initial events here so they come after the source created event
-  source->Start();  // causes a property event
-  notifier.NotifySource(name, handle, CS_SOURCE_CONNECTED);
-  notifier.NotifySource(name, handle, CS_SOURCE_VIDEOMODES_UPDATED);
-  notifier.NotifySourceVideoMode(*source, mode);
-  return handle;
+  auto& inst = Instance::GetInstance();
+  return inst.CreateSource(CS_SOURCE_CV, std::make_shared<CvSourceImpl>(
+                                             name, inst.logger, inst.notifier,
+                                             inst.telemetry, mode));
 }
 
 void PutSourceFrame(CS_Source source, cv::Mat& image, CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -250,9 +163,9 @@ void PutSourceFrame(CS_Source source, cv::Mat& image, CS_Status* status) {
   static_cast<CvSourceImpl&>(*data->source).PutFrame(image);
 }
 
-void NotifySourceError(CS_Source source, wpi::StringRef msg,
+void NotifySourceError(CS_Source source, const wpi::Twine& msg,
                        CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -261,7 +174,7 @@ void NotifySourceError(CS_Source source, wpi::StringRef msg,
 }
 
 void SetSourceConnected(CS_Source source, bool connected, CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -269,9 +182,9 @@ void SetSourceConnected(CS_Source source, bool connected, CS_Status* status) {
   static_cast<CvSourceImpl&>(*data->source).SetConnected(connected);
 }
 
-void SetSourceDescription(CS_Source source, wpi::StringRef description,
+void SetSourceDescription(CS_Source source, const wpi::Twine& description,
                           CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -279,11 +192,11 @@ void SetSourceDescription(CS_Source source, wpi::StringRef description,
   static_cast<CvSourceImpl&>(*data->source).SetDescription(description);
 }
 
-CS_Property CreateSourceProperty(CS_Source source, wpi::StringRef name,
+CS_Property CreateSourceProperty(CS_Source source, const wpi::Twine& name,
                                  CS_PropertyKind kind, int minimum, int maximum,
                                  int step, int defaultValue, int value,
                                  CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return -1;
@@ -295,10 +208,10 @@ CS_Property CreateSourceProperty(CS_Source source, wpi::StringRef name,
 }
 
 CS_Property CreateSourcePropertyCallback(
-    CS_Source source, wpi::StringRef name, CS_PropertyKind kind, int minimum,
+    CS_Source source, const wpi::Twine& name, CS_PropertyKind kind, int minimum,
     int maximum, int step, int defaultValue, int value,
     std::function<void(CS_Property property)> onChange, CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return -1;
@@ -312,7 +225,7 @@ CS_Property CreateSourcePropertyCallback(
 void SetSourceEnumPropertyChoices(CS_Source source, CS_Property property,
                                   wpi::ArrayRef<std::string> choices,
                                   CS_Status* status) {
-  auto data = Sources::GetInstance().Get(source);
+  auto data = Instance::GetInstance().GetSource(source);
   if (!data || data->kind != CS_SOURCE_CV) {
     *status = CS_INVALID_HANDLE;
     return;
@@ -325,7 +238,7 @@ void SetSourceEnumPropertyChoices(CS_Source source, CS_Property property,
     *status = CS_INVALID_HANDLE;
     return;
   }
-  auto data2 = Sources::GetInstance().Get(Handle{i, Handle::kSource});
+  auto data2 = Instance::GetInstance().GetSource(Handle{i, Handle::kSource});
   if (!data2 || data->source.get() != data2->source.get()) {
     *status = CS_INVALID_HANDLE;
     return;

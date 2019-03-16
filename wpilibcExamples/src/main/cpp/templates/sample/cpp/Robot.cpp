@@ -9,8 +9,8 @@
 
 #include <iostream>
 
-#include <SmartDashboard/SmartDashboard.h>
-#include <Timer.h>
+#include <frc/Timer.h>
+#include <frc/smartdashboard/SmartDashboard.h>
 
 Robot::Robot() {
   // Note SmartDashboard is not initialized here, wait until RobotInit() to make
@@ -19,8 +19,8 @@ Robot::Robot() {
 }
 
 void Robot::RobotInit() {
-  m_chooser.AddDefault(kAutoNameDefault, kAutoNameDefault);
-  m_chooser.AddObject(kAutoNameCustom, kAutoNameCustom);
+  m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
+  m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
   frc::SmartDashboard::PutData("Auto Modes", &m_chooser);
 }
 

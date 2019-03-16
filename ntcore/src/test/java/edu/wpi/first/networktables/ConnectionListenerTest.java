@@ -15,10 +15,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -44,6 +47,7 @@ class ConnectionListenerTest {
   /**
    * Connect to the server.
    */
+  @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
   private void connect() {
     m_serverInst.startServer("connectionlistenertest.ini", "127.0.0.1", 10000);
     m_clientInst.startClient("127.0.0.1", 10000);
@@ -64,9 +68,9 @@ class ConnectionListenerTest {
   void testJNI() {
     // set up the poller
     int poller = NetworkTablesJNI.createConnectionListenerPoller(m_serverInst.getHandle());
-    assertTrue(poller != 0, "bad poller handle");
+    assertNotSame(poller, 0, "bad poller handle");
     int handle = NetworkTablesJNI.addPolledConnectionListener(poller, false);
-    assertTrue(handle != 0, "bad listener handle");
+    assertNotSame(handle, 0, "bad listener handle");
 
     // trigger a connect event
     connect();
@@ -110,15 +114,17 @@ class ConnectionListenerTest {
 
   }
 
-  @Test
+  @ParameterizedTest
   @DisabledOnOs(OS.WINDOWS)
-  void testThreaded() {
-    m_serverInst.startServer("connectionlistenertest.ini", "127.0.0.1", 10000);
+  @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
+  @ValueSource(strings = { "127.0.0.1", "127.0.0.1 ", " 127.0.0.1 " })
+  void testThreaded(String address) {
+    m_serverInst.startServer("connectionlistenertest.ini", address, 10000);
     List<ConnectionNotification> events = new ArrayList<>();
     final int handle = m_serverInst.addConnectionListener(events::add, false);
 
     // trigger a connect event
-    m_clientInst.startClient("127.0.0.1", 10000);
+    m_clientInst.startClient(address, 10000);
 
     // wait for client to report it's started, then wait another 0.1 sec
     try {

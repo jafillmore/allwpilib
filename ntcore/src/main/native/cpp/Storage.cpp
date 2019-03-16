@@ -310,7 +310,7 @@ void Storage::ProcessIncomingClearEntries(std::shared_ptr<Message> msg,
 }
 
 void Storage::ProcessIncomingExecuteRpc(
-    std::shared_ptr<Message> msg, INetworkConnection* conn,
+    std::shared_ptr<Message> msg, INetworkConnection* /*conn*/,
     std::weak_ptr<INetworkConnection> conn_weak) {
   std::unique_lock<wpi::mutex> lock(m_mutex);
   if (!m_server) return;  // only process on server
@@ -350,7 +350,7 @@ void Storage::ProcessIncomingExecuteRpc(
 }
 
 void Storage::ProcessIncomingRpcResponse(std::shared_ptr<Message> msg,
-                                         INetworkConnection* conn) {
+                                         INetworkConnection* /*conn*/) {
   std::unique_lock<wpi::mutex> lock(m_mutex);
   if (m_server) return;  // only process on client
   unsigned int id = msg->id();
@@ -387,7 +387,7 @@ void Storage::GetInitialAssignments(
 
 void Storage::ApplyInitialAssignments(
     INetworkConnection& conn, wpi::ArrayRef<std::shared_ptr<Message>> msgs,
-    bool new_server, std::vector<std::shared_ptr<Message>>* out_msgs) {
+    bool /*new_server*/, std::vector<std::shared_ptr<Message>>* out_msgs) {
   std::unique_lock<wpi::mutex> lock(m_mutex);
   if (m_server) return;  // should not do this on server
 
@@ -1085,14 +1085,8 @@ bool Storage::GetRpcResult(unsigned int local_id, unsigned int call_uid,
   // only allow one blocking call per rpc call uid
   if (!m_rpc_blocking_calls.insert(call_pair).second) return false;
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
-  auto timeout_time = std::chrono::steady_clock::now() +
-                      std::chrono::duration<int64_t, std::nano>(
-                          static_cast<int64_t>(timeout * 1e9));
-#else
   auto timeout_time =
       std::chrono::steady_clock::now() + std::chrono::duration<double>(timeout);
-#endif
   *timed_out = false;
   for (;;) {
     auto i = m_rpc_results.find(call_pair);

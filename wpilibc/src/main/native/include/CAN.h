@@ -7,51 +7,13 @@
 
 #pragma once
 
-#include <stdint.h>
+// clang-format off
+#ifdef _MSC_VER
+#pragma message "warning: CAN.h is deprecated; include frc/CAN.h instead"
+#else
+#warning "CAN.h is deprecated; include frc/CAN.h instead"
+#endif
 
-#include <HAL/CANAPI.h>
-#include <wpi/ArrayRef.h>
+// clang-format on
 
-#include "ErrorBase.h"
-
-namespace frc {
-struct CANData {
-  uint8_t data[8];
-  int32_t length;
-  uint64_t timestamp;
-};
-
-/**
- * High level class for interfacing with CAN devices conforming to
- * the standard CAN spec.
- *
- * No packets that can be sent gets blocked by the RoboRIO, so all methods
- * work identically in all robot modes.
- *
- * All methods are thread save, however the buffer objects passed in
- * by the user need to not be modified for the duration of their calls.
- */
-class CAN : public ErrorBase {
- public:
-  explicit CAN(int deviceId);
-  ~CAN() override;
-
-  void WritePacket(const uint8_t* data, int length, int apiId);
-  void WritePacketRepeating(const uint8_t* data, int length, int apiId,
-                            int repeatMs);
-  void StopPacketRepeating(int apiId);
-
-  bool ReadPacketNew(int apiId, CANData* data);
-  bool ReadPacketLatest(int apiId, CANData* data);
-  bool ReadPacketTimeout(int apiId, int timeoutMs, CANData* data);
-  bool ReadPeriodicPacket(int apiId, int timeoutMs, int periodMs,
-                          CANData* data);
-
-  static constexpr HAL_CANManufacturer kTeamManufacturer = HAL_CAN_Man_kTeamUse;
-  static constexpr HAL_CANDeviceType kTeamDeviceType =
-      HAL_CAN_Dev_kMiscellaneous;
-
- private:
-  HAL_CANHandle m_handle{HAL_kInvalidHandle};
-};
-}  // namespace frc
+#include "frc/CAN.h"

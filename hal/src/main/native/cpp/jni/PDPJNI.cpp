@@ -5,168 +5,169 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/PDP.h"
-#include "HAL/Ports.h"
 #include "HALUtil.h"
-#include "edu_wpi_first_wpilibj_hal_PDPJNI.h"
+#include "edu_wpi_first_hal_PDPJNI.h"
+#include "hal/PDP.h"
+#include "hal/Ports.h"
 
 using namespace frc;
 
 extern "C" {
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    initializePDP
- * Signature: (I)V
+ * Signature: (I)I
  */
-JNIEXPORT void JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_initializePDP
+JNIEXPORT jint JNICALL
+Java_edu_wpi_first_hal_PDPJNI_initializePDP
   (JNIEnv* env, jclass, jint module)
 {
   int32_t status = 0;
-  HAL_InitializePDP(module, &status);
+  auto handle = HAL_InitializePDP(module, &status);
   CheckStatusRange(env, status, 0, HAL_GetNumPDPModules(), module);
+  return static_cast<jint>(handle);
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    checkPDPChannel
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_checkPDPChannel
+Java_edu_wpi_first_hal_PDPJNI_checkPDPChannel
   (JNIEnv* env, jclass, jint channel)
 {
   return HAL_CheckPDPChannel(channel);
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    checkPDPModule
  * Signature: (I)Z
  */
 JNIEXPORT jboolean JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_checkPDPModule
+Java_edu_wpi_first_hal_PDPJNI_checkPDPModule
   (JNIEnv* env, jclass, jint module)
 {
   return HAL_CheckPDPModule(module);
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPTemperature
  * Signature: (I)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPTemperature
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPTemperature
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  double temperature = HAL_GetPDPTemperature(module, &status);
+  double temperature = HAL_GetPDPTemperature(handle, &status);
   CheckStatus(env, status, false);
   return temperature;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPVoltage
  * Signature: (I)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPVoltage
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPVoltage
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  double voltage = HAL_GetPDPVoltage(module, &status);
+  double voltage = HAL_GetPDPVoltage(handle, &status);
   CheckStatus(env, status, false);
   return voltage;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPChannelCurrent
  * Signature: (BI)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPChannelCurrent
-  (JNIEnv* env, jclass, jbyte channel, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPChannelCurrent
+  (JNIEnv* env, jclass, jbyte channel, jint handle)
 {
   int32_t status = 0;
-  double current = HAL_GetPDPChannelCurrent(module, channel, &status);
+  double current = HAL_GetPDPChannelCurrent(handle, channel, &status);
   CheckStatus(env, status, false);
   return current;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPTotalCurrent
  * Signature: (I)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPTotalCurrent
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPTotalCurrent
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  double current = HAL_GetPDPTotalCurrent(module, &status);
+  double current = HAL_GetPDPTotalCurrent(handle, &status);
   CheckStatus(env, status, false);
   return current;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPTotalPower
  * Signature: (I)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPTotalPower
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPTotalPower
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  double power = HAL_GetPDPTotalPower(module, &status);
+  double power = HAL_GetPDPTotalPower(handle, &status);
   CheckStatus(env, status, false);
   return power;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    getPDPTotalEnergy
  * Signature: (I)D
  */
 JNIEXPORT jdouble JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_getPDPTotalEnergy
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_getPDPTotalEnergy
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  double energy = HAL_GetPDPTotalEnergy(module, &status);
+  double energy = HAL_GetPDPTotalEnergy(handle, &status);
   CheckStatus(env, status, false);
   return energy;
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    resetPDPTotalEnergy
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_resetPDPTotalEnergy
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_resetPDPTotalEnergy
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  HAL_ResetPDPTotalEnergy(module, &status);
+  HAL_ResetPDPTotalEnergy(handle, &status);
   CheckStatus(env, status, false);
 }
 
 /*
- * Class:     edu_wpi_first_wpilibj_hal_PDPJNI
+ * Class:     edu_wpi_first_hal_PDPJNI
  * Method:    clearPDPStickyFaults
  * Signature: (I)V
  */
 JNIEXPORT void JNICALL
-Java_edu_wpi_first_wpilibj_hal_PDPJNI_clearPDPStickyFaults
-  (JNIEnv* env, jclass, jint module)
+Java_edu_wpi_first_hal_PDPJNI_clearPDPStickyFaults
+  (JNIEnv* env, jclass, jint handle)
 {
   int32_t status = 0;
-  HAL_ClearPDPStickyFaults(module, &status);
+  HAL_ClearPDPStickyFaults(handle, &status);
   CheckStatus(env, status, false);
 }
 

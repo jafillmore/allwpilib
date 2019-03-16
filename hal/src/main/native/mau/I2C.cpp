@@ -5,8 +5,8 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
-#include "HAL/I2C.h"
-#include "HAL/Errors.h"
+#include "hal/I2C.h"
+#include "hal/Errors.h"
 
 #include "HALInitializer.h"
 #include "MauInternal.h"

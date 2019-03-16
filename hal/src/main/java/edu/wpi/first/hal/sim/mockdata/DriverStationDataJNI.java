@@ -7,9 +7,8 @@
 
 package edu.wpi.first.hal.sim.mockdata;
 
-import edu.wpi.first.wpilibj.sim.NotifyCallback;
-import edu.wpi.first.wpilibj.hal.JNIWrapper;
-import edu.wpi.first.wpilibj.hal.MatchInfoData;
+import edu.wpi.first.hal.JNIWrapper;
+import edu.wpi.first.hal.sim.NotifyCallback;
 
 public class DriverStationDataJNI extends JNIWrapper {
   public static native int registerEnabledCallback(NotifyCallback callback, boolean initialNotify);
@@ -46,7 +45,7 @@ public class DriverStationDataJNI extends JNIWrapper {
   public static native void setJoystickPOVs(byte joystickNum, short[] povsArray);
   public static native void setJoystickButtons(byte joystickNum, int buttons, int count);
 
-  public static native void setMatchInfo(MatchInfoData info);
+  public static native void setMatchInfo(String eventName, String gameSpecificMessage, int matchNumber, int replayNumber, int matchType);
   public static native void registerAllCallbacks(NotifyCallback callback, boolean initialNotify);
   public static native void notifyNewData();
 

@@ -1,6 +1,6 @@
 #ifndef NATIVE_MAUENUMSINTERNAL_H
 
-#include "HandlesInternal.h"
+#include "hal/handles/HandlesInternal.h"
 #include <VMXChannel.h>
 #include <map>
 #include <math.h>

@@ -7,9 +7,9 @@
 
 package edu.wpi.first.wpilibj;
 
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
-import edu.wpi.first.wpilibj.hal.SolenoidJNI;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
+import edu.wpi.first.hal.SolenoidJNI;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 
 /**
@@ -115,6 +115,7 @@ public class Solenoid extends SolenoidBase {
   @Override
   public void initSendable(SendableBuilder builder) {
     builder.setSmartDashboardType("Solenoid");
+    builder.setActuator(true);
     builder.setSafeState(() -> set(false));
     builder.addBooleanProperty("Value", this::get, this::set);
   }

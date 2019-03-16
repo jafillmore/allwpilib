@@ -10,9 +10,9 @@ package edu.wpi.first.wpilibj;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import edu.wpi.first.wpilibj.hal.DigitalGlitchFilterJNI;
-import edu.wpi.first.wpilibj.hal.FRCNetComm.tResourceType;
-import edu.wpi.first.wpilibj.hal.HAL;
+import edu.wpi.first.hal.DigitalGlitchFilterJNI;
+import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilder;
 
 /**
@@ -33,7 +33,7 @@ public class DigitalGlitchFilter extends SendableBase {
       if (index != m_filterAllocated.length) {
         m_channelIndex = index;
         m_filterAllocated[index] = true;
-        HAL.report(tResourceType.kResourceType_DigitalFilter,
+        HAL.report(tResourceType.kResourceType_DigitalGlitchFilter,
             m_channelIndex, 0);
         setName("DigitalGlitchFilter", index);
       }
@@ -170,6 +170,7 @@ public class DigitalGlitchFilter extends SendableBase {
         / (long) (SensorUtil.kSystemClockTicksPerMicrosecond / 4);
   }
 
+  @Override
   @SuppressWarnings("PMD.UnusedFormalParameter")
   public void initSendable(SendableBuilder builder) {
   }

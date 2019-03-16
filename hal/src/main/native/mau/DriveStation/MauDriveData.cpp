@@ -1,8 +1,8 @@
 #include "MauDriveData.h"
 #include <cstring>
 
-wpi::priority_mutex Mau_DriveData::memLock;
-wpi::priority_condition_variable Mau_DriveData::memSignal;
+wpi::mutex Mau_DriveData::memLock;
+wpi::condition_variable Mau_DriveData::memSignal;
 
 HAL_AllianceStationID Mau_DriveData::allianceID;
 HAL_MatchInfo Mau_DriveData::matchInfo;
@@ -19,9 +19,9 @@ void Mau_DriveData::unlockAndSignal() {
 
  void Mau_DriveData::initializeDriveData() {
 	infoEventName[0] = 0;
-	matchInfo.eventName = infoEventName;
+	strcpy((char *)matchInfo.eventName,infoEventName);
 	infoGameMessage[0] = 0;
-	matchInfo.gameSpecificMessage = infoGameMessage;
+	strcpy((char *)matchInfo.gameSpecificMessage,infoGameMessage);
  }
 
 void Mau_DriveData::updateAllianceID(HAL_AllianceStationID id) {
@@ -32,11 +32,11 @@ void Mau_DriveData::updateAllianceID(HAL_AllianceStationID id) {
 
 void Mau_DriveData::updateMatchInfo(HAL_MatchInfo* info) {
     memLock.lock();
-    matchInfo.eventName = info->eventName;
+    strcpy((char *)matchInfo.eventName, (char *)info->eventName);
     matchInfo.matchType = info->matchType;
     matchInfo.matchNumber = info->matchNumber;
     matchInfo.replayNumber = info->replayNumber;
-    matchInfo.gameSpecificMessage = info->gameSpecificMessage;
+    strcpy((char *)matchInfo.gameSpecificMessage, (char *)info->gameSpecificMessage);
     unlockAndSignal();
 }
 
@@ -137,11 +137,11 @@ void Mau_DriveData::updateJoyOutputs(int32_t joyNumber, int64_t outputs, int32_t
 
 void Mau_DriveData::scribeMatchInfo(HAL_MatchInfo* info) {
     memLock.lock();
-    std::strcpy(info->eventName, matchInfo.eventName);
+    std::strcpy((char *)info->eventName, matchInfo.eventName);
     info->matchType = matchInfo.matchType;
     info->matchNumber = matchInfo.matchNumber;
     info->replayNumber = matchInfo.replayNumber;
-    std::strcpy(info->gameSpecificMessage, matchInfo.gameSpecificMessage);
+    std::strcpy((char *)info->gameSpecificMessage, (char *)matchInfo.gameSpecificMessage);
     memLock.unlock();
 }
 
@@ -195,41 +195,41 @@ void Mau_DriveData::scribeJoyName(int joyNumber, char* name) {
 //// ----- HAL Data: Read ----- ////
 
 HAL_ControlWord Mau_DriveData::readControlWord() {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return controlWord;
 }
 
 HAL_AllianceStationID Mau_DriveData::readAllianceID() {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return allianceID;
 }
 
 HAL_MatchType Mau_DriveData::readMatchType() {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return matchInfo.matchType;
 }
 
 HAL_Bool Mau_DriveData::readJoyIsXbox(int joyNumber) {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return joysticks[joyNumber].joyDescriptor.isXbox;
 }
 
 int32_t Mau_DriveData::readJoyType(int joyNumber) {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return joysticks[joyNumber].joyDescriptor.type;
 }
 
 int32_t Mau_DriveData::readJoyAxisType(int joyNumber, int axisNumber) {
-    std::lock_guard<wpi::priority_mutex> lock(memLock);
+    std::lock_guard<wpi::mutex> lock(memLock);
     return joysticks[joyNumber].joyDescriptor.axisTypes[axisNumber];
 }
 
 //// ----- HAL Data: Get ----- ////
 
-wpi::priority_mutex* Mau_DriveData::getMutex() {
+wpi::mutex* Mau_DriveData::getMutex() {
     return &memLock;
 }
 
-wpi::priority_condition_variable* Mau_DriveData::getDataSignal() {
+wpi::condition_variable* Mau_DriveData::getDataSignal() {
     return &memSignal;
 }
