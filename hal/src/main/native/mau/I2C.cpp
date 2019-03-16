@@ -35,6 +35,11 @@ void HAL_InitializeI2C(HAL_I2CPort port, int32_t* status) {
 		return;
 	}
 
+	if (port < 0 || port > 1) {
+		*status = RESOURCE_OUT_OF_RANGE;
+	    return;
+	}
+
 	VMXChannelInfo i2c_channels[2] = { { VMXChannelInfo(
 			mau::vmxIO->GetSoleChannelIndex(VMXChannelCapability::I2C_SDA),
 			VMXChannelCapability::I2C_SDA) }, { VMXChannelInfo(
@@ -66,12 +71,22 @@ int32_t HAL_TransactionI2C(HAL_I2CPort port, int32_t deviceAddress,
 		int32_t receiveSize) {
 
 	int32_t status __attribute__((unused)) = 0;
+
 	if (dataToSend == nullptr) {
+		//*status = NULL_PARAMETER_MESSAGE;
 		return -1;
 	}
+
 	if (dataReceived == nullptr) {
+		//*status = NULL_PARAMETER_MESSAGE;
 		return -1;
 	}
+
+	if (port < 0 || port > 1) {
+		//*status = RESOURCE_OUT_OF_RANGE;
+	    return -1;
+	}
+
 	if (mau::vmxIO->I2C_Transaction(vmx_res_handle,
 			static_cast<uint8_t>(deviceAddress), const_cast<uint8_t *>(dataToSend),
 			static_cast<uint16_t>(sendSize), dataReceived,
@@ -99,12 +114,20 @@ int32_t HAL_WriteI2C(HAL_I2CPort port, int32_t deviceAddress,
 
 	int32_t status __attribute__((unused)) = 0;
 	if (dataToSend == nullptr) {
+		//*status = NULL_PARAMETER_MESSAGE;
 		return -1;
 	}
 	// There must be at least 2 bytes (registerAddress, and one data byte)
 	if (sendSize < 2) {
+		//*status = PARAMETER_OUT_OF_RANGE;
 		return -1;
 	}
+
+	if (port < 0 || port > 1) {
+		//*status = RESOURCE_OUT_OF_RANGE;
+	    return -1;
+	}
+
 	uint8_t registerAddress = dataToSend[0];
 	if (mau::vmxIO->I2C_Write(vmx_res_handle,
 				static_cast<uint8_t>(deviceAddress),
@@ -142,6 +165,11 @@ int32_t HAL_WriteI2C(HAL_I2CPort port, int32_t deviceAddress,
 			return -1;
 		}
 
+		if (port < 0 || port > 1) {
+		    //*status = RESOURCE_OUT_OF_RANGE;
+		    return -1;
+		}
+
 		// Read-only transactions send a 0-sized send count to the I2C Transaction handler.
 		uint16_t sendSize = 0;
 
@@ -155,6 +183,10 @@ int32_t HAL_WriteI2C(HAL_I2CPort port, int32_t deviceAddress,
 	}
 
 	void HAL_CloseI2C(HAL_I2CPort port) {
+		if (port < 0 || port > 1) {
+			//*status = RESOURCE_OUT_OF_RANGE;
+		    return;
+		}
 		if (!INVALID_VMX_RESOURCE_HANDLE(vmx_res_handle)) {
 			int32_t status __attribute__((unused)) = 0;
 			mau::vmxIO->DeallocateResource(vmx_res_handle, &status);

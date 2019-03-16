@@ -1,87 +1,105 @@
 #include "MauDriveData.h"
 #include <cstring>
 
+// Mutual Exclusion & Semaphor for Cached Driver Station data
 wpi::mutex Mau_DriveData::memLock;
 wpi::condition_variable Mau_DriveData::memSignal;
 
+// Cached Driver Station data
 HAL_AllianceStationID Mau_DriveData::allianceID;
 HAL_MatchInfo Mau_DriveData::matchInfo;
-char Mau_DriveData::infoEventName[Mau_kMatchNameLength];
-char Mau_DriveData::infoGameMessage[Mau_kMatchMessageLength];
 HAL_ControlWord Mau_DriveData::controlWord;
-Mau_SharedJoystick Mau_DriveData::joysticks[6];
+Mau_SharedJoystick Mau_DriveData::joysticks[HAL_kMaxJoysticks];
+
+volatile uint32_t Mau_DriveData::newDSDataAvailableCounter = 0;
+volatile float Mau_DriveData::matchTime = 0.0;
 
 void Mau_DriveData::unlockAndSignal() {
     memSignal.notify_all();
     memLock.unlock();
 }
 
+void Mau_DriveData::initializeDriveData() {
 
- void Mau_DriveData::initializeDriveData() {
-	infoEventName[0] = 0;
-	strcpy((char *)matchInfo.eventName,infoEventName);
-	infoGameMessage[0] = 0;
-	strcpy((char *)matchInfo.gameSpecificMessage,infoGameMessage);
- }
+	// Initialize all drive station data to reasonable defaults
+	Mau_DriveData::allianceID = HAL_AllianceStationID_kRed1;
 
-void Mau_DriveData::updateAllianceID(HAL_AllianceStationID id) {
-    memLock.lock();
-    allianceID = id;
-    unlockAndSignal();
+	Mau_DriveData::controlWord.enabled = 0;
+	Mau_DriveData::controlWord.autonomous = 0;
+	Mau_DriveData::controlWord.test = 0;
+	Mau_DriveData::controlWord.eStop= 0;
+	Mau_DriveData::controlWord.fmsAttached = 0;
+	Mau_DriveData::controlWord.dsAttached = 0;
+	Mau_DriveData::controlWord.control_reserved = 0;
+
+	Mau_DriveData::matchInfo.eventName[0] = '\0';
+	Mau_DriveData::matchInfo.gameSpecificMessage[0] = '\0';
+
+	// All joysticks should default to having zero axes, povs and buttons, so
+	// uninitialized memory doesn't get sent to speed controllers.
+	for (unsigned int i = 0; i < HAL_kMaxJoysticks; i++) {
+		Mau_DriveData::joysticks[i].joyAxes.count = 0;
+		Mau_DriveData::joysticks[i].joyPOVs.count = 0;
+		Mau_DriveData::joysticks[i].joyButtons.count = 0;
+		Mau_DriveData::joysticks[i].joyDescriptor.axisCount = 0;
+		Mau_DriveData::joysticks[i].joyDescriptor.povCount = 0;
+		Mau_DriveData::joysticks[i].joyDescriptor.buttonCount = 0;
+
+		Mau_DriveData::joysticks[i].joyDescriptor.isXbox = 0;
+		Mau_DriveData::joysticks[i].joyDescriptor.type = -1;
+		Mau_DriveData::joysticks[i].joyDescriptor.name[0] = '\0';
+
+		Mau_DriveData::joysticks[i].outputs = 0;
+		Mau_DriveData::joysticks[i].leftRumble = 0;
+		Mau_DriveData::joysticks[i].rightRumble = 0;
+	}
 }
 
-void Mau_DriveData::updateMatchInfo(HAL_MatchInfo* info) {
+void Mau_DriveData::updateMatchIdentifyInfo(char *event_name, uint8_t match_type, uint16_t match_number, uint8_t replay_number)
+{
     memLock.lock();
-    strcpy((char *)matchInfo.eventName, (char *)info->eventName);
-    matchInfo.matchType = info->matchType;
-    matchInfo.matchNumber = info->matchNumber;
-    matchInfo.replayNumber = info->replayNumber;
-    strcpy((char *)matchInfo.gameSpecificMessage, (char *)info->gameSpecificMessage);
+    strcpy((char *)matchInfo.eventName, event_name);
+    matchInfo.matchType = (HAL_MatchType)match_type;
+    matchInfo.matchNumber = match_number;
+    matchInfo.replayNumber = replay_number;
     unlockAndSignal();
+    printf("Match Identify:  %s, type:  %d, number:  %d, replay:  %d\n", event_name, match_type, match_number, replay_number);
 }
 
-void Mau_DriveData::updateMatchType(HAL_MatchType type) {
+void Mau_DriveData::updateMatchTime(float currMatchTime) {
+	matchTime = currMatchTime;
+	printf("Match time:  %f\n", matchTime);
+}
+
+void Mau_DriveData::updateMatchGameSpecificMessage(uint8_t msg_len, uint8_t *msg_data)
+{
+    if (msg_len > sizeof(matchInfo.gameSpecificMessage)) {
+    	msg_len = sizeof(matchInfo.gameSpecificMessage);
+    }
+
     memLock.lock();
-    matchInfo.matchType = type;
+    matchInfo.gameSpecificMessageSize = msg_len;
+    memcpy(matchInfo.gameSpecificMessage, msg_data, msg_len);
     unlockAndSignal();
 }
 
 // --- Update: ControlWord --- //
-
-void Mau_DriveData::updateIsEnabled(bool enabled) {
+void Mau_DriveData::updateControlWordAndAllianceID(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id) {
     memLock.lock();
     controlWord.enabled = enabled;
-    unlockAndSignal();
-}
-
-void Mau_DriveData::updateIsAutonomous(bool auton) {
-    memLock.lock();
     controlWord.autonomous = auton;
-    unlockAndSignal();
-}
-
-void Mau_DriveData::updateIsTest(bool test) {
-    memLock.lock();
     controlWord.test = test;
-    unlockAndSignal();
-}
-
-void Mau_DriveData::updateEStop(bool eStop) {
-    memLock.lock();
     controlWord.eStop = eStop;
-    unlockAndSignal();
-}
-
-void Mau_DriveData::updateIsFmsAttached(bool fms) {
-    memLock.lock();
     controlWord.fmsAttached = fms;
+    controlWord.dsAttached = ds;
+
+    allianceID = id;
+    newDSDataAvailableCounter++;
     unlockAndSignal();
 }
 
-void Mau_DriveData::updateIsDsAttached(bool ds) {
-    memLock.lock();
-    controlWord.dsAttached = ds;
-    unlockAndSignal();
+uint32_t Mau_DriveData::getNewDSDataAvailableCounter() {
+	return newDSDataAvailableCounter;
 }
 
 // --- Update: Joystick --- //
@@ -125,12 +143,15 @@ void Mau_DriveData::updateJoyDescriptor(int joyNumber, HAL_JoystickDescriptor* d
 }
 
 void Mau_DriveData::updateJoyOutputs(int32_t joyNumber, int64_t outputs, int32_t leftRumble, int32_t rightRumble) {
-//    memLock.lock();
-//    Mau_SharedJoystick* joy = &joysticks[joyNumber];
-//    joy->outputs = outputs;
-//    joy->leftRumble = leftRumble;
-//    joy->rightRumble = rightRumble;
-//    unlockAndSignal();
+	if (joyNumber < HAL_kMaxJoysticks) {
+		memLock.lock();
+		 Mau_SharedJoystick* joy = &joysticks[joyNumber];
+		 joy->outputs = outputs;
+		 joy->leftRumble = leftRumble;
+		 joy->rightRumble = rightRumble;
+		 memLock.lock();
+		 // TODO:  Signal DriverComms that new joystick output values are available.
+	}
 }
 
 //// ----- HAL Data: Scribe ----- ////
@@ -222,6 +243,10 @@ int32_t Mau_DriveData::readJoyType(int joyNumber) {
 int32_t Mau_DriveData::readJoyAxisType(int joyNumber, int axisNumber) {
     std::lock_guard<wpi::mutex> lock(memLock);
     return joysticks[joyNumber].joyDescriptor.axisTypes[axisNumber];
+}
+
+float Mau_DriveData::readMatchTime() {
+	return matchTime;
 }
 
 //// ----- HAL Data: Get ----- ////

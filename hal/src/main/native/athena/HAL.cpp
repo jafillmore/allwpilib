@@ -295,44 +295,45 @@ void HAL_BaseInitialize(int32_t* status) {
 }
 
 static bool killExistingProgram(int timeout, int mode) {
-  // Kill any previous robot programs
-  std::fstream fs;
-  // By making this both in/out, it won't give us an error if it doesnt exist
-  fs.open("/var/lock/frc.pid", std::fstream::in | std::fstream::out);
-  if (fs.bad()) return false;
+	// Kill any previous robot programs
+	std::fstream fs;
+	// By making this both in/out, it won't give us an error if it doesnt exist
+	// TODO:  Work out how /var/loc/frc.pid is created.....
+	fs.open("/var/lock/frc.pid", std::fstream::in | std::fstream::out);
+	if (fs.bad()) return false;
 
-  pid_t pid = 0;
-  if (!fs.eof() && !fs.fail()) {
-    fs >> pid;
-    // see if the pid is around, but we don't want to mess with init id=1, or
-    // ourselves
-    if (pid >= 2 && kill(pid, 0) == 0 && pid != getpid()) {
-      wpi::outs() << "Killing previously running FRC program...\n";
-      kill(pid, SIGTERM);  // try to kill it
-      std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
-      if (kill(pid, 0) == 0) {
-        // still not successfull
-        wpi::outs() << "FRC pid " << pid << " did not die within " << timeout
-                    << "ms. Force killing with kill -9\n";
-        // Force kill -9
-        auto forceKill = kill(pid, SIGKILL);
-        if (forceKill != 0) {
-          auto errorMsg = std::strerror(forceKill);
-          wpi::outs() << "Kill -9 error: " << errorMsg << "\n";
-        }
-        // Give a bit of time for the kill to take place
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-      }
-    }
-  }
-  fs.close();
-  // we will re-open it write only to truncate the file
-  fs.open("/var/lock/frc.pid", std::fstream::out | std::fstream::trunc);
-  fs.seekp(0);
-  pid = getpid();
-  fs << pid << std::endl;
-  fs.close();
-  return true;
+	pid_t pid = 0;
+	if (!fs.eof() && !fs.fail()) {
+		fs >> pid;
+		// see if the pid is around, but we don't want to mess with init id=1, or
+		// ourselves
+		if (pid >= 2 && kill(pid, 0) == 0 && pid != getpid()) {
+		  wpi::outs() << "Killing previously running FRC program...\n";
+		  kill(pid, SIGTERM);  // try to kill it
+		  std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+		  if (kill(pid, 0) == 0) {
+			  // still not successfull
+			  wpi::outs() << "FRC pid " << pid << " did not die within " << timeout
+					  << "ms. Force killing with kill -9\n";
+			  // Force kill -9
+			  auto forceKill = kill(pid, SIGKILL);
+			  if (forceKill != 0) {
+				  auto errorMsg = std::strerror(forceKill);
+				  wpi::outs() << "Kill -9 error: " << errorMsg << "\n";
+			  }
+			  // Give a bit of time for the kill to take place
+			  std::this_thread::sleep_for(std::chrono::milliseconds(250));
+		  }
+		}
+	}
+	fs.close();
+	// we will re-open it write only to truncate the file
+	fs.open("/var/lock/frc.pid", std::fstream::out | std::fstream::trunc);
+	fs.seekp(0);
+	pid = getpid();
+	fs << pid << std::endl;
+	fs.close();
+	return true;
 }
 
 HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {

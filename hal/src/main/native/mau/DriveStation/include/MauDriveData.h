@@ -6,16 +6,17 @@
 
 #define NATIVE_DRIVEDATA_H
 
-#define Mau_kMatchNameLength 100
-#define Mau_kMatchMessageLength 200
-#define Mau_kJoystickNameLength 60
-
 struct Mau_SharedJoystick {
 	bool initd;
+	// Data from Driver Station to Robot
     HAL_JoystickAxes joyAxes;
     HAL_JoystickPOVs joyPOVs;
     HAL_JoystickButtons joyButtons;
     HAL_JoystickDescriptor joyDescriptor;
+    // Data from Robot to Driver Station
+    int64_t outputs;
+    int32_t leftRumble;
+    int32_t rightRumble;
 };
 
 class Mau_DriveData {
@@ -23,32 +24,34 @@ class Mau_DriveData {
     static wpi::condition_variable memSignal;
 
     static HAL_AllianceStationID allianceID;
-    static char infoEventName[Mau_kMatchNameLength];
-    static char infoGameMessage[Mau_kMatchMessageLength];
 	static HAL_MatchInfo matchInfo;
     static HAL_ControlWord controlWord;
-    static Mau_SharedJoystick joysticks[6];
+    static Mau_SharedJoystick joysticks[HAL_kMaxJoysticks];
+
+    static volatile uint32_t newDSDataAvailableCounter;
+
+    static volatile float matchTime;
 
     static void unlockAndSignal();
 public:
     static void initializeDriveData();
 
-    static void updateAllianceID(HAL_AllianceStationID id);
-    static void updateMatchInfo(HAL_MatchInfo* info);
-    static void updateMatchType(HAL_MatchType type);
+    // Updates upon receipt of Driver Station Packets (from IO Worker Threads)
 
-    static void updateIsEnabled(bool enabled);
-    static void updateIsAutonomous(bool auton);
-    static void updateIsTest(bool test);
-    static void updateEStop(bool eStop);
-    static void updateIsFmsAttached(bool fms);
-    static void updateIsDsAttached(bool ds);
+    static void updateMatchTime(float currMatchTime);
+    static void updateMatchGameSpecificMessage(uint8_t msg_len, uint8_t *msg_data);
+    static void updateMatchIdentifyInfo(char *event_name, uint8_t match_type, uint16_t match_number, uint8_t replay_number);
+
+    static void updateControlWordAndAllianceID(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id);
+    static uint32_t getNewDSDataAvailableCounter();
 
     static void updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes);
     static void updateJoyPOV(int joyNumber, int povsCount, uint16_t* povs);
     static void updateJoyButtons(int joyNumber, uint8_t buttonCount, uint32_t buttons);
     static void updateJoyDescriptor(int joyNumber, HAL_JoystickDescriptor* desc);
     static void updateJoyOutputs(int32_t joyNumber, int64_t outputs, int32_t leftRumble, int32_t rightRumble);
+
+    // Methods to retrieve copies of cached DriverStation data, invoked from wpilibc Driver Station
 
 	static void scribeMatchInfo(HAL_MatchInfo* info);
 	static void scribeJoyAxes(int joyNumber, HAL_JoystickAxes* axes);
@@ -63,6 +66,7 @@ public:
 	static HAL_Bool readJoyIsXbox(int joyNumber);
 	static int32_t readJoyType(int joyNumber);
 	static int32_t readJoyAxisType(int joyNumber, int axisNumber);
+	static float readMatchTime();
 
     static wpi::mutex* getMutex();
     static wpi::condition_variable* getDataSignal();

@@ -17,6 +17,7 @@
 #include <wpi/mutex.h>
 #include <wpi/condition_variable.h>
 #include <wpi/mutex.h>
+#include <wpi/raw_ostream.h>
 
 #include "HALInitializer.h"
 #include "DriveStation/include/socket.hpp"
@@ -49,7 +50,15 @@ extern "C" {
     }
 
     HAL_Bool HAL_IsNewControlData(void) {
-        return false;
+    	  // There is a rollover error condition here. At Packet# = n * (uintmax), this
+    	  // will return false when instead it should return true. However, this at a
+    	  // 20ms rate occurs once every 2.7 years of DS connected runtime, so not
+    	  // worth the cycles to check.
+    	  thread_local uint32_t lastCount{0};
+    	  uint32_t currentCount = Mau_DriveData::getNewDSDataAvailableCounter();
+    	  if (lastCount == currentCount) return false;
+    	  lastCount = currentCount;
+    	  return true;
     }
 
     void HAL_WaitForDSData() {
@@ -103,7 +112,11 @@ extern "C" {
         }
         int retval = 0;
         if (i == KEEP_MSGS || (curTime - prevMsgTime[i]) >= std::chrono::seconds(1)) {
-            printMsg = true;
+
+        uint16_t num_occur = 1;
+#if 0 /* Previous implemention */
+
+        	printMsg = true;
             if (printMsg) {
                 if (location && location[0] != '\0') {
                     std::fprintf(stderr, "%s at %s: ", isError ? "Error" : "Warning",
@@ -113,8 +126,51 @@ extern "C" {
                 if (callStack && callStack[0] != '\0') {
                     std::fprintf(stderr, "%s\n", callStack);
                 }
-                uint16_t num_occur = 1;
-                mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, callStack);
+                 mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, callStack);
+            }
+#endif
+
+            wpi::StringRef detailsRef{details};
+            wpi::StringRef locationRef{location};
+            wpi::StringRef callStackRef{callStack};
+
+            // 1 tag, 4 timestamp, 2 seqnum
+            // 2 numOccur, 4 error code, 1 flags, 6 strlen
+            // 1 extra needed for padding on Netcomm end.
+            size_t baseLength = 21;
+
+            if (baseLength + detailsRef.size() + locationRef.size() +
+                    callStackRef.size() <=
+                65536) {
+                // Pass through
+                retval = mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, callStack);
+            } else if (baseLength + detailsRef.size() > 65536) {
+              // Details too long, cut both location and stack
+              auto newLen = 65536 - baseLength;
+              std::string newDetails{details, newLen};
+              char empty = '\0';
+              retval = mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, newDetails.c_str(), &empty, &empty);
+            } else if (baseLength + detailsRef.size() + locationRef.size() > 65536) {
+              // Location too long, cut stack
+              auto newLen = 65536 - baseLength - detailsRef.size();
+              std::string newLocation{location, newLen};
+              char empty = '\0';
+              retval = mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, newLocation.c_str(), &empty);
+            } else {
+              // Stack too long
+              auto newLen = 65536 - baseLength - detailsRef.size() - locationRef.size();
+              std::string newCallStack{callStack, newLen};
+              retval = mau::comms::enqueueErrorMessage(num_occur, errorCode, isError ? 1 : 0, details, location, newCallStack.c_str());
+            }
+            if (printMsg) {
+              if (location && location[0] != '\0') {
+                wpi::errs() << (isError ? "Error" : "Warning") << " at " << location
+                            << ": ";
+              }
+              wpi::errs() << details << "\n";
+              if (callStack && callStack[0] != '\0') {
+                wpi::errs() << callStack << "\n";
+              }
             }
             if (i == KEEP_MSGS) {
                 // replace the oldest one
@@ -202,7 +258,7 @@ extern "C" {
     }
 
     double HAL_GetMatchTime(int32_t* status) {
-        return 0;
+        return Mau_DriveData::readMatchTime();
     }
 
     int HAL_GetMatchInfo(HAL_MatchInfo* info) {

@@ -46,9 +46,11 @@ extern "C" {
 
     // timeStamp represents the system timestamp (i.e., "FPGA Timestamp") converted to milliseconds.
     // Returning a status == 0 indicates a fresh message has been received.
-    // ASSUMPTION:  Although the "messageIDMask" suggests a mask, because there is no additional filter, this is
-    // not truly a mask but rather a discrete message ID.  This assumption is supported by the reference HAL
-    // implementation of the PDP class.
+    // messageID is a pointer to the CAN Message ID to return;
+    // In theory, any message ANDed with the messageIDMask that matches should be returned
+    // In practice, the WPI Library always invokes this function with an "all bits set mask" (0x1FFFFFFF)
+    // TODO:  Potentially add support for masks with less bits set, and therefore the possibility that
+    // this function may modify the messageID (to reflect the exact message ID returned).
     void HAL_CAN_ReceiveMessage(uint32_t* messageID, uint32_t messageIDMask, uint8_t* data, uint8_t* dataSize,
                                 uint32_t* timeStamp, int32_t* status) {
 		VMXCANTimestampedMessage blackboard_msg;
@@ -58,7 +60,7 @@ extern "C" {
 			*status = VMXERR_CAN_INVALID_RECEIVE_STREAM_HANDLE;
 			return;
 		}
-		if (mau::vmxCAN->GetBlackboardEntry(hal::init::blackboardStreamHandle, messageIDMask, blackboard_msg, sys_timestamp, already_retrieved, status)) {
+		if (mau::vmxCAN->GetBlackboardEntry(hal::init::blackboardStreamHandle, *messageID, blackboard_msg, sys_timestamp, already_retrieved, status)) {
 			if (*status != VMXERR_CAN_BLACKBOARD_ENTRY_NOT_PRESENT) {
 				if (!already_retrieved) {
 					*status = 0;
@@ -104,7 +106,7 @@ extern "C" {
     	   		break;
     	   	}
     	   	if (currMessagesRead > 0) {
-    	   		for ( int i = 0; i < currMessagesRead; i++) {
+    	   		for ( uint32_t i = 0; i < currMessagesRead; i++) {
     	   			messages[currCANStreamMessageIndex].messageID = vmxMessages[i].messageID;
     	   			std::memcpy(messages[currCANStreamMessageIndex].data, vmxMessages[i].data,
     	   					(vmxMessages[i].dataSize > sizeof(vmxMessages[i].data)) ? sizeof(vmxMessages[i].data) : vmxMessages[i].dataSize);

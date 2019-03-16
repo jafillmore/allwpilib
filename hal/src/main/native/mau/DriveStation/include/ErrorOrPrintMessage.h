@@ -25,6 +25,14 @@ struct LengthString {
 	static int GetTotalSize(uint16_t string_len) { return string_len + sizeof(uint16_t); }
 } __attribute__((packed));
 
+struct ByteLengthString {
+	uint8_t len;
+	char chars[1];  // Actual length depends upon Len
+
+	ByteLengthString(uint8_t len);
+	static int GetTotalSize(uint8_t string_len) { return string_len + sizeof(uint8_t); }
+} __attribute__((packed));
+
 struct ErrorWarningMessageHeader {
 	uint16_t     numOccur;	// Number of successive occurrences (>1 if messages are suppressed)
 	int32_t      errorCode;
@@ -33,10 +41,18 @@ struct ErrorWarningMessageHeader {
 
 struct MessageHeader {
 	MessageHeader *next;
-	uint16_t       len;		// Length of message
+	uint16_t       len;			// Length of message
 	uint8_t        msg_type;	// Type of message
-	float          timeStamp;
+	float          timeStamp;	// num secs since user code start // TODO:  Update code that calculates this?
 	short          seqNumber;
+} __attribute__((packed));
+
+struct RobotVersionDataHeader {
+	uint16_t		len;		// Length of tag contents (not including this length variable itself)
+	uint8_t			msg_type;	// message type for version data goes here
+	uint32_t		id;			// ID of model, 0 otherwise
+	// LengthString element name/model
+	// LengthString version string
 } __attribute__((packed));
 
 class ErrorOrPrintMessage {
@@ -58,6 +74,72 @@ public:
 
 	ErrorOrPrintMessage() {}
 
+	static inline float NetworkOrderedU32ToFloat(uint32_t net_ordered_float) {
+		uint32_t host_ordered_float = ntohl(net_ordered_float);
+		return *(float *)&host_ordered_float;
+	}
+
+	static inline uint32_t FloatToNetworkOrderedU32(float value) {
+		uint32_t host_ordered_float = *(uint32_t *)&value;
+		return htonl(host_ordered_float);
+	}
+
+	// Formatter for VersionData Messages
+	// If outputbuffer is NULL, calculates required length.
+	// If outputbuffer is ! NULL, populates output buffer with message content.
+	// In both cases, returns the valid message length, or -1 of that length exceeds max_len.
+	int FormatVersionDataMessage(unsigned char *output_buffer, int max_len, uint32_t id, uint8_t msg_type, size_t num_element, const char *element_name[], const char *version_string[])
+	{
+		int running_len = sizeof(RobotVersionDataHeader);
+		if (output_buffer) {
+			if (max_len < static_cast<int>(sizeof(RobotVersionDataHeader))) {
+				return -1;
+			}
+			RobotVersionDataHeader *header = (RobotVersionDataHeader *)output_buffer;
+			header->id = id; // TODO:  Is there ever non-zero:?
+			// header->len is filled in later
+			header->msg_type = msg_type;
+		}
+		if (running_len > max_len) return -1;
+
+		for (size_t i = 0; i < num_element; i++) {
+			size_t element_name_len = (element_name[i] != 0) ? strlen(element_name[i]) : 0;
+			if (output_buffer && (element_name_len > 0)) {
+				ByteLengthString * element_name_string = (ByteLengthString *)(output_buffer + running_len);
+				element_name_string->len = element_name_len;
+				memcpy(element_name_string->chars, element_name[i], element_name_len);
+			}
+			running_len += ByteLengthString::GetTotalSize(element_name_len);
+			if (running_len > max_len) return -1;
+
+			size_t version_string_len = (version_string[i] != 0) ? strlen(version_string[i]) : 0;
+			if (output_buffer && (version_string_len > 0)) {
+				ByteLengthString * version_string_string = (ByteLengthString *)(output_buffer + running_len);
+				version_string_string->len = version_string_len;
+				memcpy(version_string_string->chars, version_string[i], version_string_len);
+			}
+			running_len += ByteLengthString::GetTotalSize(version_string_len);
+			if (running_len > max_len) return -1;
+
+			// If the special "end of the list" entry, append an extra null.
+			if ((element_name_len == 0) && (version_string_len ==0)) {
+				output_buffer[running_len] = '\0';
+				running_len += 1;
+			}
+		}
+
+		if (output_buffer) {
+			RobotVersionDataHeader *header = (RobotVersionDataHeader *)output_buffer;
+			// length in header does not include the length value.
+			uint16_t actual_len = running_len - sizeof(uint16_t);
+			header->len = htons(actual_len);
+		}
+
+
+		return running_len;
+	}
+
+
 	// Constructor for Print (e.g., Console) Messages
 	// If outputbuffer is NULL, calculates required length.
 	// If outputbuffer is ! NULL, populates output buffer with message content.
@@ -75,7 +157,7 @@ public:
 		int msg_header_len = FormatMessageHeader(WPI_LOG_MSG_TYPE_PRINT, output_buffer, max_len, sequence_number);
 		if (msg_header_len < 0) return -1;
 
-		if ((msg_header_len + string_length) > max_len) return -1;
+		if ((msg_header_len + static_cast<int>(string_length)) > max_len) return -1;
 
 		char *print_message = (char *)(output_buffer + msg_header_len);
 		memcpy(print_message, chars, string_length);
@@ -122,10 +204,6 @@ public:
 		}
 		running_len += LengthString::GetTotalSize(detail_len);
 		if (running_len > max_len) return -1;
-
-		if ((!location) || (!callStack)) {
-			int break_new = 0;
-		}
 
 		size_t location_len = strlen(location);
 		if (output_buffer) {

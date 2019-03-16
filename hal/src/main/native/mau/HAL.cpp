@@ -231,7 +231,11 @@ const char* HAL_GetErrorMessage(int32_t code) {
             return HAL_PWM_SCALE_ERROR_MESSAGE;
         case HAL_CAN_TIMEOUT:
             return HAL_CAN_TIMEOUT_MESSAGE;
-
+	// TODO:  These new error IDs are referenced in the latest WPILib, but not defined????
+        //case ERR_FRCSystem_NetCommNotResponding:
+        //    return ERR_FRCSystem_NetCommNotResponding_MESSAGE;
+        //case ERR_FRCSystem_NoDSConnection:
+        //    return ERR_FRCSystem_NoDSConnection_MESSAGE;
         /* Mau-specific errors */
 
         case MAU_CHANNEL_MAP_ERROR:
@@ -276,6 +280,7 @@ int64_t HAL_GetFPGARevision(int32_t* status) {
  * reset).
  */
 uint64_t HAL_GetFPGATime(int32_t* status) {
+	*status = 0;
     return Mau_getTime();
 }
 
