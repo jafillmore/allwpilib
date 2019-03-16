@@ -81,6 +81,7 @@ namespace hal {
             InitializeAnalogInternal();
             InitializeAnalogOutput();
             InitializeCAN();
+            InitializeCANAPI();
             InitializeCompressor();
             InitializeConstants();
             InitializeCounter();

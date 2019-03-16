@@ -27,6 +27,7 @@ namespace hal {
         extern void InitializeAnalogInternal();
         extern void InitializeAnalogOutput();
         extern void InitializeCAN();
+        extern void InitializeCANAPI();
         extern void InitializeCompressor();
         extern void InitializeConstants();
         extern void InitializeCounter();

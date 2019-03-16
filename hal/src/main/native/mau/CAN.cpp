@@ -7,6 +7,7 @@
 
 #include "hal/CAN.h"
 #include "MauInternal.h"
+#include "MauTime.h"
 #include <VMXCAN.h>
 #include <cstring>
 
@@ -32,6 +33,31 @@ namespace hal {
 					blackboardInitialized = true;
 				}
 			}
+			/* Flush Rx/Tx fifo not necessary if invoking reset above. */
+			if (!mau::vmxCAN->FlushRxFIFO(&vmxerr)) {
+				printf("Error Flushing CAN RX FIFO.\n");
+			} else {
+				printf("Flushed CAN RX FIFO\n");
+			}
+
+			if (!mau::vmxCAN->FlushTxFIFO(&vmxerr)) {
+				printf("Error Flushing CAN TX FIFO.\n");
+			} else {
+				printf("Flushed CAN TX FIFO\n");
+			}
+
+			if (!mau::vmxCAN->SetMode(VMXCAN::VMXCAN_NORMAL, &vmxerr)) {
+				printf("Error setting CAN Mode to NORMAL\n");
+			} else {
+				printf("Set CAN Mode to NORMAL.\n");
+			}
+
+			/* It's recommended to delay 20 Milliseconds after transitioning modes -
+			 * to allow the CAN circuitry to stabilize; otherwise, sometimes
+			 * there will be errors transmitting data during this period.
+			 */
+			mau::vmxTime->DelayMilliseconds(20);
+
         }
     }
 }

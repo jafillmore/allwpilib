@@ -17,6 +17,7 @@
 #include <frc/PWMVictorSPX.h>
 #include <frc/Servo.h>
 #include <frc/Timer.h>
+#include <frc/PowerDistributionPanel.h>
 
 using namespace frc;
 
@@ -66,6 +67,8 @@ public:
 		sprintf(currMotor2Val, "%0.2f", motorSpeed2);
 		wpi::outs() << "Hardware state:  HCDIO Servo:  " << currServo1Val << ", FlexDIO Servo:  " << currServo2Val <<
 				", HCDIO MC:  " << currMotor1Val << ", FlexDIO MC:  " << currMotor2Val << "\n";
+		double pdpVoltage = pdp.GetVoltage();
+		wpi::outs() << "PDP Voltage:  " << pdpVoltage << "\n";
 		Wait(0.005);
 	}
 
@@ -84,6 +87,7 @@ private:
 	Talon m_motor9{20};
 	Servo m_servo1{8};
 	Servo m_servo2{21};
+	PowerDistributionPanel pdp{7};
 
 	Joystick m_stick{0};
 };
