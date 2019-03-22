@@ -21,6 +21,10 @@ endforeach()
 string(REPLACE ";" "\n" usage_reporting_types_cpp "${usage_reporting_types_cpp}")
 string(REPLACE ";" "\n" usage_reporting_instances_cpp "${usage_reporting_instances_cpp}")
 
+# Copy ctre sources to mau
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/ctre)
+file(GLOB CTRE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/athena/ctre/*)
+file(COPY ${CTRE_SOURCES} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/ctre)
 
 # Java bindings
 if (NOT WITHOUT_JAVA)
@@ -57,7 +61,8 @@ file(GLOB
     hal_shared_native_src src/main/native/cpp/handles/*.cpp
     hal_sim_native_src src/main/native/mau/*.cpp
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
-    hal_sim_native_src src/main/native/mau/DriveStation/*.cpp)
+    hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
+    hal_sim_native_src src/main/native/mau/ctre/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
 if(USE_EXTERNAL_HAL)

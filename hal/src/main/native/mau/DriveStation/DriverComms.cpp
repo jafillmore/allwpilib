@@ -7,6 +7,8 @@
 #include "buddy.h"
 #include <unistd.h>
 #include <sys/statvfs.h>
+#include <sys/types.h>
+#include <signal.h>
 
 // UDP Driver Station Thread constants
 #define WPI_DRIVESTATION_UDP_ROBOTLISTEN_PORT   1110
@@ -59,7 +61,7 @@ namespace mau {
     namespace comms {
 
     	// DriveStation Protocol working buffers
-    	char ds_udp_send_buffer[28];			// UDP Send Buffer
+    	char ds_udp_send_buffer[44];			// UDP Send Buffer
     	char ds_udp_rcv_buffer[MAX_WPI_DRIVESTATION_UDP_READSIZE];		// UDP Decode Buffer
     	char ds_tcp_rcv_buffer[MAX_WPI_DRIVESTATION_TCP_READSIZE];		// TCP Receive Buffer
 
@@ -87,14 +89,23 @@ namespace mau {
 
     	_TempJoyData joys[HAL_kMaxJoysticks];			// Last-received Joystick Data
     	long long lastDsUDPUpdateReceivedTimestamp;
-    	double voltage;
+
+    	// Cached System Status
+    	volatile double voltage;
+
+    	// Cached CAN Bus Status;
+    	volatile float		canStatusPercentBusUtilization = 0.0f;
+    	volatile uint32_t	canStatusBusOffCount = 0;
+    	volatile uint32_t	canStatusTxFifoFullCount = 0;
+    	volatile uint8_t	canStatusRxErrorCount = 0;
+    	volatile uint8_t    canStatusTxErrorCount = 0;
 
     	std::thread udpThread;
     	std::thread tcpThread;
     	std::thread logServerThread;
     	std::thread stdoutCaptureThread;
     	std::mutex runLock;
-    	bool isRunning;
+    	volatile bool isRunning;
 
     	// Internal Threads
     	void tcpProcess();
@@ -149,8 +160,6 @@ void mau::comms::start() {
         udpThread.detach();
         tcpThread = std::thread(tcpProcess);
         tcpThread.detach();
-        //logServerThread = std::thread(logServerProcess);
-        //logServerThread.detach();
         stdoutCaptureThread = std::thread(stdoutCaptureProcess);
         stdoutCaptureThread.detach();
     }
@@ -205,6 +214,9 @@ void mau::comms::stop() {
 #define UDP_DS_REQUESTBYTE_DATETIME_BIT		0x01
 
 void mau::comms::encodePacket(char* data) {
+
+	ErrorOrPrintMessage m;
+
     data[0] = sq_1;
     data[1] = sq_2;
     data[2] = UDP_DS_PROTOCOL_VERSION;							// Comm Version
@@ -230,13 +242,30 @@ void mau::comms::encodePacket(char* data) {
     data[19] = DS_UDP_PROTOCOL_DISK_USAGE;
     uint64_t free_disk = getAvailableDiskSpace();
     *(uint64_t *)&data[20] = hton64(&free_disk);
-}
 
-//// ----- DriverStation Comms: Decode ----- ////
+    data[28] = 15;
+    data[29] = DS_UDP_PROTOCOL_TAG_CAN_STATS; // 1 Hz.  TODO:  only send this periodically....
+    *(uint32_t *)&data[30] = m.FloatToNetworkOrderedU32(canStatusPercentBusUtilization);
+    *(uint32_t *)&data[34] = htonl(canStatusBusOffCount);
+    *(uint32_t *)&data[38] = htonl(canStatusTxFifoFullCount);
+    data[42] = canStatusRxErrorCount;
+    data[43] = canStatusTxErrorCount;
+}
 
 void mau::comms::setInputVoltage(double new_voltage) {
 	voltage = new_voltage;
 }
+
+void mau::comms::setCANStatus(float percentBusUtilization, uint32_t busOffCount, uint32_t txFifoFullCount, uint8_t rxErrorCount, uint8_t txErrorCount)
+{
+	mau::comms::canStatusPercentBusUtilization = percentBusUtilization;
+	mau::comms::canStatusBusOffCount = busOffCount;
+	mau::comms::canStatusTxFifoFullCount = txFifoFullCount;
+	mau::comms::canStatusRxErrorCount = rxErrorCount;
+	mau::comms::canStatusTxErrorCount = txErrorCount;
+}
+
+//// ----- DriverStation Comms: Decode ----- ////
 
 int32_t mau::comms::enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, uint8_t flags, const char *details, const char *location, const char *callStack) {
 	ErrorOrPrintMessage m;
@@ -386,14 +415,25 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
         bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);	// How is this different than Soft Restart?
 
         if (reboot || restart) {
-//            printf("NOTICE: Driver Station Requested Code Restart \n");
+        	if (reboot) {
+        		printf("NOTICE: Driver Station Requested Reboot.\n");
+        		// TODO:  Disable all outputs.
+                // TODO:  Invoke system shutdown command.
+        	} else {
+        		printf("NOTICE: Driver Station Requested Code Restart.\n");
+        		// TODO:  Disable all outputs.
+        		// TODO:  Quit robot application; signal managing script to restart it.
+        	}
             stop();
-            // TODO: if reboot was requested, invoke system shutdown command.
             exit(0);
+            //kill(0, SIGTERM);
         } else if (eStop) {
-//            printf("NOTICE: Driver Station Estop \n");
+            printf("NOTICE: Driver Station Estop \n");
+            // TODO:  Disable all Outputs.  After this, the user must manually restart
+            // the host controller.
             stop();
             exit(0);
+            //kill(0, SIGTERM);
         }
         HAL_AllianceStationID alliance = (HAL_AllianceStationID)data[DS_UDP_PROTOCOL_HEADER_INDEX_ALLIANCE_STATION_ID];
 
@@ -493,10 +533,12 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
 				}
 				case DS_UDP_PROTOCOL_TAG_DATE_TIME:
 				{
+					// TODO:  Implement once purpose is understood.
 					break;
 				}
 				case DS_UDP_PROTOCOL_TAG_TIME_ZONE:
 				{
+					// TODO:  Implement once purpose is understood.
 					break;
 				}
 				default:
@@ -504,7 +546,6 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
             }
             i += struct_size + 1;
         }
-
         lastDsUDPUpdateReceivedTimestamp = mau::vmxGetTime();
     }
 }
@@ -541,95 +582,100 @@ namespace mau {
 
 			while (isRunning) {
 
-				// Check for new DS client (non-blocking)
-				// New data from connected DS client will invoke driverStationTCPDataReceivedCallback().
-                ds_sock.accept();
-                // Prune dead DS client, if they have become disconnected.
-        		ds_sock.prune_disconnected_clients();
+    			try {
+					unsigned char version_data_buffer[1024];
 
-            	// Check for new non-DS logging clients (non-blocking)
-                log_sock.accept();
-                // Prune dead non-DS logging clients
-        		log_sock.prune_disconnected_clients();
+					// Check for new DS client (non-blocking)
+					// New data from connected DS client will invoke driverStationTCPDataReceivedCallback().
+					ds_sock.accept();
+					// Prune dead DS client, if they have become disconnected.
+					ds_sock.prune_disconnected_clients();
 
-        		if (version_data_requested) {
+					// Check for new non-DS logging clients (non-blocking)
+					log_sock.accept();
+					// Prune dead non-DS logging clients
+					log_sock.prune_disconnected_clients();
 
-        			unsigned char version_data_buffer[1024];
-        			ErrorOrPrintMessage m;
-        			uint32_t model_id = 0;
-        			const char *element_names[4];
-        			element_names[0] = "roboRIO Image";
-        			//element_names[1] = "FRC_Lib_Version";
-         			//element_names[2] = 0;
-        			const char *version_strings[4];
-        			version_strings[0] = "0.0.000";
-        			//version_strings[1] = "Scott's Test Version";
-        			//version_strings[2] = 0;
-        			if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
-        					model_id,
-							DS_TCP_PROTOCOL_TAG_VERSION_DATA,
-							1,
-							element_names,
-							version_strings) != -1) {
-        				RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
-        				ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
-        			}
+					if (version_data_requested) {
 
-        			element_names[0] = "FRC_Lib_Version";
-        			version_strings[0] = "C++ 2019.4.1";
-        			if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
-        					model_id,
-							DS_TCP_PROTOCOL_TAG_VERSION_DATA,
-							1,
-							element_names,
-							version_strings) != -1) {
-        				RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
-        				ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
-        			}
+						ErrorOrPrintMessage m;
+						uint32_t model_id = 0;
+						const char *element_names[4];
+						element_names[0] = "roboRIO Image";
+						//element_names[1] = "FRC_Lib_Version";
+						//element_names[2] = 0;
+						const char *version_strings[4];
+						version_strings[0] = "0.0.000";
+						//version_strings[1] = "Scott's Test Version";
+						//version_strings[2] = 0;
+						if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
+								model_id,
+								DS_TCP_PROTOCOL_TAG_VERSION_DATA,
+								1,
+								element_names,
+								version_strings) != -1) {
+							RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
+							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
+						}
 
-        			element_names[0] = "VMXPiFirmware";
-        			version_strings[0] = "3.1.222";
-        			if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
-        					model_id,
-							DS_TCP_PROTOCOL_TAG_VERSION_DATA,
-							1,
-							element_names,
-							version_strings) != -1) {
-        				RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
-        				ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
-        			}
+						element_names[0] = "FRC_Lib_Version";
+						version_strings[0] = "C++ 2019.4.1";
+						if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
+								model_id,
+								DS_TCP_PROTOCOL_TAG_VERSION_DATA,
+								1,
+								element_names,
+								version_strings) != -1) {
+							RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
+							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
+						}
 
-        			// Send "end of version info" indicator.
-        			element_names[0] = 0;
-        			version_strings[0] = 0;
+						element_names[0] = "VMXPiFirmware";
+						version_strings[0] = "3.1.222";
+						if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
+								model_id,
+								DS_TCP_PROTOCOL_TAG_VERSION_DATA,
+								1,
+								element_names,
+								version_strings) != -1) {
+							RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
+							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
+						}
 
-        			if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
-        					model_id,
-							DS_TCP_PROTOCOL_TAG_VERSION_DATA,
-							1,
-							element_names,
-							version_strings) != -1) {
-        				RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
-        				ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
-        			}
+						// Send "end of version info" indicator.
+						element_names[0] = 0;
+						version_strings[0] = 0;
 
-        			version_data_requested = false;
+						if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
+								model_id,
+								DS_TCP_PROTOCOL_TAG_VERSION_DATA,
+								1,
+								element_names,
+								version_strings) != -1) {
+							RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
+							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
+						}
+
+						version_data_requested = false;
+					}
+
+					// Send pending logging messages to DS client and all non-DS logging clients.
+					// Always send the oldest messages first.
+					// Note that all client sockets are also non-blocking.
+					MessageHeader *p_head = RemoveHead();
+					while (p_head) {
+						ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
+						log_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
+						FreeMessageMemory(p_head);
+						p_head = RemoveHead();
+					}
+
+					// Block, waiting either for new messages, or a brief timeout
+					std::unique_lock<std::mutex> lck(queueNewDataLock);
+					queueNewDataCondition.wait_for(lck, std::chrono::milliseconds(NEW_DS_TCP_MESSAGE_WAIT_TIMEOUT_MS));
+        		} catch(const std::exception& ex){
+        			printf("mau::comms::tcpProcess - Caught exception:  %s\n", ex.what());
         		}
-
-                // Send pending logging messages to DS client and all non-DS logging clients.
-        		// Always send the oldest messages first.
-        		// Note that all client sockets are also non-blocking.
-        		MessageHeader *p_head = RemoveHead();
-        		while (p_head) {
-        			ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
-            		log_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
-            		FreeMessageMemory(p_head);
-            		p_head = RemoveHead();
-                }
-
-        		// Block, waiting either for new messages, or a brief timeout
-        		std::unique_lock<std::mutex> lck(queueNewDataLock);
-        		queueNewDataCondition.wait_for(lck, std::chrono::milliseconds(NEW_DS_TCP_MESSAGE_WAIT_TIMEOUT_MS));
 			}
 
 			ds_sock.close();
@@ -646,12 +692,16 @@ namespace mau {
 					break;
 				runLock.unlock();
 
-				int len = sock.read(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr);
-				mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
+				try {
+					int len = sock.read(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr);
+					mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
 
-				mau::comms::encodePacket(ds_udp_send_buffer);
-				addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
-				sock.send(ds_udp_send_buffer, 28, &addr);
+					mau::comms::encodePacket(ds_udp_send_buffer);
+					addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
+					sock.send(ds_udp_send_buffer, 44, &addr);
+				} catch(const std::exception& ex){
+					printf("mau::comms::udpProcess - Caught exception:  %s\n", ex.what());
+        		}
 			}
 			sock.close();
 		}
@@ -739,43 +789,6 @@ namespace mau {
     		return p_mem;
     	}
 
-        void logServerProcess() {
-
-        	// The logging server socket accepts multiple TCP client connections
-        	// This is configured as non-blocking.
-        	Toast::Net::Socket::ServerSocket serverSocket(WPI_LOGGING_PORT);
-            Toast::Net::Socket::socket_nonblock(serverSocket.get_socket());
-
-            Toast::Net::Socket::SelectiveServerSocket sock(serverSocket.get_socket(), MAX_NUM_CLIENT_CONNECTIONS);
-            sock.prepare();
-
-            serverSocket.open();
-
-            while (isRunning) {
-            	// Accept (non-blocking) new clients (the client list is managed by the SelectiveServerSocket)
-                sock.accept();
-
-                // Prune dead clients
-        		sock.prune_disconnected_clients();
-
-                // Send pending logging messages to all clients, from oldest to newest.
-        		// Note that all client sockets are also non-blocking.
-
-        		MessageHeader *p_head = RemoveHead();
-        		while (p_head) {
-            		sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
-            		FreeMessageMemory(p_head);
-            		p_head = RemoveHead();
-                }
-
-        		// Block, waiting either for new messages, or a timeout.
-        		std::unique_lock<std::mutex> lck(queueNewDataLock);
-        		queueNewDataCondition.wait_for(lck, std::chrono::milliseconds(NEW_DS_TCP_MESSAGE_WAIT_TIMEOUT_MS));
-            }
-
-            sock.close();  // Internally, this closes the serverSocket
-        }
-
         void enqueuePrintMessage(char *msg) {
         	ErrorOrPrintMessage m;
         	// Calculate required length
@@ -818,31 +831,36 @@ namespace mau {
         	char *line = (char *)malloc(MAX_STDOUT_LINE_LEN);
 
         	while (isRunning) {
-        		FD_ZERO(&set);
-        		FD_SET(out_pipe[0], &set);
-        		timeout.tv_sec = 0;
-        		timeout.tv_usec = STDOUT_CAPTURE_TIMEOUT_MS * 1000;
-        		int ret = select((out_pipe[0] + 1), &set, NULL, NULL, &timeout);
-        		if (ret == 0) {
-        			// Timeout
-        		} else if (ret > 0) {
-        			if (FD_ISSET(out_pipe[0], &set)) {
-        				// Input Available; occurs at end of every line, since STDOUT is configured
-        				// for line buffering in Mau HAL Initialization.
-        				ssize_t num_read;
-        				size_t len = MAX_STDOUT_LINE_LEN;
-        				while ((num_read = getline(&line, &len, pipe_file)) != -1) {
-        					// Output to console FD
-        					write(stdout_prev_fd, line, num_read);
-        					// Enqueue Message for transmission to WPI Logging Client
-        					if (num_read > 0) {
-        						line[num_read - 1] = 0; // replace final line feed with null
-        					}
-        					enqueuePrintMessage(line);
-        				}
-        			}
-        		} else {
-        			// Error
+
+        		try {
+					FD_ZERO(&set);
+					FD_SET(out_pipe[0], &set);
+					timeout.tv_sec = 0;
+					timeout.tv_usec = STDOUT_CAPTURE_TIMEOUT_MS * 1000;
+					int ret = select((out_pipe[0] + 1), &set, NULL, NULL, &timeout);
+					if (ret == 0) {
+						// Timeout
+					} else if (ret > 0) {
+						if (FD_ISSET(out_pipe[0], &set)) {
+							// Input Available; occurs at end of every line, since STDOUT is configured
+							// for line buffering in Mau HAL Initialization.
+							ssize_t num_read;
+							size_t len = MAX_STDOUT_LINE_LEN;
+							while ((num_read = getline(&line, &len, pipe_file)) != -1) {
+								// Output to console FD
+								write(stdout_prev_fd, line, num_read);
+								// Enqueue Message for transmission to WPI Logging Client
+								if (num_read > 0) {
+									line[num_read - 1] = 0; // replace final line feed with null
+								}
+								enqueuePrintMessage(line);
+							}
+						}
+					} else {
+						// Error
+					}
+        		} catch(const std::exception& ex){
+        			printf("mau::comms::stdoutCaptureProcess - Caught exception:  %s\n", ex.what());
         		}
         	}
 

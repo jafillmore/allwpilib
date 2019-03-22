@@ -22,7 +22,6 @@ namespace mau {
 
         extern _TempJoyData joys[6];
         extern long long lastDecodeTime;
-        extern double voltage;
 
         void start();
         void stop();
@@ -30,6 +29,7 @@ namespace mau {
         void encodePacket(char* data);
         void decodeTcpPacket(char* data, int length);
         void setInputVoltage(double voltage);
+        void setCANStatus(float percentBusUtilization, uint32_t busOffCount, uint32_t txFifoFullCount, uint8_t rxErrorCount, uint8_t txErrorCount);
         int32_t enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, uint8_t flags, const char *details, const char *location, const char *callStack);
     }
 }

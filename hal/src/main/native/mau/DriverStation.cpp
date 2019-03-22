@@ -7,6 +7,7 @@
 
 #include "hal/DriverStation.h"
 #include "hal/Power.h"
+#include "hal/CAN.h"
 
 #include <thread>
 #include <cstdio>
@@ -67,9 +68,19 @@ extern "C" {
 
     HAL_Bool HAL_WaitForDSDataTimeout(double timeout) {
 
-        // Update voltage immediately.
+        // Update cached input voltage immediately.
         int32_t status = 0;
         mau::comms::setInputVoltage(HAL_GetVinVoltage(&status));
+        // Update can bus status immediately.
+        float percentBusUtilization;
+        uint32_t busOffCount;
+        uint32_t txFullCount;
+        uint32_t rxErrorCount;
+        uint32_t txErrorCount;
+        HAL_CAN_GetCANStatus(&percentBusUtilization, &busOffCount, &txFullCount, &rxErrorCount, &txErrorCount, &status);
+        if (!status) {
+        	mau::comms::setCANStatus(percentBusUtilization, busOffCount, txFullCount, rxErrorCount, txErrorCount);
+        }
 
         std::unique_lock<wpi::mutex> dataLock(*mauDataMutex);
         std::atomic<bool> expired{false};

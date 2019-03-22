@@ -67,6 +67,7 @@ extern "C" {
     	VMXCANMessage message;
     	message.messageID = messageID;
     	message.setData(data, dataSize);
+    	message.dataSize = dataSize;
     	mau::vmxCAN->SendMessage(message, periodMs, status);
     }
 

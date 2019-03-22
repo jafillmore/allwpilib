@@ -5,9 +5,9 @@
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.config.gnu.exe.release.2080398502" moduleId="org.eclipse.cdt.core.settings" name="Release">
 				<externalSettings>
 					<externalSetting>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/robot"/>
-						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/robot/Release"/>
-						<entry flags="RESOLVED" kind="libraryFile" name="robot" srcPrefixMapping="" srcRootPath=""/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/SingleMotorJoystickControl"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="libraryPath" name="/SingleMotorJoystickControl/Release"/>
+						<entry flags="RESOLVED" kind="libraryFile" name="SingleMotorJoystickControl" srcPrefixMapping="" srcRootPath=""/>
 					</externalSetting>
 				</externalSettings>
 				<extensions>
@@ -22,12 +22,17 @@
 					<folderInfo id="cdt.managedbuild.config.gnu.exe.release.2080398502." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.release.778133887" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.release">
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.exe.release.757911285" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.exe.release"/>
-							<builder buildPath="${workspace_loc:/robot}/Release" id="org.eclipse.cdt.build.core.internal.builder.861422757" keepEnvironmentInBuildfile="false" name="CDT Internal Builder" superClass="org.eclipse.cdt.build.core.internal.builder"/>
+							<builder buildPath="${workspace_loc:/SingleMotorJoystickControl}/Release" id="org.eclipse.cdt.build.core.internal.builder.861422757" keepEnvironmentInBuildfile="false" name="CDT Internal Builder" superClass="org.eclipse.cdt.build.core.internal.builder"/>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.505504262" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release">
 								<option id="gnu.cpp.compiler.exe.release.option.optimization.level.2038946634" name="Optimization Level" superClass="gnu.cpp.compiler.exe.release.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.most" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.release.option.debugging.level.978559587" name="Debug Level" superClass="gnu.cpp.compiler.exe.release.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.include.paths.662256426" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false"/>
+								<option id="gnu.cpp.compiler.option.include.paths.662256426" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="/usr/local/include/vmxpi"/>
+									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpiutil"/>
+									<listOptionValue builtIn="false" value="/usr/local/wpilib/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpilibc"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.301328850" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.release.1859478094" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.release">
@@ -42,8 +47,14 @@
 								<option defaultValue="true" id="gnu.cpp.link.option.shared.171913972" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.paths.1359189826" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="/usr/local/wpilib/lib/"/>
+									<listOptionValue builtIn="false" value="/usr/local/lib/vmxpi"/>
 								</option>
-								<option id="gnu.cpp.link.option.libs.418172703" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs"/>
+								<option id="gnu.cpp.link.option.libs.418172703" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
+									<listOptionValue builtIn="false" value="vmxpi_hal_cpp"/>
+									<listOptionValue builtIn="false" value="wpilibcd"/>
+									<listOptionValue builtIn="false" value="wpiutild"/>
+									<listOptionValue builtIn="false" value="wpiHalMau"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.377226782" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
@@ -54,6 +65,17 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="cdt.managedbuild.config.gnu.exe.release.2080398502.2034523182" name="Robot.cpp" rcbsApplicability="disable" resourcePath="Robot.cpp" toolsToInvoke="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104.818671661">
+						<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104.818671661" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104">
+							<option id="gnu.cpp.compiler.option.include.paths.2090656359" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
+								<listOptionValue builtIn="false" value="/usr/local/include/vmxpi"/>
+								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/hal"/>
+								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpiutil"/>
+								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpilibc"/>
+							</option>
+							<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.657752987" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
+						</tool>
+					</fileInfo>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
@@ -73,7 +95,7 @@
 					<folderInfo id="cdt.managedbuild.config.gnu.exe.debug.898787695." name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.debug.1933354382" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.debug">
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.exe.debug.44418951" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.exe.debug"/>
-							<builder buildPath="${workspace_loc:/robot}/Debug" id="org.eclipse.cdt.build.core.internal.builder.920336285" keepEnvironmentInBuildfile="false" name="CDT Internal Builder" superClass="org.eclipse.cdt.build.core.internal.builder"/>
+							<builder buildPath="${workspace_loc:/SingleMotorJoystickControl}/Debug" id="org.eclipse.cdt.build.core.internal.builder.920336285" keepEnvironmentInBuildfile="false" name="CDT Internal Builder" superClass="org.eclipse.cdt.build.core.internal.builder"/>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.394760524" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.802510810" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug">
 								<option id="gnu.cpp.compiler.exe.debug.option.optimization.level.134897080" name="Optimization Level" superClass="gnu.cpp.compiler.exe.debug.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
@@ -118,15 +140,15 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="robot.cdt.managedbuild.target.gnu.exe.1562967618" name="Executable" projectType="cdt.managedbuild.target.gnu.exe"/>
+		<project id="SingleMotorJoystickControl.cdt.managedbuild.target.gnu.exe.1562967618" name="Executable" projectType="cdt.managedbuild.target.gnu.exe"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="Release">
-			<resource resourceType="PROJECT" workspacePath="/robot"/>
+			<resource resourceType="PROJECT" workspacePath="/SingleMotorJoystickControl"/>
 		</configuration>
 		<configuration configurationName="Debug">
-			<resource resourceType="PROJECT" workspacePath="/robot"/>
+			<resource resourceType="PROJECT" workspacePath="/SingleMotorJoystickControl"/>
 		</configuration>
 	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
