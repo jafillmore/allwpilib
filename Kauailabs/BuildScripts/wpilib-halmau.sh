@@ -9,6 +9,11 @@ cd allwpilib/
 git checkout master
 git checkout
 
+cd ~
+# Retrieve repo containing required Phoenix headers allowing
+# VMX-pi to become a Phoenix platform
+git clone https://github.com/CrossTheRoadElec/Phoenix-Linux-SocketCAN-Example.git
+
 #Select from here until next comment for rebuilding the .so's
 cd ~
 sudo rm -r wpilib_build

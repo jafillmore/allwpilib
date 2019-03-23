@@ -10,6 +10,7 @@
 #include "MauTime.h"
 #include <VMXCAN.h>
 #include <cstring>
+#include "CANInternal.h"
 
 namespace hal {
     namespace init {
@@ -60,6 +61,10 @@ namespace hal {
 
         }
     }
+}
+
+uint32_t GetDefaultCANStreamHandle() {
+	return hal::init::blackboardStreamHandle;
 }
 
 extern "C" {

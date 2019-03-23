@@ -62,7 +62,8 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/*.cpp
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
     hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
-    hal_sim_native_src src/main/native/mau/ctre/*.cpp)
+    hal_sim_native_src src/main/native/mau/ctre/*.cpp
+    hal_sim_native_src src/main/native/mau/phoenix/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
 if(USE_EXTERNAL_HAL)
@@ -92,6 +93,9 @@ target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau>)
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/DriveStation/include>)
+
+target_include_directories(hal PUBLIC 
+		$<BUILD_INTERFACE:~/Phoenix-Linux-SocketCAN-Example/include>)
 
 target_link_libraries(hal PUBLIC wpiutil)
 
