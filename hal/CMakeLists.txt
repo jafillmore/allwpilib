@@ -21,7 +21,7 @@ endforeach()
 string(REPLACE ";" "\n" usage_reporting_types_cpp "${usage_reporting_types_cpp}")
 string(REPLACE ";" "\n" usage_reporting_instances_cpp "${usage_reporting_instances_cpp}")
 
-# Copy ctre sources to mau
+# Copy ctre sources to mau (this allows mau to reuse the CTRE PCM code in athena)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/ctre)
 file(GLOB CTRE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/athena/ctre/*)
 file(COPY ${CTRE_SOURCES} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/ctre)
@@ -62,8 +62,7 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/*.cpp
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
     hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
-    hal_sim_native_src src/main/native/mau/ctre/*.cpp
-    hal_sim_native_src src/main/native/mau/phoenix/*.cpp)
+    hal_sim_native_src src/main/native/mau/ctre/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
 if(USE_EXTERNAL_HAL)
@@ -94,9 +93,6 @@ target_include_directories(hal PUBLIC
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/DriveStation/include>)
 
-target_include_directories(hal PUBLIC 
-		$<BUILD_INTERFACE:~/Phoenix-Linux-SocketCAN-Example/include>)
-
 target_link_libraries(hal PUBLIC wpiutil)
 
 set_property(TARGET hal PROPERTY FOLDER "libraries")
@@ -124,6 +120,9 @@ if (MSVC)
 else()
     set (hal_config_dir share/hal)
 endif()
+
+# Add Phoenix platform library to built items
+add_subdirectory(src/main/native/mau/phoenix)
 
 install(FILES hal-config.cmake DESTINATION ${hal_config_dir})
 install(EXPORT hal DESTINATION ${hal_config_dir})

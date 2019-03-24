@@ -63,11 +63,12 @@ namespace hal {
     }
 }
 
-uint32_t GetDefaultCANStreamHandle() {
-	return hal::init::blackboardStreamHandle;
-}
-
 extern "C" {
+
+	uint32_t Mau_HAL_GetDefaultCANStreamHandle() {
+		return hal::init::blackboardStreamHandle;
+	}
+
     void HAL_CAN_SendMessage(uint32_t messageID, const uint8_t* data, uint8_t dataSize, int32_t periodMs, int32_t* status) {
     	VMXCANMessage message;
     	message.messageID = messageID;
