@@ -292,7 +292,7 @@ int Socket::SelectiveServerSocket::prepare() {
 		return ret;
 	}
 	_highsock = _socket;
-	memset((char *)_connectionlist, 0, _maxsize);
+	memset((char *)_connectionlist, 0, sizeof(Socket::SOCKET) * _maxsize);
 	return 0;
 }
 
@@ -305,6 +305,7 @@ int Socket::SelectiveServerSocket::close() {
 int Socket::SelectiveServerSocket::accept() {
 	FD_ZERO(&_socks);
 	FD_SET(_socket, &_socks);
+	_highsock = _socket;
 	for (int i = 0; i < _maxsize; i++) {
 		if (_connectionlist[i] != 0) {
 			FD_SET(_connectionlist[i], &_socks);

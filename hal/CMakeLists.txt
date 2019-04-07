@@ -33,11 +33,14 @@ if (NOT WITHOUT_JAVA)
     include(UseJava)
     set(CMAKE_JAVA_COMPILE_FLAGS "-Xlint:unchecked")
 
+    configure_file(src/generate/FRCNetComm.java.in FRCNetComm.java)
+
     file(GLOB
-        hal_shared_jni_src src/main/native/cpp/jni/*.cpp
-        hal_sim_jni_src src/main/native/sim/jni/*.cpp)
+        hal_shared_jni_src src/main/native/cpp/jni/*.cpp)
+#        hal_sim_jni_src src/main/native/sim/jni/*.cpp)
 
     file(GLOB_RECURSE JAVA_SOURCES
+        ${CMAKE_CURRENT_BINARY_DIR}/FRCNetComm.java
         src/generated/java/*.java
         src/main/java/*.java)
     set(CMAKE_JNI_TARGET true)
@@ -54,6 +57,34 @@ if (NOT WITHOUT_JAVA)
 
     set_property(TARGET hal_jar PROPERTY FOLDER "java")
 
+    add_library(haljni ${hal_shared_jni_src})
+
+    if(USE_EXTERNAL_HAL)
+        include(${EXTERNAL_HAL_FILE})
+    else()
+        target_sources(haljni PRIVATE ${hal_sim_jni_src})
+    endif()
+
+    set_target_properties(haljni PROPERTIES OUTPUT_NAME "wpiHaljni")
+
+    target_link_libraries(haljni PUBLIC hal wpiutil)
+
+    set_property(TARGET haljni PROPERTY FOLDER "libraries")
+
+    if(${CMAKE_VERSION} VERSION_LESS "3.11.0")
+        target_include_directories(haljni PRIVATE ${JNI_INCLUDE_DIRS})
+        target_include_directories(haljni PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
+    else()
+        target_link_libraries(haljni PRIVATE hal_jni_headers)
+    endif()
+    add_dependencies(haljni hal_jar)
+
+    if (MSVC)
+        install(TARGETS haljni RUNTIME DESTINATION "${jni_lib_dest}" COMPONENT Runtime)
+    endif()
+
+    install(TARGETS haljni EXPORT haljni DESTINATION "${main_lib_dest}")
+
 endif()
 
 file(GLOB
@@ -62,6 +93,7 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/*.cpp
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
     hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
+    hal_sim_native_src src/main/native/mau/simjni/*.cpp
     hal_sim_native_src src/main/native/mau/ctre/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
@@ -93,7 +125,9 @@ target_include_directories(hal PUBLIC
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/DriveStation/include>)
 
-target_link_libraries(hal PUBLIC wpiutil)
+# Specify link to VMXPI HAL Library
+find_library(VMXPI_HAL_CPP vmxpi_hal_cpp PATHS /usr/local/lib/vmxpi)
+target_link_libraries(hal PUBLIC wpiutil "${VMXPI_HAL_CPP}")
 
 set_property(TARGET hal PROPERTY FOLDER "libraries")
 
