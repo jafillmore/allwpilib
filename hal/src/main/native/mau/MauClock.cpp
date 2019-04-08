@@ -24,7 +24,7 @@ namespace hal {
 }
 
 void Mau_restartTiming() {
-    programStartTime = mau::vmxGetTime();
+    //programStartTime = mau::vmxGetTime();
 }
 
 int64_t Mau_getTime() {

@@ -11,6 +11,7 @@
 
 #include <wpi/raw_ostream.h>
 #include <wpi/mutex.h>
+#include <wpi/timestamp.h>
 
 #include "ErrorsInternal.h"
 #include "hal/DriverStation.h"
@@ -324,8 +325,22 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
     wpi::outs().SetUnbuffered();
 
     if (HAL_LoadExtensions() < 0) return false;
-    Mau_restartTiming();
+    //Mau_restartTiming();
     HAL_InitializeDriverStation();
+
+    // Set WPI_Now to use FPGA timestamp
+    wpi::SetNowImpl([]() -> uint64_t {
+        int32_t status = 0;
+        uint64_t rv = HAL_GetFPGATime(&status);
+        if (status != 0) {
+            wpi::errs()
+               << "Call to HAL_GetFPGATime failed."
+               << "Initialization might have failed. Time will not be correct\n";
+            wpi::errs().flush();
+           return 0u;
+        }
+        return rv;
+    });
 
     initialized = true;
     return true;  // Add initialization if we need to at a later point
