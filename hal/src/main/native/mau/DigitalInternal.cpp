@@ -13,6 +13,8 @@
 #include "hal/Ports.h"
 #include "PortsInternal.h"
 
+#define HANDLE_VERSION 0
+
 namespace hal {
 
 DigitalHandleResource<HAL_DigitalHandle, DigitalPort, kNumDigitalChannels>*
@@ -27,14 +29,14 @@ void InitializeDigitalInternal() {
 }  // namespace init
 
 /* returns a contiguous, 0-based index for the (digital) VMXChannelIndex */
-HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index) {
+HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index, HAL_HandleEnum handleType) {
 	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels) - 1;
 	constexpr int32_t kFirstCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs) - 1;
 	constexpr int32_t kLastCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs + kNumCommDIOChannels) - 1;
 	if (index < kFirstAnalogInChannelIndex) {
-		return index;
+		return createHandle(index, handleType, HANDLE_VERSION);
 	} else if ((index >= kFirstCommDIOChannelIndex) && (index <= kLastCommDIOChannelIndex)) {
-		return index - kNumAnalogInputs;
+		return createHandle(index - kNumAnalogInputs, handleType, HANDLE_VERSION);
 	} else {
 		return HAL_kInvalidHandle;
 	}
@@ -46,7 +48,7 @@ HAL_DigitalHandle getDigitalHandleAndVMXChannelInfo(HAL_HandleEnum handleType, i
 	if (INVALID_VMX_CHANNEL_INDEX == vmx_chan_index) {
 		return HAL_kInvalidHandle;
 	}
-	return getDigitalHandleForVMXChannelIndex(vmx_chan_index);
+	return getDigitalHandleForVMXChannelIndex(vmx_chan_index, handleType);
 }
 
 std::shared_ptr<DigitalPort> allocateDigitalPort(HAL_DigitalHandle digHandle, HAL_HandleEnum handleType, int32_t *status)
@@ -75,7 +77,7 @@ std::shared_ptr<DigitalPort> allocateDigitalHandleAndInitializedPort(HAL_HandleE
 		return nullptr;
 	}
 
-	digHandle = getDigitalHandleForVMXChannelIndex(vmx_chan_index);
+	digHandle = getDigitalHandleForVMXChannelIndex(vmx_chan_index, type);
 	if (digHandle == HAL_kInvalidHandle) {
 		return nullptr;
 	}

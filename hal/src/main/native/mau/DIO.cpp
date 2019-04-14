@@ -67,10 +67,13 @@ namespace hal {
 }
 
 static bool AllocateVMXPiDIO(std::shared_ptr<DigitalPort> digPort, bool input, int32_t* status) {
+	VMXChannelInfo vmx_chan_info = digPort->vmx_chan_info;
+    /* Determine VMX Channel DIO Capabilities appropriate for allocation request */
 	if (input) {
 		if (mau::vmxIO->ChannelSupportsCapability(digPort->vmx_chan_info.index, VMXChannelCapability::DigitalInput)) {
 			digPort->dio_config.SetInput(true);
 			digPort->dio_config.SetInputMode(DIOConfig::InputMode::PULLUP);
+			vmx_chan_info.capabilities = VMXChannelCapability::DigitalInput;
 		} else {
 			*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
 			return false;
@@ -79,13 +82,14 @@ static bool AllocateVMXPiDIO(std::shared_ptr<DigitalPort> digPort, bool input, i
 		if (mau::vmxIO->ChannelSupportsCapability(digPort->vmx_chan_info.index, VMXChannelCapability::DigitalOutput)) {
 			digPort->dio_config.SetInput(false);
 			digPort->dio_config.SetOutputMode(DIOConfig::OutputMode::PUSHPULL);
+			vmx_chan_info.capabilities = VMXChannelCapability::DigitalOutput;
 		} else {
 			*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
 			return false;
 		}
 	}
 
-	if (!mau::vmxIO->ActivateSinglechannelResource(digPort->vmx_chan_info, &digPort->dio_config, digPort->vmx_res_handle, status)) {
+	if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &digPort->dio_config, digPort->vmx_res_handle, status)) {
 		return false;
 	}
 
@@ -117,7 +121,7 @@ extern "C" {
         }
 
         HAL_DigitalHandle digHandle;
-        auto port = allocateDigitalHandleAndInitializedPort(HAL_HandleEnum::PWM, wpi_digital_channel, digHandle, status);
+        auto port = allocateDigitalHandleAndInitializedPort(HAL_HandleEnum::DIO, wpi_digital_channel, digHandle, status);
         if (port == nullptr) {
             return HAL_kInvalidHandle;
         }

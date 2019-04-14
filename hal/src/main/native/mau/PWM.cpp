@@ -41,12 +41,22 @@ bool HAL_Internal_ActivatePWMGenerator(HAL_DigitalHandle pwmPortHandle, int32_t 
         return false;
     }
 
+    VMXChannelInfo vmx_chan_info = port->vmx_chan_info;
+    /* Determine VMX Channel PWM Generator Port Index assignment for allocation request */
+    if (port->vmx_chan_info.capabilities & VMXChannelCapability::PWMGeneratorOutput) {
+    	// Use the first port (0) on the PWM Generator resource
+    	vmx_chan_info.capabilities = VMXChannelCapability::PWMGeneratorOutput;
+    } else if (port->vmx_chan_info.capabilities & VMXChannelCapability::PWMGeneratorOutput2) {
+    	// Use the second port (1) on the PWM Generator resource
+    	vmx_chan_info.capabilities = VMXChannelCapability::PWMGeneratorOutput2;
+    }
+
     HAL_SetPWMConfig(pwmPortHandle, 2.0, 1.501, 1.5, 1.499, 1.0, status);
 
     /* Set Configuration to defaults, including WPI-library compliant PWM Frequency and DutyCycle */
     port->pwmgen_config = PWMGeneratorConfig(kPwmFrequencyHz);
 	port->pwmgen_config.SetMaxDutyCycleValue(kDutyCycleTicks); /* Update Duty Cycle Range to match WPI Library cycle resolution (1 us/tick) */
-	if (!mau::vmxIO->ActivateSinglechannelResource(port->vmx_chan_info, &port->pwmgen_config, port->vmx_res_handle, status)) {
+	if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &port->pwmgen_config, port->vmx_res_handle, status)) {
 		if (*status == VMXERR_IO_NO_UNALLOCATED_COMPATIBLE_RESOURCES) {
 			VMXResourceHandle resourceWithAvailablePort;
 			bool allocated;
@@ -58,8 +68,9 @@ bool HAL_Internal_ActivatePWMGenerator(HAL_DigitalHandle pwmPortHandle, int32_t 
 				}
 			}
 		}
+		return false;
 	}
-	return false;
+	return true;
 }
 
 extern "C" {
@@ -80,19 +91,6 @@ HAL_DigitalHandle HAL_InitializePWMPort(HAL_PortHandle portHandle, int32_t* stat
     }
 
 	// TODO:  If HiCurrDIOJumper is "INPUT", show error if requesting one of those channels?
-
-#if 0
-	/* NOTE:  This appears no longer necessary.                  */
-    /* Determine VMX Channel PWM Generator Port Index assignment */
-    VMXChannelType channelType;
-    if (port->vmx_chan_info.capabilities & VMXChannelCapability::PWMGeneratorOutput) {
-    	// Ue the first port (0) on the PWM Generator resource
-    	mauChannel->vmxAbility = VMXChannelCapability::PWMGeneratorOutput;
-    } else if (port->vmx_chan_info.capabilities & VMXChannelCapability::PWMGeneratorOutput2) {
-    	// Use the second port (1) on the PWM Generator resource
-    	mauChannel->vmxAbility = VMXChannelCapability::PWMGeneratorOutput2;
-    }
-#endif
 
     if (!HAL_Internal_ActivatePWMGenerator(digHandle, status)) {
 		digitalChannelHandles->Free(digHandle, HAL_HandleEnum::PWM);

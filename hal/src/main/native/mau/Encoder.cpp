@@ -52,6 +52,20 @@ static bool AllocateVMXPiEncoder(
 	VMXChannelInfo channel_infos[2];
 	channel_infos[0] = digPortA->vmx_chan_info;
 	channel_infos[1] = digPortB->vmx_chan_info;
+	// Only request the appropriate capabilities for both encoder iput channels
+	for (int i = 0; i < 2; i++) {
+		if (channel_infos[i].capabilities & VMXChannelCapability::EncoderAInput) {
+			channel_infos[i].capabilities = VMXChannelCapability::EncoderAInput;
+		} else if (channel_infos[i].capabilities & VMXChannelCapability::EncoderBInput) {
+			channel_infos[i].capabilities = VMXChannelCapability::EncoderBInput;
+		}
+		// Deallocate exiting routings for these channels
+		// TODO:  Save the previous allocation and restore upon completion?
+		VMXResourceHandle res_handle;
+		if (mau::vmxIO->GetResourceFromRoutedChannel(channel_infos[i].index, res_handle, NULL)) {
+			mau::vmxIO->DeallocateResource(res_handle, NULL);
+		}
+	}
 	const VMXChannelInfo *p_channel_infos = &channel_infos[0];
 	if (!mau::vmxIO->ActivateMultichannelResource(2, p_channel_infos,
 			&encoderResource->vmx_config, encoderResource->vmx_res_handle,
