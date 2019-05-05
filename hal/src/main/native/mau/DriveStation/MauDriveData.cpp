@@ -171,7 +171,7 @@ void Mau_DriveData::scribeJoyAxes(int joyNumber, HAL_JoystickAxes* axes) {
     HAL_JoystickAxes* dataAxes = &joysticks[joyNumber].joyAxes;
 
     axes->count = dataAxes->count;
-    std::memcpy(axes->axes, dataAxes->axes, HAL_kMaxJoystickAxes);
+    std::memcpy(axes->axes, dataAxes->axes, sizeof(axes->axes));
     memLock.unlock();
 }
 
@@ -180,7 +180,7 @@ void Mau_DriveData::scribeJoyPOVs(int joyNumber, HAL_JoystickPOVs* povs) {
     HAL_JoystickPOVs* dataPOVs = &joysticks[joyNumber].joyPOVs;
 
     povs->count = dataPOVs->count;
-    std::memcpy(povs->povs, dataPOVs->povs, HAL_kMaxJoystickPOVs);
+    std::memcpy(povs->povs, dataPOVs->povs, sizeof(povs->povs));
     memLock.unlock();
 }
 
@@ -201,7 +201,7 @@ void Mau_DriveData::scribeJoyDescriptor(int joyNumber, HAL_JoystickDescriptor* d
     desc->type = dataDesc->type;
     std::strcpy(desc->name, dataDesc->name);
     desc->axisCount = dataDesc->axisCount;
-    std::memcpy(desc->axisTypes, dataDesc->axisTypes, HAL_kMaxJoystickAxes);
+    std::memcpy(desc->axisTypes, dataDesc->axisTypes, sizeof(desc->axisTypes));
     desc->buttonCount = dataDesc->buttonCount;
     desc->povCount = dataDesc->povCount;
     memLock.unlock();
