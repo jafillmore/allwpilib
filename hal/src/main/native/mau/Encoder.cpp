@@ -119,7 +119,7 @@ HAL_EncoderHandle HAL_InitializeEncoder(HAL_Handle digitalSourceHandleA,
 	// NOTE:  Unlike the reference implementation, VMX-pi does not
 	// support analog triggers as encoder sources.
 	HAL_HandleEnum sourceAType = getHandleType(digitalSourceHandleA);
-	HAL_HandleEnum sourceBType = getHandleType(digitalSourceHandleA);
+	HAL_HandleEnum sourceBType = getHandleType(digitalSourceHandleB);
 	if ((sourceAType == HAL_HandleEnum::AnalogInput) ||
 		(sourceAType == HAL_HandleEnum::AnalogInput) ||
 		(sourceBType == HAL_HandleEnum::AnalogTrigger) ||
