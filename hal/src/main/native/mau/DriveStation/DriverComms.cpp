@@ -87,6 +87,8 @@ namespace mau {
     	uint8_t sq_2 = 0;				// Sequence Number
     	uint8_t udp_ds_control = 0;		// Control Word
 
+    	void (*shutdown_handler)(int) = 0;
+
     	_TempJoyData joys[HAL_kMaxJoysticks];			// Last-received Joystick Data
     	long long lastDsUDPUpdateReceivedTimestamp;
 
@@ -144,6 +146,10 @@ uint64_t mau::comms::getAvailableDiskSpace() {
 		return 0;
 	}
 	return static_cast<uint64_t>(stat.f_bsize) * static_cast<uint64_t>(stat.f_bavail);
+}
+
+void mau::comms::setShutdownHandler(void (*shutdown_handler_func)(int)) {
+	mau::comms::shutdown_handler = shutdown_handler_func;
 }
 
 void mau::comms::start() {
@@ -220,9 +226,9 @@ void mau::comms::encodePacket(char* data) {
     data[0] = sq_1;
     data[1] = sq_2;
     data[2] = UDP_DS_PROTOCOL_VERSION;							// Comm Version
-    data[3] = udp_ds_control;									// STATUSBYTE
+    data[3] = udp_ds_control;									// STATUSBYTE (TODO:  "ProgStart" (instead of FMS) and "BrownoutPrevent" bits)
     data[4] = UDP_DS_USERPROGRAM_TRACE_ROBORIO |
-    		  UDP_DS_USERPROGRAM_TRACE_USERCODE;				// USERPROGRAM_TRACE
+    		  UDP_DS_USERPROGRAM_TRACE_USERCODE;				// USERPROGRAM_TRACE (TODO:  Add Test/Auto/Tele/Disabled bits)
 
     double voltage_intpart =
     		static_cast<double>(static_cast<int>(voltage));
@@ -393,13 +399,17 @@ void mau::comms::decodeTcpPacket(char* data, int length) {
 
 void mau::comms::decodeUdpPacket(char* data, int length) {
 
+	if (length < DS_UDP_PROTOCOL_HEADER_LENGTH) return;
+
 	// Decode Packet Number
 	sq_1 = data[0];
     sq_2 = data[1];
+    uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
 
     char version = data[DS_UDP_PROTOCOL_HEADER_INDEX_VERSION];
 
-    if (version != 0) {
+    if (version == 1) {
+
         udp_ds_control = data[DS_UDP_PROTOCOL_HEADER_INDEX_CONTROLBYTE];
         bool test = IS_BIT_SET(udp_ds_control, 0);
         bool auton = IS_BIT_SET(udp_ds_control, 1);
@@ -414,26 +424,34 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
         bool reboot = IS_BIT_SET(udp_ds_request, 3);			// Hard Restart
         bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);	// How is this different than Soft Restart?
 
+        int shutdown_code;
         if (reboot || restart) {
         	if (reboot) {
+        		shutdown_code = MAU_COMMS_SHUTDOWN_REBOOT;
         		printf("NOTICE: Driver Station Requested Reboot.\n");
-        		// TODO:  Disable all outputs.
-                // TODO:  Invoke system shutdown command.
+        		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
         	} else {
+        		shutdown_code = MAU_COMMS_SHUTDOWN_RESTART;
         		printf("NOTICE: Driver Station Requested Code Restart.\n");
-        		// TODO:  Disable all outputs.
-        		// TODO:  Quit robot application; signal managing script to restart it.
+        		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
         	}
+
             stop();
-            exit(0);
-            //kill(0, SIGTERM);
+            if (shutdown_handler) {
+            	shutdown_handler(shutdown_code);
+            }
+            return;
+
         } else if (eStop) {
             printf("NOTICE: Driver Station Estop \n");
-            // TODO:  Disable all Outputs.  After this, the user must manually restart
-            // the host controller.
-            stop();
-            exit(0);
-            //kill(0, SIGTERM);
+    		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
+
+    		stop();
+            if (shutdown_handler) {
+            	shutdown_handler(MAU_COMMS_SHUTDOWN_ESTOP);
+            }
+            return;
+
         }
         HAL_AllianceStationID alliance = (HAL_AllianceStationID)data[DS_UDP_PROTOCOL_HEADER_INDEX_ALLIANCE_STATION_ID];
 
@@ -693,12 +711,14 @@ namespace mau {
 				runLock.unlock();
 
 				try {
+					memset(ds_udp_rcv_buffer, 0, MAX_WPI_DRIVESTATION_UDP_READSIZE);
 					int len = sock.read(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr);
-					mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
-
-					mau::comms::encodePacket(ds_udp_send_buffer);
-					addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
-					sock.send(ds_udp_send_buffer, 44, &addr);
+					if (len > 0) {
+						mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
+						mau::comms::encodePacket(ds_udp_send_buffer);
+						addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
+						sock.send(ds_udp_send_buffer, 44, &addr);
+					}
 				} catch(const std::exception& ex){
 					printf("mau::comms::udpProcess - Caught exception:  %s\n", ex.what());
         		}

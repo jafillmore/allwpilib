@@ -17,7 +17,9 @@
 #include "hal/handles/UnlimitedHandleResource.h"
 #include "HALInitializer.h"
 #include "hal/cpp/fpga_clock.h"
+#include <VMXPi.h>
 #include "MauTime.h"
+#include "MauInternal.h"
 
 namespace {
 struct Notifier {
@@ -36,7 +38,7 @@ class NotifierHandleContainer
     : public UnlimitedHandleResource<HAL_NotifierHandle, Notifier,
                                      HAL_HandleEnum::Notifier> {
  public:
-  ~NotifierHandleContainer() {
+  void Cleanup() {
     ForEach([](HAL_NotifierHandle handle, Notifier* notifier) {
       {
         std::lock_guard<wpi::mutex> lock(notifier->mutex);
@@ -46,15 +48,29 @@ class NotifierHandleContainer
       notifier->cond.notify_all();  // wake up any waiting threads
     });
   }
+  virtual ~NotifierHandleContainer() {
+	 Cleanup();
+  }
 };
 
 static NotifierHandleContainer* notifierHandles;
+
+static void HAL_Mau_NotifierTerminateHandler(void) {
+	if (notifierHandles != 0) {
+		notifierHandles->Cleanup();
+		notifierHandles = 0;
+	}
+}
 
 namespace hal {
 namespace init {
 void InitializeNotifier() {
   static NotifierHandleContainer nH;
   notifierHandles = &nH;
+  VMXPi *p_vmxpi = VMXPi::getInstance();
+  if (p_vmxpi) {
+	  p_vmxpi->registerShutdownHandler(HAL_Mau_NotifierTerminateHandler);
+  }
 }
 }  // namespace init
 }  // namespace hal
@@ -73,6 +89,7 @@ HAL_NotifierHandle HAL_InitializeNotifier(int32_t* status) {
 }
 
 void HAL_StopNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
+  if (!notifierHandles) return;
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return;
 
@@ -85,6 +102,7 @@ void HAL_StopNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
 }
 
 void HAL_CleanNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
+  if (!notifierHandles) return;
   auto notifier = notifierHandles->Free(notifierHandle);
   if (!notifier) return;
 
@@ -99,6 +117,7 @@ void HAL_CleanNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
 
 void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
                              uint64_t triggerTime, int32_t* status) {
+  if (!notifierHandles) return;
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return;
 
@@ -115,6 +134,7 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
 
 void HAL_CancelNotifierAlarm(HAL_NotifierHandle notifierHandle,
                              int32_t* status) {
+  if (!notifierHandles) return;
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return;
 
@@ -134,9 +154,15 @@ static void VMXTimerExpiryCallback(void *param, uint64_t timestamp_us)
 
 uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
 		int32_t* status) {
-	auto notifier = notifierHandles->Get(notifierHandle);
-	if (!notifier)
+	if (!notifierHandles) {
+		*status = -1;
 		return 0;
+	}
+	auto notifier = notifierHandles->Get(notifierHandle);
+	if (!notifier) {
+		*status = -1;
+		return 0;
+	}
 
 	std::unique_lock<wpi::mutex> lock(notifier->mutex);
 	while (notifier->active) {
@@ -159,7 +185,14 @@ uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
 		mau::vmxTime->RegisterTimerNotificationAbsolute(
 				VMXTimerExpiryCallback, expiry_time_us, notifier.get());
 
-		notifier->cond.wait_until(lock, timeoutTime);
+		try {
+			notifier->cond.wait_until(lock, timeoutTime);
+		} catch(...) {
+			/* This can occur if SIGTERM is received during wait. */
+			/* In this case, exit.								  */
+			*status = -1;
+			return 0;
+		}
 		if (notifier->updatedAlarm) {
 			notifier->updatedAlarm = false;
 			continue;
@@ -171,6 +204,7 @@ uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
 		notifier->running = false;
 		return HAL_GetFPGATime(status);
 	}
+	*status = -1;
 	return 0;
 }
 

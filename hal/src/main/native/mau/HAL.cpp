@@ -47,6 +47,37 @@ Mau_EnumConverter* mau::enumConverter;
 
 namespace hal {
     namespace init {
+
+        void ShutdownHandler(int param) {
+        	// param possible values:
+        	// MAU_COMMS_SHUTDOWN_ESTOP
+        	// MAU_COMMS_SHUTDOWN_RESTART
+        	// MAU_COMMS_SHUTDOWN_REBOOT
+        	printf("VMX HAL Shutdown Handler invoked.\n");
+        	kill(0, SIGTERM);
+        	int timeout = 1500;
+  		    std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+  		    fflush(stdout);
+  		    int kill_status = kill(0,0);
+  		    if (kill_status == 0) {
+  		        printf("FRC robot app did not respond to SIGTERM within %d ms.  Sending SIGKILL.\n", timeout);
+  	  		    fflush(stdout);
+  			    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  			    // Force kill -9
+  			    auto forceKill = kill(0, SIGKILL);
+  			    if (forceKill != 0) {
+  				    auto errorMsg = std::strerror(forceKill);
+  				    printf("Kill -9 error: %s\n", errorMsg);
+  		  		    fflush(stdout);
+  			    }
+  			    // Give a bit of time for the kill to take place
+  			    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  		   } else {
+  			    printf("kill(0,0) returned %d; Robot Application terminated successfully via SIGTERM.\n", kill_status);
+  	  		    fflush(stdout);
+  		   }
+        }
+
         bool InitializeHAL() {
         	Mau_DriveData::initializeDriveData();
 
@@ -75,6 +106,26 @@ namespace hal {
             mau::vmxPower = &vmx->power;
             mau::vmxThread = &vmx->thread;
 
+	    /* Enable the IO Watchdog */
+	    VMXErrorCode vmxerr;
+	    mau::vmxIO->SetWatchdogManagedOutputs(true /* flexdio */, true /* hicurrdio */, true /* commdio */, &vmxerr);
+	    mau::vmxIO->SetWatchdogTimeoutPeriodMS(250, &vmxerr);
+	    mau::vmxIO->SetWatchdogEnabled(true, &vmxerr);
+
+	    /* Wait a few milliseconds, then force the watchdog to expire. */
+	    /* Feeding the IO Watchdog will occur when                     */
+	    /* DriveStation control words are received.                    */
+	    mau::vmxTime->DelayMilliseconds(10);
+	    
+	    for (int i = 0; i < 3; i++) {
+		if (!mau::vmxIO->ExpireWatchdogNow(&vmxerr)) {
+			printf("Error expiring IO Watchdog.\n");
+		} else {
+			printf("Outputs Disabled via IO Watchdog.\n");
+			break;
+		}
+	    }
+
             InitializeAccelerometer();
             InitializeAnalogAccumulator();
             InitializeAnalogGyro();
@@ -88,7 +139,7 @@ namespace hal {
             InitializeCounter();
             InitializeDigitalInternal();
             InitializeDIO();
-            InitializeDriverStation();
+            InitializeDriverStation(hal::init::ShutdownHandler);
             InitializeEncoder();
             InitializeExtensions();
             InitializeI2C();

@@ -5,6 +5,10 @@
 
 #define IS_BIT_SET(expression, bit) ((expression & (1 << bit)) != 0)
 
+#define MAU_COMMS_SHUTDOWN_ESTOP 	1
+#define MAU_COMMS_SHUTDOWN_REBOOT	2
+#define MAU_COMMS_SHUTDOWN_RESTART  3
+
 namespace mau {
     namespace comms {
         typedef struct {
@@ -22,7 +26,9 @@ namespace mau {
 
         extern _TempJoyData joys[6];
         extern long long lastDecodeTime;
+    	extern void (*shutdown_handler)(int);
 
+        void setShutdownHandler(void (*shutdown_handler)(int));
         void start();
         void stop();
         void decodeUdpPacket(char* data, int length);

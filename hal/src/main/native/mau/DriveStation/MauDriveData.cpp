@@ -63,12 +63,10 @@ void Mau_DriveData::updateMatchIdentifyInfo(char *event_name, uint8_t match_type
     matchInfo.matchNumber = match_number;
     matchInfo.replayNumber = replay_number;
     unlockAndSignal();
-    printf("Match Identify:  %s, type:  %d, number:  %d, replay:  %d\n", event_name, match_type, match_number, replay_number);
 }
 
 void Mau_DriveData::updateMatchTime(float currMatchTime) {
 	matchTime = currMatchTime;
-	printf("Match time:  %f\n", matchTime);
 }
 
 void Mau_DriveData::updateMatchGameSpecificMessage(uint8_t msg_len, uint8_t *msg_data)

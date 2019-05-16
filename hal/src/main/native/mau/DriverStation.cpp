@@ -24,6 +24,7 @@
 #include "DriveStation/include/socket.hpp"
 #include "DriveStation/include/DriverComms.hpp"
 #include "DriveStation/include/MauDriveData.h"
+#include "MauInternal.h"
 
 static wpi::mutex msgMutex;
 static wpi::mutex* mauDataMutex;
@@ -31,10 +32,11 @@ static wpi::condition_variable* mauDataSignal;
 
 namespace hal {
     namespace init {
-        void InitializeDriverStation() {
+        void InitializeDriverStation(void (*shutdown_handler)(int)) {
             wpi::mutex* newMutex = new wpi::mutex();
             mauDataMutex = newMutex;
             mauDataSignal = Mau_DriveData::getDataSignal();
+            mau::comms::setShutdownHandler(shutdown_handler);
         }
     }
 }
@@ -68,6 +70,10 @@ extern "C" {
 
     HAL_Bool HAL_WaitForDSDataTimeout(double timeout) {
 
+	uint32_t prevCount = Mau_DriveData::getNewDSDataAvailableCounter();
+	HAL_ControlWord prevControlWord;
+	HAL_GetControlWord(&prevControlWord);
+
         // Update cached input voltage immediately.
         int32_t status = 0;
         mau::comms::setInputVoltage(HAL_GetVinVoltage(&status));
@@ -95,6 +101,22 @@ extern "C" {
         }
 
         mauDataMutex->unlock();
+
+	/* Condition IO Watchdog based upon current enable bit in control word. */
+	uint32_t newCount = Mau_DriveData::getNewDSDataAvailableCounter();
+	if (newCount != prevCount) {
+		HAL_ControlWord newControlWord;
+		VMXErrorCode vmxerr;
+		HAL_GetControlWord(&newControlWord);
+		if (newControlWord.enabled) {
+			// Feed Watchdog whenever new control words are received and enabled.
+			mau::vmxIO->FeedWatchdog(&vmxerr);
+		} else if (prevControlWord.enabled) {
+			// Immediately Expire the Watchdog when disabled state is entered.
+			mau::vmxIO->ExpireWatchdogNow(&vmxerr);
+		}
+	}
+
         return true;
     }
 

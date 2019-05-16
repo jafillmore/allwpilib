@@ -33,7 +33,7 @@ namespace hal {
         extern void InitializeCounter();
         extern void InitializeDigitalInternal();
         extern void InitializeDIO();
-        extern void InitializeDriverStation();
+        extern void InitializeDriverStation(void (*shutdown_handler)(int));
         extern void InitializeEncoder();
         extern void InitializeExtensions();
         extern bool InitializeHAL();
