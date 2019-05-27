@@ -52,5 +52,6 @@ namespace hal {
         extern void InitializeSPI();
         extern void InitializeThreads();
 
+        extern void TerminateDriverStation();
     }
 }

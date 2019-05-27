@@ -30,6 +30,8 @@ static wpi::mutex msgMutex;
 static wpi::mutex* mauDataMutex;
 static wpi::condition_variable* mauDataSignal;
 
+static bool first_ds_wait = true;
+
 namespace hal {
     namespace init {
         void InitializeDriverStation(void (*shutdown_handler)(int)) {
@@ -37,6 +39,10 @@ namespace hal {
             mauDataMutex = newMutex;
             mauDataSignal = Mau_DriveData::getDataSignal();
             mau::comms::setShutdownHandler(shutdown_handler);
+        }
+
+        void TerminateDriverStation() {
+        	mau::comms::stop();
         }
     }
 }
@@ -69,6 +75,14 @@ extern "C" {
     }
 
     HAL_Bool HAL_WaitForDSDataTimeout(double timeout) {
+
+    	if (first_ds_wait) {
+#if 0
+    		pthread_t this_thread = pthread_self();
+	    	printf("DriverStation HAL_WaitForDSDataTimeout Thread.  pthread id:  %d.\n", this_thread);
+#endif
+    		first_ds_wait = false;
+	}
 
 	uint32_t prevCount = Mau_DriveData::getNewDSDataAvailableCounter();
 	HAL_ControlWord prevControlWord;

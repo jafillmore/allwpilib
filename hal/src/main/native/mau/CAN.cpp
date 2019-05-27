@@ -38,19 +38,23 @@ namespace hal {
 			if (!mau::vmxCAN->FlushRxFIFO(&vmxerr)) {
 				printf("Error Flushing CAN RX FIFO.\n");
 			} else {
+#if 0
 				printf("Flushed CAN RX FIFO\n");
+#endif
 			}
 
 			if (!mau::vmxCAN->FlushTxFIFO(&vmxerr)) {
 				printf("Error Flushing CAN TX FIFO.\n");
 			} else {
+#if 0
 				printf("Flushed CAN TX FIFO\n");
+#endif
 			}
 
 			if (!mau::vmxCAN->SetMode(VMXCAN::VMXCAN_NORMAL, &vmxerr)) {
 				printf("Error setting CAN Mode to NORMAL\n");
 			} else {
-				printf("Set CAN Mode to NORMAL.\n");
+				printf("Set VMX CAN Mode to NORMAL.\n");
 			}
 
 			/* It's recommended to delay 20 Milliseconds after transitioning modes -

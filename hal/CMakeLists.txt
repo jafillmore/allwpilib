@@ -36,7 +36,8 @@ if (NOT WITHOUT_JAVA)
     configure_file(src/generate/FRCNetComm.java.in FRCNetComm.java)
 
     file(GLOB
-        hal_shared_jni_src src/main/native/cpp/jni/*.cpp)
+        hal_shared_jni_src src/main/native/cpp/jni/*.cpp
+	hal_shared_jni_src src/main/native/mau/navX/jni/*.cpp)
 #        hal_sim_jni_src src/main/native/sim/jni/*.cpp)
 
     file(GLOB_RECURSE JAVA_SOURCES
@@ -94,7 +95,8 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
     hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
     hal_sim_native_src src/main/native/mau/simjni/*.cpp
-    hal_sim_native_src src/main/native/mau/ctre/*.cpp)
+    hal_sim_native_src src/main/native/mau/ctre/*.cpp
+    hal_sim_native_src src/main/native/mau/navX/src/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
 if(USE_EXTERNAL_HAL)
@@ -127,7 +129,7 @@ target_include_directories(hal PUBLIC
 
 # Specify link to VMXPI HAL Library
 find_library(VMXPI_HAL_CPP vmxpi_hal_cpp PATHS /usr/local/lib/vmxpi)
-target_link_libraries(hal PUBLIC wpiutil "${VMXPI_HAL_CPP}")
+target_link_libraries(hal PUBLIC wpiutil rt "${VMXPI_HAL_CPP}")
 
 set_property(TARGET hal PROPERTY FOLDER "libraries")
 
@@ -144,6 +146,7 @@ endif()
 install(TARGETS hal EXPORT hal DESTINATION "${main_lib_dest}")
 install(DIRECTORY src/main/native/include/ DESTINATION "${include_dest}/hal")
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gen DESTINATION "${include_dest}/hal")
+install(DIRECTORY src/main/native/mau/navX/include/ DESTINATION "${include_dest}/hal")
 
 if (NOT WITHOUT_JAVA AND MSVC)
     install(TARGETS hal RUNTIME DESTINATION "${jni_lib_dest}" COMPONENT Runtime)

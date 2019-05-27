@@ -10,7 +10,7 @@
 #include <frc/Encoder.h>
 #include <frc/Joystick.h>
 #include <frc/drive/MecanumDrive.h>
-
+#include "AHRS.h"
 using namespace frc;
 
 
@@ -41,13 +41,14 @@ public:
 		}
 		double gyro_angle = 0.0;
 		p_drive->DriveCartesian(drive_strafe, drive_fwd, drive_rot, gyro_angle);
-
+		/*
 		wpi::outs() <<
 				" Strafe:  " << drive_strafe <<
 				" Fwd:  " << drive_fwd <<
 				" Rot:  " << drive_rot <<
-				" Gyro Angle:  " << gyro_angle << "\n";
-
+				" Gyro Angle:  " << gyro_angle <<
+				" navX-Sensor Yaw:  " << ahrs.GetYaw() << "\n";
+		*/
 		/*
 		motor_left_front.Set(drive_speed);
 		motor_right_front.Set(drive_speed);
@@ -79,6 +80,7 @@ private:
 	Encoder encoder_right_rear{4,5};
 	Encoder encoder_left_rear{6,7};
 	MecanumDrive *p_drive;
+	AHRS ahrs{50};
 };
 
 int main() {

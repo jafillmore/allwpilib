@@ -8,6 +8,7 @@
 #include "hal/HAL.h"
 
 #include <signal.h>
+#include <unistd.h>
 
 #include <wpi/raw_ostream.h>
 #include <wpi/mutex.h>
@@ -26,6 +27,7 @@
 #include "MauErrors.h"
 #include "DriveStation/include/MauDriveData.h"
 #include <VMXPi.h>
+#include "DriveStation/include/DriverComms.hpp"
 
 using namespace hal;
 
@@ -48,37 +50,56 @@ Mau_EnumConverter* mau::enumConverter;
 namespace hal {
     namespace init {
 
+	// This shutdown handler is triggered up requests from Driver Station for shutdown/restart/estop.
         void ShutdownHandler(int param) {
-        	// param possible values:
-        	// MAU_COMMS_SHUTDOWN_ESTOP
-        	// MAU_COMMS_SHUTDOWN_RESTART
-        	// MAU_COMMS_SHUTDOWN_REBOOT
         	printf("VMX HAL Shutdown Handler invoked.\n");
-        	kill(0, SIGTERM);
-        	int timeout = 1500;
-  		    std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
-  		    fflush(stdout);
-  		    int kill_status = kill(0,0);
-  		    if (kill_status == 0) {
-  		        printf("FRC robot app did not respond to SIGTERM within %d ms.  Sending SIGKILL.\n", timeout);
-  	  		    fflush(stdout);
-  			    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  			    // Force kill -9
-  			    auto forceKill = kill(0, SIGKILL);
-  			    if (forceKill != 0) {
-  				    auto errorMsg = std::strerror(forceKill);
-  				    printf("Kill -9 error: %s\n", errorMsg);
-  		  		    fflush(stdout);
-  			    }
-  			    // Give a bit of time for the kill to take place
-  			    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  		   } else {
-  			    printf("kill(0,0) returned %d; Robot Application terminated successfully via SIGTERM.\n", kill_status);
-  	  		    fflush(stdout);
-  		   }
+		switch(param) {
+		case MAU_COMMS_SHUTDOWN_ESTOP:
+			system("systemctl poweroff");
+			break;
+		case MAU_COMMS_SHUTDOWN_RESTART:
+			system("/sbin/start-stop-daemon --start --pidfile /var/run/kauailabs/frcKillRobot.pid --make-pidfile --background --startas /bin/bash -- -c \"/usr/local/frc/bin/frcKillRobot.sh -r \"");
+			break;
+		case MAU_COMMS_SHUTDOWN_REBOOT:
+			system("systemctl reboot");
+			break;
+		default:
+	        	kill(0, SIGTERM); // This should end up invoking the InternalShutdownHandler below.
+		}
         }
 
+    /* The InternalKillHandler() ensures that this process is killed; this is required in cases
+     * where the SIGTERM handler is not sufficient to terminate the process.  Note that this
+     * handler should only be invoked after all resources are released.
+     */
+	void InternalKillHandler() {
+		TerminateDriverStation();
+        	int timeout = 1500;
+  		std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+		printf("Entering VMX HAL Internal Kill Handler.\n");
+  		fflush(stdout);
+  		int kill_status = kill(0,0);
+  		if (kill_status == 0) {
+  			printf("FRC robot app did not respond to SIGTERM within %d ms.  Sending SIGKILL.\n", timeout);
+  	  		fflush(stdout);
+  			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  			// Force kill -9
+  			auto forceKill = kill(0, SIGKILL);
+  			if (forceKill != 0) {
+  				auto errorMsg = std::strerror(forceKill);
+  				printf("Kill -9 error: %s\n", errorMsg);
+  		  		fflush(stdout);
+			}
+  			// Give a bit of time for the kill to take place
+  			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		} else {
+  			printf("kill(0,0) returned %d; Robot Application terminated successfully via SIGTERM.\n", kill_status);
+  	  		fflush(stdout);
+		}
+	}
+
         bool InitializeHAL() {
+
         	Mau_DriveData::initializeDriveData();
 
             fileHandler = new Mau_FileHandler();
@@ -105,6 +126,11 @@ namespace hal {
             mau::vmxTime = &vmx->time;
             mau::vmxPower = &vmx->power;
             mau::vmxThread = &vmx->thread;
+
+    	    VMXPi *p_vmxpi = VMXPi::getInstance();
+    	    if (p_vmxpi) {
+    	    	p_vmxpi->registerFinalShutdownHandler(hal::init::InternalKillHandler);
+    	    }
 
 	    /* Enable the IO Watchdog */
 	    VMXErrorCode vmxerr;
