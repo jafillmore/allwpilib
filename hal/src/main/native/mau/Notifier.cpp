@@ -145,12 +145,12 @@ static void alarmCallback(int signum) {
     if (timer_settime (*notifierAlarm, 0, &new_value, &old_value) == -1) {
         perror ("timer_settime in Notifier alarmCallback.");
 #ifdef ENABLE_ALARM_DEBUG
-        sprintf (buffer, "Error invoking timer_settime, trying to set new ClosestTrigger:  %llu; delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec);
+        sprintf (buffer, "Error invoking timer_settime, trying to set new ClosestTrigger:  %llu; delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu (currentTime: %llu; closestTrigger:  %llu)\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec, currentTime, closestTrigger);
         write (STDOUT_FILENO, buffer, strlen (buffer));
 #endif
     } else {
 #ifdef ENABLE_ALARM_DEBUG
-        sprintf (buffer, "alarmCallback set new delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec);
+        sprintf (buffer, "alarmCallback set new delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu (currentTime: %llu; closestTrigger:  %llu)\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec, currentTime, closestTrigger);
         write (STDOUT_FILENO, buffer, strlen (buffer));
 #endif
     }
@@ -301,24 +301,37 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
   if (triggerTime < closestTrigger) {
     struct itimerspec new_value, old_value;
 
+    bool was_active = (closestTrigger != UINT64_MAX);
     closestTrigger = triggerTime;
 
     int32_t status = 0;
     uint64_t currentTime = HAL_GetFPGATime(&status);
 
+    uint64_t delta = closestTrigger - currentTime;
+
     if (currentTime > closestTrigger) {
-    	{
+	if (was_active) {
+    	    {
     		std::lock_guard<wpi::mutex> notifier_lock(notifier->mutex);
     		// closest trigger already expired; trigger callback directly
     		// this will cause the next closest trigger to be configured.
     		notifier->triggerTime = UINT64_MAX;
     		notifier->triggeredTime = currentTime;
-    	}
-        notifier->cond.notify_all();
-    	return;
+    	    }
+            notifier->cond.notify_all();
+#ifdef ENABLE_ALARM_DEBUG
+	    printf("ERROR:  HAL_UpdateNotifierAlarm:  Notifier is active, and currentTime (%llu) > closestTrigger(%llu).\n", currentTime, closestTrigger);
+	    fflush(stdout);
+#endif
+        } else {
+#ifdef ENABLE_ALARM_DEBUG
+	    printf("ERROR:  HAL_UpdateNotifierAlarm:  Notifier NOT active, and currentTime (%llu) > closestTrigger(%llu).\n", currentTime, closestTrigger);
+	    fflush(stdout);
+#endif
+	}
+	// Current time is before closest trigger; retrigger notifier right way
+	delta = 100;
     }
-
-    uint64_t delta = closestTrigger - currentTime;
 
     // Configure one-shot timer to expire at next closest trigger time
     new_value.it_value.tv_sec  = delta / 1000000; // NUM_MICROSECS_PER_SEC
@@ -365,13 +378,15 @@ void HAL_CancelNotifierAlarm(HAL_NotifierHandle notifierHandle,
   }
 }
 
+#if 0
+// NOTE:  This version with timeout doesn't work in Java...
 uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
                                   int32_t* status) {
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return 0;
   // Create a timeout, just in case of troubles
   auto timeoutTime = hal::fpga_clock::epoch()
-			+ std::chrono::duration<double>(.05);
+			+ std::chrono::duration<double>(5.0);
 
   std::unique_lock<wpi::mutex> lock(notifier->mutex);
   bool wait_timeout = notifier->cond.wait_until(lock, timeoutTime, [&] {
@@ -379,9 +394,25 @@ uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
   });
   if (wait_timeout) {
 	  printf("Error!  HAL_WaitForNotifierAlarm() did not respond within the expected amount of time.\n");
+	  fflush(stdout);
+	  usleep(50000);
 	  return 0;
   }
   return notifier->active ? notifier->triggeredTime : 0;
 }
-
+#endif
+uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
+                                  int32_t* status) {
+  auto notifier = notifierHandles->Get(notifierHandle);
+  if (!notifier) return 0;
+  try {
+    std::unique_lock<wpi::mutex> lock(notifier->mutex);
+    notifier->cond.wait(lock, [&] {
+      return !notifier->active || notifier->triggeredTime != UINT64_MAX;
+    });
+  } catch(...) {
+	notifier->triggeredTime = 0;
+  }
+  return notifier->active ? notifier->triggeredTime : 0;
+}
 }  // extern "C"

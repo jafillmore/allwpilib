@@ -429,27 +429,36 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
         	if (reboot) {
         		shutdown_code = MAU_COMMS_SHUTDOWN_REBOOT;
         		printf("NOTICE: Driver Station Requested Reboot.\n");
+#if 0
         		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
+#endif
         	} else {
         		shutdown_code = MAU_COMMS_SHUTDOWN_RESTART;
         		printf("NOTICE: Driver Station Requested Code Restart.\n");
+#if 0
         		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
+#endif
         	}
 
-            stop();
             if (shutdown_handler) {
             	shutdown_handler(shutdown_code);
-            }
+            } else {
+	            stop();
+	    }
+
             return;
 
         } else if (eStop) {
             printf("NOTICE: Driver Station Estop \n");
+#if 0
     		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
-
-    		stop();
+#endif
             if (shutdown_handler) {
             	shutdown_handler(MAU_COMMS_SHUTDOWN_ESTOP);
-            }
+            } else {
+    		stop();
+	    }
+
             return;
 
         }
@@ -691,9 +700,18 @@ namespace mau {
 					// Block, waiting either for new messages, or a brief timeout
 					std::unique_lock<std::mutex> lck(queueNewDataLock);
 					queueNewDataCondition.wait_for(lck, std::chrono::milliseconds(NEW_DS_TCP_MESSAGE_WAIT_TIMEOUT_MS));
-        		} catch(const std::exception& ex){
+        		} catch(const std::exception& ex) {
         			printf("mau::comms::tcpProcess - Caught exception:  %s\n", ex.what());
         		}
+			}
+
+			/* Before terminating, send any remaining log messages */
+			MessageHeader *p_head = RemoveHead();
+			while (p_head) {
+				ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
+				log_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
+				FreeMessageMemory(p_head);
+				p_head = RemoveHead();
 			}
 
 			ds_sock.close();
@@ -721,7 +739,7 @@ namespace mau {
 					}
 				} catch(const std::exception& ex){
 					printf("mau::comms::udpProcess - Caught exception:  %s\n", ex.what());
-        		}
+        			}
 			}
 			sock.close();
 		}
@@ -850,7 +868,11 @@ namespace mau {
 
         	char *line = (char *)malloc(MAX_STDOUT_LINE_LEN);
 
-        	while (isRunning) {
+		bool quit_requested = false;
+
+        	while (isRunning || !quit_requested) {
+
+			quit_requested = !isRunning;
 
         		try {
 					FD_ZERO(&set);

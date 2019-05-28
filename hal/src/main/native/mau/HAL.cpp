@@ -52,13 +52,14 @@ namespace hal {
 
 	// This shutdown handler is triggered up requests from Driver Station for shutdown/restart/estop.
         void ShutdownHandler(int param) {
-        	printf("VMX HAL Shutdown Handler invoked.\n");
+        	printf("VMX HAL:  Shutdown Handler invoked.\n");
+		fflush(stdout);
 		switch(param) {
 		case MAU_COMMS_SHUTDOWN_ESTOP:
-			system("systemctl poweroff");
+			system("/sbin/start-stop-daemon --start --pidfile /var/run/kauailabs/frcKillRobot_EStop.pid --make-pidfile --background --startas /bin/bash -- -c \"/usr/local/frc/bin/frcKillRobot.sh \"");
 			break;
 		case MAU_COMMS_SHUTDOWN_RESTART:
-			system("/sbin/start-stop-daemon --start --pidfile /var/run/kauailabs/frcKillRobot.pid --make-pidfile --background --startas /bin/bash -- -c \"/usr/local/frc/bin/frcKillRobot.sh -r \"");
+			system("/sbin/start-stop-daemon --start --pidfile /var/run/kauailabs/frcKillRobot_Restart.pid --make-pidfile --background --startas /bin/bash -- -c \"/usr/local/frc/bin/frcKillRobot.sh -r \"");
 			break;
 		case MAU_COMMS_SHUTDOWN_REBOOT:
 			system("systemctl reboot");
@@ -145,9 +146,8 @@ namespace hal {
 	    
 	    for (int i = 0; i < 3; i++) {
 		if (!mau::vmxIO->ExpireWatchdogNow(&vmxerr)) {
-			printf("Error expiring IO Watchdog.\n");
+			printf("MAU HAL:  Error expiring IO Watchdog.\n");
 		} else {
-			printf("Outputs Disabled via IO Watchdog.\n");
 			break;
 		}
 	    }
