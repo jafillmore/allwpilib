@@ -115,8 +115,8 @@ namespace hal {
             vmx = new VMXPi(realtime, hertz);
 
             if (!vmx->IsOpen()) {
-           		delete vmx;
-            	printf("Error initializating VMX-pi HAL.\n");
+           	delete vmx;
+            	printf("Error initializing VMX-pi HAL.\n");
             	vmx = 0;
             	return false;
             }
