@@ -61,9 +61,9 @@ namespace mau {
     namespace comms {
 
     	// DriveStation Protocol working buffers
-    	char ds_udp_send_buffer[44];			// UDP Send Buffer
-    	char ds_udp_rcv_buffer[MAX_WPI_DRIVESTATION_UDP_READSIZE];		// UDP Decode Buffer
-    	char ds_tcp_rcv_buffer[MAX_WPI_DRIVESTATION_TCP_READSIZE];		// TCP Receive Buffer
+    	char ds_udp_send_buffer[44] = {};			// UDP Send Buffer
+    	char ds_udp_rcv_buffer[MAX_WPI_DRIVESTATION_UDP_READSIZE] = {};		// UDP Decode Buffer
+    	char ds_tcp_rcv_buffer[MAX_WPI_DRIVESTATION_TCP_READSIZE] = {};		// TCP Receive Buffer
 
     	bool version_data_requested = false;
 
@@ -89,11 +89,11 @@ namespace mau {
 
     	void (*shutdown_handler)(int) = 0;
 
-    	_TempJoyData joys[HAL_kMaxJoysticks];			// Last-received Joystick Data
-    	long long lastDsUDPUpdateReceivedTimestamp;
+    	_TempJoyData joys[HAL_kMaxJoysticks] = {};			// Last-received Joystick Data
+    	long long lastDsUDPUpdateReceivedTimestamp = 0;
 
     	// Cached System Status
-    	volatile double voltage;
+    	volatile double voltage = 0.0f;
 
     	// Cached CAN Bus Status;
     	volatile float		canStatusPercentBusUtilization = 0.0f;
@@ -107,7 +107,7 @@ namespace mau {
     	std::thread logServerThread;
     	std::thread stdoutCaptureThread;
     	std::mutex runLock;
-    	volatile bool isRunning;
+    	volatile bool isRunning = false;
 
     	// Internal Threads
     	void tcpProcess();

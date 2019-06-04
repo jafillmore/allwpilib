@@ -27,8 +27,8 @@
 #include "MauInternal.h"
 
 static wpi::mutex msgMutex;
-static wpi::mutex* mauDataMutex;
-static wpi::condition_variable* mauDataSignal;
+static wpi::mutex* mauDataMutex = 0;
+static wpi::condition_variable* mauDataSignal = 0;
 
 static bool first_ds_wait = true;
 

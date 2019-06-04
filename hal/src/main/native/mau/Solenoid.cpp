@@ -32,7 +32,7 @@ using namespace hal;
 
 static IndexedHandleResource<HAL_SolenoidHandle, Solenoid,
                              kNumPCMModules * kNumSolenoidChannels,
-                             HAL_HandleEnum::Solenoid>* solenoidHandles;
+                             HAL_HandleEnum::Solenoid>* solenoidHandles = 0;
 
 namespace hal {
 namespace init {

@@ -109,7 +109,7 @@ union PdpStatusEnergy {
 };
 
 static wpi::mutex pdpHandleMutex;
-static HAL_PDPHandle pdpHandles[kNumPDPModules];
+static HAL_PDPHandle pdpHandles[kNumPDPModules] = {HAL_kInvalidHandle};
 
 namespace hal {
 namespace init {

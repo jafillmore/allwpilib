@@ -40,7 +40,7 @@ namespace hal {
         HAL_DigitalHandle digital_channel_handle = HAL_kInvalidHandle;
     };
     static IndexedHandleResource<HAL_RelayHandle, Relay, kNumRelayChannels,
-            HAL_HandleEnum::Relay>* relayHandles;
+            HAL_HandleEnum::Relay>* relayHandles = 0;
 
     namespace init {
         void InitializeRelay() {

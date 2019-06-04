@@ -14,7 +14,7 @@
 
 namespace hal {
 
-std::unique_ptr<PCM> PCM_modules[kNumPCMModules];
+std::unique_ptr<PCM> PCM_modules[kNumPCMModules] = {};
 
 namespace init {
 void InitializePCMInternal() {

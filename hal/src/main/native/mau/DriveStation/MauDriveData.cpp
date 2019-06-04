@@ -7,9 +7,9 @@ wpi::condition_variable Mau_DriveData::memSignal;
 
 // Cached Driver Station data
 HAL_AllianceStationID Mau_DriveData::allianceID;
-HAL_MatchInfo Mau_DriveData::matchInfo;
+HAL_MatchInfo Mau_DriveData::matchInfo = {};
 HAL_ControlWord Mau_DriveData::controlWord;
-Mau_SharedJoystick Mau_DriveData::joysticks[HAL_kMaxJoysticks];
+Mau_SharedJoystick Mau_DriveData::joysticks[HAL_kMaxJoysticks] = {};
 
 volatile uint32_t Mau_DriveData::newDSDataAvailableCounter = 0;
 volatile float Mau_DriveData::matchTime = 0.0;

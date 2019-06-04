@@ -31,21 +31,21 @@
 
 using namespace hal;
 
-Mau_FileHandler* fileHandler;
-VMXPi* vmx;
+Mau_FileHandler* fileHandler = 0;
+VMXPi* vmx = 0;
 
-AHRS* mau::vmxIMU;
-VMXIO* mau::vmxIO;
-VMXCAN* mau::vmxCAN;
-VMXTime* mau::vmxTime;
-VMXPower* mau::vmxPower;
-VMXThread* mau::vmxThread;
+AHRS* mau::vmxIMU = 0;
+VMXIO* mau::vmxIO = 0;
+VMXCAN* mau::vmxCAN = 0;
+VMXTime* mau::vmxTime = 0;
+VMXPower* mau::vmxPower = 0;
+VMXThread* mau::vmxThread = 0;
 
 static VMXErrorCode vmxErrCode;
 VMXErrorCode* mau::vmxError = &vmxErrCode;
 
-Mau_ChannelMap* mau::channelMap;
-Mau_EnumConverter* mau::enumConverter;
+Mau_ChannelMap* mau::channelMap = 0;
+Mau_EnumConverter* mau::enumConverter = 0;
 
 namespace hal {
     namespace init {

@@ -82,10 +82,10 @@ struct InterruptResource {
 };
 
 static LimitedHandleResource<HAL_InterruptHandle, InterruptResource, kNumInterrupts,
-		HAL_HandleEnum::Interrupt>* interruptHandles;
+		HAL_HandleEnum::Interrupt>* interruptHandles = 0;
 
-static std::atomic<InterruptResource *> handler_lookup_table[kNumInterrupts];
-static std::atomic<uint8_t> hal_int_index_lookup_table[kNumVMXPiInterrupts];
+static std::atomic<InterruptResource *> handler_lookup_table[kNumInterrupts] = {};
+static std::atomic<uint8_t> hal_int_index_lookup_table[kNumVMXPiInterrupts] = {};
 
 static constexpr uint8_t kInvalidHALInterruptIndex = 255;
 

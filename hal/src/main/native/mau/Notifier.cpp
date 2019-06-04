@@ -71,7 +71,7 @@ class NotifierHandleContainer
   }
 };
 
-static NotifierHandleContainer* notifierHandles;
+static NotifierHandleContainer* notifierHandles = 0;
 
 // Linux high-resolution timer callback, invoked via signal
 

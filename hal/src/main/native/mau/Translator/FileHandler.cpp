@@ -2,9 +2,9 @@
 
 // Location of VMX-pi override maps
 
-const char* CHANNEL_MAP_JSON = "/usr/local/wpilib/lib/Maps/ChannelMap.json";
+const constexpr char CHANNEL_MAP_JSON[] = "/usr/local/wpilib/lib/Maps/ChannelMap.json";
 
-static const char * DEFAULT_CHANNEL_MAP_JSON = "\
+static constexpr char DEFAULT_CHANNEL_MAP_JSON[] = "\
 {\
   \"DIO\": {\
     \"EnumValue\":1,\
@@ -199,7 +199,7 @@ static const char * DEFAULT_CHANNEL_MAP_JSON = "\
 
 // EnumPairs JSON (this cannot be overridden)
 
-static const char * DEFAULT_ENUMPAIRS_JSON = "\
+static constexpr char DEFAULT_ENUMPAIRS_JSON[] = "\
 {\
 	\"HAL_HandleEnum\": {\
 		\"0\":\"Undefined\",\
@@ -336,8 +336,6 @@ Mau_EnumConverter* Mau_FileHandler::Mau_FileHandler::readEnums() {
 
     for(int handleCount = 0; handleCount < 20; handleCount++) {
         auto value = std::to_string(handleCount).c_str();
-        rapidjson::Value indexVal(value, vmxDoc.GetAllocator());
-
         std::string label = vmxDoc["HAL_HandleEnum"][value].GetString();
         hal::HAL_HandleEnum handle = (hal::HAL_HandleEnum) handleCount;
         enums->setHandlePair(label, handle);
