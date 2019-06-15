@@ -86,6 +86,8 @@ if (NOT WITHOUT_JAVA)
 
     install(TARGETS haljni EXPORT haljni DESTINATION "${main_lib_dest}")
 
+    file(GLOB hal_sim_native_src src/main/native/mau/simjni/*.cpp)
+
 endif()
 
 file(GLOB
@@ -93,8 +95,7 @@ file(GLOB
     hal_shared_native_src src/main/native/cpp/handles/*.cpp
     hal_sim_native_src src/main/native/mau/*.cpp
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
-    hal_sim_native_src src/main/native/mau/DriveStation/*.cpp
-    hal_sim_native_src src/main/native/mau/simjni/*.cpp
+    hal_sim_native_src src/main/native/mau/DriveStation/*.cpp    
     hal_sim_native_src src/main/native/mau/ctre/*.cpp
     hal_sim_native_src src/main/native/mau/navX/src/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
@@ -108,6 +109,7 @@ endif()
 configure_file(src/generate/FRCUsageReporting.h.in gen/hal/FRCUsageReporting.h)
 
 set_target_properties(hal PROPERTIES OUTPUT_NAME "wpiHalMau")
+set_target_properties(hal PROPERTIES DEBUG_POSTFIX "d")
 
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/include>
@@ -163,3 +165,40 @@ add_subdirectory(src/main/native/mau/phoenix)
 
 install(FILES hal-config.cmake DESTINATION ${hal_config_dir})
 install(EXPORT hal DESTINATION ${hal_config_dir})
+
+# Copy gradle distribution build files to build directory
+# These can be used after compilation/linkage to construct maven repo artifacts
+file(COPY gradle DESTINATION .)
+file(COPY gradle/gradlew DESTINATION .)
+file(COPY gradle/gradlew.bat DESTINATION .)
+# Copy distribution scripts files to build directory
+# These can be used to distribute maven repo artifacts
+file(COPY dist/upload_to_kauailabs_maven_repo.sh DESTINATION .)
+
+# Todo:  Acquire the package version dynamically
+SET(dist_packageVersion '2019.4.1')
+SET(dist_packageNamespace 'com.kauailabs.first.hal')
+SET(dist_packageArtifactId 'hal-cpp')
+
+# Set dist variables used by generated build.gradle file
+# NOTE:  dist_packageType must not be enclosed in single or double-quotes
+
+if (BUILD_SHARED_LIBS)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	SET(dist_packageType packageSharedDebugDistribution)
+	SET(dist_packageClassifier 'linuxraspbiandebug')
+    else()
+	SET(dist_packageType packageSharedReleaseDistribution)
+	SET(dist_packageClassifier 'linuxraspbian')
+    endif()
+else()
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+	SET(dist_packageType packageStaticDebugDistribution)
+	SET(dist_packageClassifier 'linuxraspbianstaticdebug')
+    else()
+	SET(dist_packageType packageStaticReleaseDistribution)
+	SET(dist_packageClassifier 'linuxraspbianstatic')
+    endif()
+endif()
+
+configure_file(gradle/build.gradle.in build.gradle)

@@ -1,0 +1,65 @@
+plugins {
+	id 'base'
+	id 'maven-publish'
+}
+
+/* Create Zip (C++/Java Shared Libraries, Debug) */
+task packageSharedDebugDistribution(type: Zip) {
+	println "buildDir:  $buildDir"
+	setArchiveName("linuxraspbiandebug.zip")
+	from("$buildDir/../../lib") {
+		include "**/libwpiHalMaud.so"
+		include "**/libwpiHaljni.so"
+		into "linux/raspbian/shared"
+	}
+}
+
+/* Create Zip (C++/Java Shared Libraries, Release) */
+task packageSharedReleaseDistribution(type: Zip) {
+	println "buildDir:  $buildDir"
+	setArchiveName("linuxraspbian.zip")
+	from("$buildDir/../../lib") {
+		include "**/libwpiHalMau.so"
+		include "**/libwpiHaljni.so"
+		into "linux/raspbian/shared"
+	}
+}
+
+/* Create Zip (C++ Only Static library, Debug) */
+task packageStaticDebugDistribution(type: Zip) {
+	println "buildDir:  $buildDir"
+	setArchiveName("linuxraspbianstatic.zip")
+	from("$buildDir/../../lib") {
+		include "**/libwpiHalMaud.a"
+		into "linux/raspbian/static"
+	}
+}
+
+/* Create Zip (C++ Only Static library, Release) */
+task packageStaticReleaseDistribution(type: Zip) {
+	println "buildDir:  $buildDir"
+	setArchiveName("linuxraspbianstaticdebug.zip")
+	from("$buildDir/../../lib") {
+		include "**/libwpiHalMau.a"
+		into "linux/raspbian/static"
+	}
+}
+
+/* Variables which are modifed by CMakeLists.txt */
+
+def packageType		= ${dist_packageType}
+def packageClassifier	= ${dist_packageClassifier}
+def packageVersion	= ${dist_packageVersion}
+def packageNamespace	= ${dist_packageNamespace}
+def packageArtifactId	= ${dist_packageArtifactId}
+
+publishing {
+	publications {
+		maven(MavenPublication) {
+			groupId packageNamespace
+			artifactId packageArtifactId
+			version packageVersion
+			artifact source: packageType, classifier: packageClassifier, extension: 'zip'
+		}
+	}
+}
