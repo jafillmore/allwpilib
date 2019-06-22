@@ -1,6 +1,34 @@
 plugins {
 	id 'base'
+	id 'java'
 	id 'maven-publish'
+	id 'signing'
+}
+
+configurations {
+	deployerJars
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	deployerJars "org.apache.maven.wagon:wagon-http:2.2"
+}
+
+def outputsFolder = file("$buildDir/allOutputs")
+
+task copyAllOutputs(type: Copy) {
+	destinationDir outputsFolder
+}
+
+build.dependsOn copyAllOutputs
+
+ext.addTaskToCopyAllOutputs = { task ->
+	copyAllOutputs.dependsOn task
+	copyAllOutputs.inputs.file task.archivePath
+	copyAllOutputs.from task.archivePath
 }
 
 /* Create Zip (C++/Java Shared Libraries, Debug) */
@@ -10,7 +38,11 @@ task packageSharedDebugDistribution(type: Zip) {
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMaud.so"
 		include "**/libwpiHaljni.so"
+		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/shared"
+	}
+	from("$rootDir") {
+		include "*.txt"
 	}
 }
 
@@ -21,27 +53,39 @@ task packageSharedReleaseDistribution(type: Zip) {
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMau.so"
 		include "**/libwpiHaljni.so"
+		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/shared"
+	}
+	from("$rootDir") {
+		include "*.txt"
 	}
 }
 
 /* Create Zip (C++ Only Static library, Debug) */
 task packageStaticDebugDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
-	setArchiveName("linuxraspbianstatic.zip")
+	setArchiveName("linuxraspbianstaticdebug.zip")
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMaud.a"
+		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/static"
+	}
+	from("$rootDir") {
+		include "*.txt"
 	}
 }
 
 /* Create Zip (C++ Only Static library, Release) */
 task packageStaticReleaseDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
-	setArchiveName("linuxraspbianstaticdebug.zip")
+	setArchiveName("linuxraspbianstatic.zip")
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMau.a"
+		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/static"
+	}
+	from("$rootDir") {
+		include "*.txt"
 	}
 }
 
@@ -53,13 +97,129 @@ def packageVersion	= ${dist_packageVersion}
 def packageNamespace	= ${dist_packageNamespace}
 def packageArtifactId	= ${dist_packageArtifactId}
 
+def customizePom(pom) {
+	pom.withXml {
+		def root = asNode()
+
+		// add all items necessary for maven central publication
+		root.children().last() + {
+			resolveStrategy = Closure.DELEGATE_FIRST
+
+			description 'VMXpi WPI FRC HAL Library'
+			name 'hal-cpp'
+			url 'https://github.com/kauailabs/allwpilib'
+			organization {
+				name 'com.github.kauailabs'
+				url 'https://github.com/kauailabs'
+			}
+			issueManagement {
+				system 'GitHub'
+				url 'https://github.com/kauailabs/allwpilib/issues'
+			}
+			licenses {
+				license {
+					name 'The FIRST License (FIRST)'
+					url 'https://github.com/wpilibsuite/allwpilib/blob/master/LICENSE.txt'
+					distribution 'repo'
+				}
+			}
+			scm {
+				url 'https://github.com/kauailabs/allwpilib.git'
+				connection 'scm:git:git://git@github.com:kauailabs/allwpilib.git'
+				developerConnection 'scm:git:ssh://git@github.com:kauailabs/allwpilib.git'
+			}
+			developers {
+				developer {
+					name 'kauailabs'
+				}
+			}
+		}
+	}
+}
+
+signing {
+	sign configurations.archives
+}
+
+model {
+	tasks.generatePomFileForMavenPublication {
+		destination = file("$buildDir/publications/maven/pom-default.xml")
+	}
+	tasks.publishMavenPublicationToMavenLocal {
+		dependsOn project.tasks.signArchives
+	}
+	tasks.publishMavenPublicationToMavenRepository {
+		dependsOn project.tasks.signArchives
+	}
+}
+
+//artifacts {
+//	archives packageType
+//}
+
 publishing {
+
+	repositories {
+		maven {
+			url "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+			credentials {
+				// Note:  Credentials are stored in ~/.gradle/gradle.properties
+				username sonatypeUsername
+				password sonatypePassword
+			}
+		}
+	}
+
 	publications {
 		maven(MavenPublication) {
 			groupId packageNamespace
 			artifactId packageArtifactId
 			version packageVersion
-			artifact source: packageType, classifier: packageClassifier, extension: 'zip'
+
+			// create primary zip artifact
+			def zipArtifact = artifact source: packageType, classifier: packageClassifier, extension: 'zip'						
+			println "Zip Artifact File: $zipArtifact.file"
+			println zipArtifact
+			// sign the zip artifact
+			packageType.doLast { 
+				def signedFile = signing.sign(zipArtifact.file)
+				artifact(signedFile.signatureFiles[0]) {
+					classifier = packageClassifier
+					extension = 'zip.asc'
+				}
+				println "Zip Signing File:  $signedFile.signatureFiles[0]"
+			}
+
+			customizePom(pom)
+
+			// create the signed pom artifact
+			def pomFile = file("$buildDir/publications/maven/pom-default.xml")
+			pom.withXml {
+				writeTo(pomFile)
+			}
+			if (pomFile.exists()) {
+				def pomAscFile = signing.sign(pomFile)
+				artifact(pomAscFile.signatureFiles[0]) {
+					classifier = null
+					extension = 'pom.asc'
+				}
+				println "POM Signing File:  $pomAscFile.signatureFiles[0]"
+			}
+
+			// create the signed artifacts
+//			project.tasks.signArchives.signatureFiles.each {
+//				artifact(it) {
+//					def matcher = it.file =~ /-(linuxraspbian|linuxraspbiandebug|linuxraspbianstatic|linuxraspbianstaticdebug)\.zip.asc$/
+//					if (matcher.find()) {
+//						classifer = matcher.group(1)
+//					} else {
+//						classifier = null
+//					}
+//					extension = 'zip.asc'
+//					println it.file
+//					println it.classifier
+//				}
+//			}
 		}
 	}
 }

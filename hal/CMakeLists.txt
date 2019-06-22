@@ -166,6 +166,9 @@ add_subdirectory(src/main/native/mau/phoenix)
 install(FILES hal-config.cmake DESTINATION ${hal_config_dir})
 install(EXPORT hal DESTINATION ${hal_config_dir})
 
+# Copy license/third-party notices to build directory
+file(COPY ../LICENSE.txt DESTINATION .)
+file(COPY ../ThirdPartyNotices.txt DESTINATION .)
 # Copy gradle distribution build files to build directory
 # These can be used after compilation/linkage to construct maven repo artifacts
 file(COPY gradle DESTINATION .)
@@ -175,9 +178,15 @@ file(COPY gradle/gradlew.bat DESTINATION .)
 # These can be used to distribute maven repo artifacts
 file(COPY dist/upload_to_kauailabs_maven_repo.sh DESTINATION .)
 
-# Todo:  Acquire the package version dynamically
-SET(dist_packageVersion '2019.4.1')
-SET(dist_packageNamespace 'com.kauailabs.first.hal')
+# Retrieve current tag version
+execute_process(
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/get_curr_tagver.sh
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	RESULT_VARIABLE CMD_ERR 
+	OUTPUT_VARIABLE CURR_TAG_VER_TRIMMED
+)
+SET(dist_packageVersion '${CURR_TAG_VER_TRIMMED}')
+SET(dist_packageNamespace 'com.kauailabs.vmx.first.hal')
 SET(dist_packageArtifactId 'hal-cpp')
 
 # Set dist variables used by generated build.gradle file

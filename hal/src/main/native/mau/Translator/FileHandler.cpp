@@ -2,7 +2,7 @@
 
 // Location of VMX-pi override maps
 
-const constexpr char CHANNEL_MAP_JSON[] = "/usr/local/wpilib/lib/Maps/ChannelMap.json";
+const constexpr char CHANNEL_MAP_JSON[] = "/usr/local/frc/third-party/lib/Maps/ChannelMap.json";
 
 static constexpr char DEFAULT_CHANNEL_MAP_JSON[] = "\
 {\
