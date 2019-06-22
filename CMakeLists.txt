@@ -28,20 +28,20 @@ set(CMAKE_JAVA_TARGET_OUTPUT_DIR ${CMAKE_BINARY_DIR}/jar)
 # use, i.e. don't skip the full RPATH for the build tree
 SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
-# when building, don't use the install RPATH already
-# (but later on when installing)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# when building, use the install RPATH already 
+# (thus, it will not be modified later on when installing)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
-SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/wpilib/lib")
+SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/frc/third-party/lib")
 
 # add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
-LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/wpilib/lib" isSystemDir)
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/frc/third-party/lib" isSystemDir)
 IF("${isSystemDir}" STREQUAL "-1")
-   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/wpilib/lib")
+   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/frc/third-party/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
 
 option(WITHOUT_JAVA "don't include java and JNI in the build" OFF)
@@ -59,11 +59,11 @@ FATAL: Cannot build static libs with Java enabled.
 ")
 endif()
 
-set( wpilib_dest wpilib)
-set( include_dest wpilib/include )
-set( main_lib_dest wpilib/lib )
-set( java_lib_dest wpilib/java )
-set( jni_lib_dest wpilib/jni )
+set( wpilib_dest frc/third-party)
+set( include_dest frc/third-party/include )
+set( main_lib_dest frc/third-party/lib )
+set( java_lib_dest frc/third-party/java )
+set( jni_lib_dest frc/third-party/jni )
 
 if (MSVC)
     set (wpilib_config_dir ${wpilib_dest})

@@ -46,7 +46,7 @@ cd hal
 gradle publishMavenPublicationToMavenLocal
 
 # Copy VMX-pi Channel Maps.  Note that this copying is now optional; defaults are used if the ChannelMap is not present.
-#sudo cp -r ~/allwpilib/hal/src/main/native/mau/Translator/Maps/ChannelMap.json /usr/local/wpilib/lib
+#sudo cp -r ~/allwpilib/hal/src/main/native/mau/Translator/Maps/ChannelMap.json /usr/local/frc/third-party/lib
 
 # Not sure why this is here - it may no longer be necessary
 sudo mkdir /tmp/frc_versions

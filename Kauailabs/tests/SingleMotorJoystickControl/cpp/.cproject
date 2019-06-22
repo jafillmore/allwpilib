@@ -29,9 +29,9 @@
 								<option id="gnu.cpp.compiler.exe.release.option.debugging.level.978559587" name="Debug Level" superClass="gnu.cpp.compiler.exe.release.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.662256426" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="/usr/local/include/vmxpi"/>
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpiutil"/>
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include"/>
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpilibc"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpiutil"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpilibc"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.301328850" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -46,7 +46,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.release.2018956610" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.release">
 								<option defaultValue="true" id="gnu.cpp.link.option.shared.171913972" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.paths.1359189826" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/lib/"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/lib/"/>
 									<listOptionValue builtIn="false" value="/usr/local/lib/vmxpi"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.418172703" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
@@ -69,9 +69,9 @@
 						<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104.818671661" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.1322533104">
 							<option id="gnu.cpp.compiler.option.include.paths.2090656359" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
 								<listOptionValue builtIn="false" value="/usr/local/include/vmxpi"/>
-								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/hal"/>
-								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpiutil"/>
-								<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpilibc"/>
+								<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/hal"/>
+								<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpiutil"/>
+								<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpilibc"/>
 							</option>
 							<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.657752987" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 						</tool>
@@ -101,9 +101,9 @@
 								<option id="gnu.cpp.compiler.exe.debug.option.optimization.level.134897080" name="Optimization Level" superClass="gnu.cpp.compiler.exe.debug.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.debug.option.debugging.level.94844890" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.include.paths.1517316971" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpiutil"/>
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/hal"/>
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/include/wpilibc"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpiutil"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/hal"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/include/wpilibc"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1928765646" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
@@ -121,7 +121,7 @@
 									<listOptionValue builtIn="false" value="wpilibcd"/>
 								</option>
 								<option id="gnu.cpp.link.option.paths.1248124366" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="/usr/local/wpilib/lib"/>
+									<listOptionValue builtIn="false" value="/usr/local/frc/third-party/lib"/>
 									<listOptionValue builtIn="false" value="/usr/local/lib/vmxpi"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1821593737" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
