@@ -196,15 +196,15 @@ publishing {
 			def pomFile = file("$buildDir/publications/maven/pom-default.xml")
 			pom.withXml {
 				writeTo(pomFile)
+				signing.sign(pomFile)
 			}
-			if (pomFile.exists()) {
-				def pomAscFile = signing.sign(pomFile)
-				artifact(pomAscFile.signatureFiles[0]) {
-					classifier = null
-					extension = 'pom.asc'
-				}
-				println "POM Signing File:  $pomAscFile.signatureFiles[0]"
+
+			def pomAscFile = "$buildDir/publications/maven/pom-default.xml.asc"
+			artifact(pomAscFile) {
+				classifier = null
+				extension = 'pom.asc'
 			}
+			println "POM Signing File:  $pomAscFile"
 
 			// create the signed artifacts
 //			project.tasks.signArchives.signatureFiles.each {
