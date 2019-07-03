@@ -36,14 +36,21 @@ if (NOT WITHOUT_JAVA)
     configure_file(src/generate/FRCNetComm.java.in FRCNetComm.java)
 
     file(GLOB
-        hal_shared_jni_src src/main/native/cpp/jni/*.cpp
-	hal_shared_jni_src src/main/native/mau/navX/jni/*.cpp)
+        hal_shared_jni_src src/main/native/cpp/jni/*.cpp)
 #        hal_sim_jni_src src/main/native/sim/jni/*.cpp)
+
+    # Custom Mau JNI Source Files
+    file(GLOB
+	hal_vmx_jni_src src/main/native/mau/navX/jni/*.cpp)
 
     file(GLOB_RECURSE JAVA_SOURCES
         ${CMAKE_CURRENT_BINARY_DIR}/FRCNetComm.java
         src/generated/java/*.java
         src/main/java/*.java)
+
+    file(GLOB_RECURSE JAVA_VMX_SOURCES
+	src/main/native/mau/navX/java/*.java)
+
     set(CMAKE_JNI_TARGET true)
 
     if(${CMAKE_VERSION} VERSION_LESS "3.11.0")
@@ -56,9 +63,14 @@ if (NOT WITHOUT_JAVA)
     get_property(HAL_JAR_FILE TARGET hal_jar PROPERTY JAR_FILE)
     install(FILES ${HAL_JAR_FILE} DESTINATION "${java_lib_dest}")
 
+    get_property(HAL_VMX_JAR_FILE TARGET hal_vmx_jar PROPERTY JAR_FILE)
+    install(FILES ${HAL_VMX_JAR_FILE} DESTINATION "${java_lib_dest}")
+
     set_property(TARGET hal_jar PROPERTY FOLDER "java")
+    set_property(TARGET hal_vmx_jar PROPERTY FOLDER "java")
 
     add_library(haljni ${hal_shared_jni_src})
+    add_library(halvmxjni ${hal_vmx_jni_src})
 
     if(USE_EXTERNAL_HAL)
         include(${EXTERNAL_HAL_FILE})
@@ -67,24 +79,33 @@ if (NOT WITHOUT_JAVA)
     endif()
 
     set_target_properties(haljni PROPERTIES OUTPUT_NAME "wpiHaljni")
+    set_target_properties(halvmxjni PROPERTIES OUTPUT_NAME "vmxHaljni")
 
     target_link_libraries(haljni PUBLIC hal wpiutil)
+    target_link_libraries(halvmxjni PUBLIC hal)
 
     set_property(TARGET haljni PROPERTY FOLDER "libraries")
+    set_property(TARGET halvmxjni PROPERTY FOLDER "libraries")
 
     if(${CMAKE_VERSION} VERSION_LESS "3.11.0")
         target_include_directories(haljni PRIVATE ${JNI_INCLUDE_DIRS})
         target_include_directories(haljni PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
+        target_include_directories(halvmxjni PRIVATE ${JNI_INCLUDE_DIRS})
+        target_include_directories(halvmxjni PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
     else()
         target_link_libraries(haljni PRIVATE hal_jni_headers)
+        target_link_libraries(halvmxjni PRIVATE hal_vmx_jni_headers)
     endif()
     add_dependencies(haljni hal_jar)
+    add_dependencies(halvmxjni hal_jar)
 
     if (MSVC)
         install(TARGETS haljni RUNTIME DESTINATION "${jni_lib_dest}" COMPONENT Runtime)
-    endif()
+        install(TARGETS halvmxjni RUNTIME DESTINATION "${jni_lib_dest}" COMPONENT Runtime)
+   endif()
 
     install(TARGETS haljni EXPORT haljni DESTINATION "${main_lib_dest}")
+    install(TARGETS halvmxjni EXPORT halvmxjni DESTINATION "${main_lib_dest}")
 
     file(GLOB hal_sim_native_src src/main/native/mau/simjni/*.cpp)
 
@@ -141,8 +162,10 @@ if (NOT WITHOUT_JAVA)
         target_include_directories(hal PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
     else()
         target_link_libraries(hal PRIVATE hal_jni_headers)
+	target_link_libraries(hal PRIVATE hal_vmx_jni_headers)
     endif()
     add_dependencies(hal hal_jar)
+    add_dependencies(hal hal_vmx_jar)
 endif()
 
 install(TARGETS hal EXPORT hal DESTINATION "${main_lib_dest}")

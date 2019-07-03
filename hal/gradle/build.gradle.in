@@ -38,6 +38,7 @@ task packageSharedDebugDistribution(type: Zip) {
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMaud.so"
 		include "**/libwpiHaljni.so"
+		include "**/libvmxHaljni.so"
 		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/shared"
 	}
@@ -53,6 +54,7 @@ task packageSharedReleaseDistribution(type: Zip) {
 	from("$buildDir/../../lib") {
 		include "**/libwpiHalMau.so"
 		include "**/libwpiHaljni.so"
+		include "**/libvmxHaljni.so"
 		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/shared"
 	}

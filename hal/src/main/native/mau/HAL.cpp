@@ -32,9 +32,9 @@
 using namespace hal;
 
 Mau_FileHandler* fileHandler = 0;
-VMXPi* vmx = 0;
+VMXPi* vmxpi = 0;
 
-AHRS* mau::vmxIMU = 0;
+vmx::AHRS* mau::vmxIMU = 0;
 VMXIO* mau::vmxIO = 0;
 VMXCAN* mau::vmxCAN = 0;
 VMXTime* mau::vmxTime = 0;
@@ -112,21 +112,21 @@ namespace hal {
 
             bool realtime = true;
             uint8_t hertz = 50;
-            vmx = new VMXPi(realtime, hertz);
+            vmxpi = new VMXPi(realtime, hertz);
 
-            if (!vmx->IsOpen()) {
-           	delete vmx;
+            if (!vmxpi->IsOpen()) {
+           	delete vmxpi;
             	printf("Error initializing VMX-pi HAL.\n");
-            	vmx = 0;
+            	vmxpi = 0;
             	return false;
             }
 
-            mau::vmxIMU = &vmx->ahrs;
-            mau::vmxIO = &vmx->io;
-            mau::vmxCAN = &vmx->can;
-            mau::vmxTime = &vmx->time;
-            mau::vmxPower = &vmx->power;
-            mau::vmxThread = &vmx->thread;
+            mau::vmxIMU = &vmxpi->ahrs;
+            mau::vmxIO = &vmxpi->io;
+            mau::vmxCAN = &vmxpi->can;
+            mau::vmxTime = &vmxpi->time;
+            mau::vmxPower = &vmxpi->power;
+            mau::vmxThread = &vmxpi->thread;
 
     	    VMXPi *p_vmxpi = VMXPi::getInstance();
     	    if (p_vmxpi) {

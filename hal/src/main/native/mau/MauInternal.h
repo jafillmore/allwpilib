@@ -15,7 +15,7 @@
 #include "hal/handles/HandlesInternal.h"
 
 namespace mau {
-    extern AHRS* vmxIMU;
+    extern vmx::AHRS* vmxIMU;
     extern VMXIO* vmxIO;
     extern VMXCAN* vmxCAN;
     extern VMXPower* vmxPower;

@@ -80,7 +80,7 @@ private:
 	Encoder encoder_right_rear{4,5};
 	Encoder encoder_left_rear{6,7};
 	MecanumDrive *p_drive;
-	AHRS ahrs{50};
+	AHRS ahrs;
 };
 
 int main() {
