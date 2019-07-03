@@ -56,19 +56,17 @@ if (NOT WITHOUT_JAVA)
     if(${CMAKE_VERSION} VERSION_LESS "3.11.0")
         set(CMAKE_JAVA_COMPILE_FLAGS "-h" "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
         add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHalMau)
+	add_jar(hal_vmx_jar ${JAVA_VMX_SOURCES} OUTPUT_NAME vmxHalMau)
     else()
         add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHalMau GENERATE_NATIVE_HEADERS hal_jni_headers)
+        add_jar(hal_vmx_jar ${JAVA_VMX_SOURCES} OUTPUT_NAME vmxHalMau GENERATE_NATIVE_HEADERS hal_vmx_jni_headers)
     endif()
 
     get_property(HAL_JAR_FILE TARGET hal_jar PROPERTY JAR_FILE)
     install(FILES ${HAL_JAR_FILE} DESTINATION "${java_lib_dest}")
 
-    get_property(HAL_VMX_JAR_FILE TARGET hal_vmx_jar PROPERTY JAR_FILE)
-    install(FILES ${HAL_VMX_JAR_FILE} DESTINATION "${java_lib_dest}")
-
     set_property(TARGET hal_jar PROPERTY FOLDER "java")
-    set_property(TARGET hal_vmx_jar PROPERTY FOLDER "java")
-
+ 
     add_library(haljni ${hal_shared_jni_src})
     add_library(halvmxjni ${hal_vmx_jni_src})
 
@@ -165,7 +163,6 @@ if (NOT WITHOUT_JAVA)
 	target_link_libraries(hal PRIVATE hal_vmx_jni_headers)
     endif()
     add_dependencies(hal hal_jar)
-    add_dependencies(hal hal_vmx_jar)
 endif()
 
 install(TARGETS hal EXPORT hal DESTINATION "${main_lib_dest}")
