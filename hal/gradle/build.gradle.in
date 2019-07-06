@@ -211,7 +211,7 @@ publishing {
 
 			// create headers zip artifact
 			def headersArtifact = artifact source:  cppHeadersZip, classifier: 'headers', extension: 'zip'
-			headersArtifact.doLast {
+			cppHeadersZip.doLast {
 				def signedHeadersFile = signing.sign(headersArtifact.file)
 				artifact(signedHeadersFile.signatureFiles[0]) {
 					classifier = 'headers'
