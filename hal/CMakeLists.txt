@@ -55,10 +55,10 @@ if (NOT WITHOUT_JAVA)
 
     if(${CMAKE_VERSION} VERSION_LESS "3.11.0")
         set(CMAKE_JAVA_COMPILE_FLAGS "-h" "${CMAKE_CURRENT_BINARY_DIR}/jniheaders")
-        add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHalMau)
+        add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHal)
 	add_jar(hal_vmx_jar ${JAVA_VMX_SOURCES} OUTPUT_NAME vmxHalMau)
     else()
-        add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHalMau GENERATE_NATIVE_HEADERS hal_jni_headers)
+        add_jar(hal_jar ${JAVA_SOURCES} INCLUDE_JARS wpiutil_jar OUTPUT_NAME wpiHal GENERATE_NATIVE_HEADERS hal_jni_headers)
         add_jar(hal_vmx_jar ${JAVA_VMX_SOURCES} OUTPUT_NAME vmxHalMau GENERATE_NATIVE_HEADERS hal_vmx_jni_headers)
     endif()
 
@@ -127,7 +127,7 @@ endif()
 
 configure_file(src/generate/FRCUsageReporting.h.in gen/hal/FRCUsageReporting.h)
 
-set_target_properties(hal PROPERTIES OUTPUT_NAME "wpiHalMau")
+set_target_properties(hal PROPERTIES OUTPUT_NAME "wpiHal")
 set_target_properties(hal PROPERTIES DEBUG_POSTFIX "d")
 
 target_include_directories(hal PUBLIC
@@ -231,3 +231,22 @@ else()
 endif()
 
 configure_file(gradle/build.gradle.in build.gradle)
+
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND mkdir -p
+                   ${CMAKE_CURRENT_BINARY_DIR}/headers)
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND cp -r 
+                   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/include/* ${CMAKE_CURRENT_BINARY_DIR}/headers)
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND mkdir -p
+                   ${CMAKE_CURRENT_BINARY_DIR}/sources)
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND cp -r
+		   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau ${CMAKE_CURRENT_BINARY_DIR}/sources/mau)
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND cp -r
+		   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/cpp/* ${CMAKE_CURRENT_BINARY_DIR}/sources)
+add_custom_command(TARGET hal POST_BUILD
+		   COMMAND cp -r
+		   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/sim ${CMAKE_CURRENT_BINARY_DIR}/sources/sim)

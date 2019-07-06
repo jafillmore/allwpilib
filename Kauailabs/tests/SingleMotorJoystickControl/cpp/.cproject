@@ -53,7 +53,7 @@
 									<listOptionValue builtIn="false" value="vmxpi_hal_cpp"/>
 									<listOptionValue builtIn="false" value="wpilibcd"/>
 									<listOptionValue builtIn="false" value="wpiutild"/>
-									<listOptionValue builtIn="false" value="wpiHalMau"/>
+									<listOptionValue builtIn="false" value="wpiHal"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.377226782" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
@@ -116,7 +116,7 @@
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.545937985" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option id="gnu.cpp.link.option.libs.2010742910" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="wpiutild"/>
-									<listOptionValue builtIn="false" value="wpiHalMau"/>
+									<listOptionValue builtIn="false" value="wpiHal"/>
 									<listOptionValue builtIn="false" value="vmxpi_hal_cpp"/>
 									<listOptionValue builtIn="false" value="wpilibcd"/>
 								</option>

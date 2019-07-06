@@ -31,12 +31,33 @@ ext.addTaskToCopyAllOutputs = { task ->
 	copyAllOutputs.from task.archivePath
 }
 
+task cppSourcesZip(type: Zip) {
+	setArchiveName("sources.zip")
+	from ("$buildDir/../sources") {
+		include "**/*"
+		into "/"
+	}
+}
+
+task cppHeadersZip(type: Zip) {
+	setArchiveName("headers.zip")
+	from ("$buildDir/../headers") {
+		include "**/*"
+		into "/"
+	}
+}
+
+build.dependsOn cppHeadersZip
+addTaskToCopyAllOutputs(cppHeadersZip)
+build.dependsOn cppSourcesZip
+addTaskToCopyAllOutputs(cppSourcesZip)
+
 /* Create Zip (C++/Java Shared Libraries, Debug) */
 task packageSharedDebugDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
 	setArchiveName("linuxraspbiandebug.zip")
 	from("$buildDir/../../lib") {
-		include "**/libwpiHalMaud.so"
+		include "**/libwpiHald.so"
 		include "**/libwpiHaljni.so"
 		include "**/libvmxHaljni.so"
 		include "**/libCTRE_PhoenixPlatform.so"
@@ -52,7 +73,7 @@ task packageSharedReleaseDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
 	setArchiveName("linuxraspbian.zip")
 	from("$buildDir/../../lib") {
-		include "**/libwpiHalMau.so"
+		include "**/libwpiHal.so"
 		include "**/libwpiHaljni.so"
 		include "**/libvmxHaljni.so"
 		include "**/libCTRE_PhoenixPlatform.so"
@@ -68,7 +89,7 @@ task packageStaticDebugDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
 	setArchiveName("linuxraspbianstaticdebug.zip")
 	from("$buildDir/../../lib") {
-		include "**/libwpiHalMaud.a"
+		include "**/libwpiHald.a"
 		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/static"
 	}
@@ -82,7 +103,7 @@ task packageStaticReleaseDistribution(type: Zip) {
 	println "buildDir:  $buildDir"
 	setArchiveName("linuxraspbianstatic.zip")
 	from("$buildDir/../../lib") {
-		include "**/libwpiHalMau.a"
+		include "**/libwpiHal.a"
 		include "**/libCTRE_PhoenixPlatform.so"
 		into "linux/raspbian/static"
 	}
@@ -177,6 +198,26 @@ publishing {
 			groupId packageNamespace
 			artifactId packageArtifactId
 			version packageVersion
+
+			// create sources zip artifact
+			def sourcesArtifact = artifact source:  cppSourcesZip, classifier: 'sources', extension: 'zip'
+			cppSourcesZip.doLast {
+				def signedSourcesFile = signing.sign(sourcesArtifact.file)
+				artifact(signedSourcesFile.signatureFiles[0]) {
+					classifier = 'sources'
+					extension = 'zip.asc'
+				}
+			}
+
+			// create headers zip artifact
+			def headersArtifact = artifact source:  cppHeadersZip, classifier: 'headers', extension: 'zip'
+			headersArtifact.doLast {
+				def signedHeadersFile = signing.sign(headersArtifact.file)
+				artifact(signedHeadersFile.signatureFiles[0]) {
+					classifier = 'headers'
+					extension = 'zip.asc'
+				}
+			}
 
 			// create primary zip artifact
 			def zipArtifact = artifact source: packageType, classifier: packageClassifier, extension: 'zip'						

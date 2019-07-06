@@ -40,4 +40,4 @@ done
 # Once all the builds are complete, publish the final results to MavenCentral
 cd wpilib_build_${BUILD_DIR}
 cd hal
-gradle --rerun-tasks publish
+#gradle --rerun-tasks publish
