@@ -116,6 +116,7 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/Translator/*.cpp
     hal_sim_native_src src/main/native/mau/DriveStation/*.cpp    
     hal_sim_native_src src/main/native/mau/ctre/*.cpp
+    hal_sim_native_src src/main/native/mau/phoenix/*.cpp
     hal_sim_native_src src/main/native/mau/navX/src/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
 
@@ -147,6 +148,9 @@ target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau>)
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/DriveStation/include>)
+
+# Include Phoenix include header file path
+include_directories(/home/pi/Phoenix-Linux-SocketCAN-Example/include)
 
 # Specify link to VMXPI HAL Library
 find_library(VMXPI_HAL_CPP vmxpi_hal_cpp PATHS /usr/local/lib/vmxpi)
