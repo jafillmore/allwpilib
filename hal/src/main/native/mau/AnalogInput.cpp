@@ -38,6 +38,12 @@ extern "C" {
         }
 
         port->vmx_config = AccumulatorConfig();
+        // Clear all capabilities except for Accumulator Input
+        if ((port->vmx_chan_info.capabilities && VMXChannelCapability::AccumulatorInput) == 0) {
+        	// Error:  This VMX Channel doesn't have AccumulatorInput Capability.
+        	return HAL_kInvalidHandle;
+        }
+        port->vmx_chan_info.capabilities = VMXChannelCapability::AccumulatorInput;
         if (!AllocateVMXAnalogIn(port, status)) {
         	analogInputHandles->Free(handle);
         	return HAL_kInvalidHandle;

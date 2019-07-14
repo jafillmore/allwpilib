@@ -50,6 +50,7 @@ bool HAL_Internal_ActivatePWMGenerator(HAL_DigitalHandle pwmPortHandle, int32_t 
     	// Use the second port (1) on the PWM Generator resource
     	vmx_chan_info.capabilities = VMXChannelCapability::PWMGeneratorOutput2;
     }
+	port->vmx_chan_info.capabilities = vmx_chan_info.capabilities;
 
     HAL_SetPWMConfig(pwmPortHandle, 2.0, 1.501, 1.5, 1.499, 1.0, status);
 

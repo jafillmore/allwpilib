@@ -11,6 +11,8 @@
 #include "PortsInternal.h"
 #include "MauInternal.h"
 
+#define HANDLE_VERSION 0
+
 namespace hal {
     IndexedHandleResource<HAL_AnalogInputHandle, hal::AnalogPort, kNumAnalogInputs,
             HAL_HandleEnum::AnalogInput> *analogInputHandles;
@@ -27,12 +29,12 @@ namespace hal {
     }
 
     HAL_AnalogInputHandle getAnalogInputHandleForVMXChannelIndex(VMXChannelIndex index) {
-    	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels) - 1;
+    	constexpr int32_t kFirstAnalogInChannelIndex = kNumFlexDIOChannels + kNumHiCurrDIOChannels;
     	constexpr int32_t kLastAnalogInChannelIndex = kFirstAnalogInChannelIndex + kNumAnalogInputs - 1;
     	if (index < kFirstAnalogInChannelIndex) {
     		return HAL_kInvalidHandle;
-    	} else if ((index >= kLastAnalogInChannelIndex) && (index <= kLastAnalogInChannelIndex)) {
-    		return index - kFirstAnalogInChannelIndex;
+    	} else if ((index >= kFirstAnalogInChannelIndex) && (index <= kLastAnalogInChannelIndex)) {
+    		return createHandle(index - kFirstAnalogInChannelIndex, HAL_HandleEnum::AnalogInput, HANDLE_VERSION);
     	} else {
     		return HAL_kInvalidHandle;
     	}
@@ -80,7 +82,7 @@ namespace hal {
 
     bool AllocateVMXAnalogIn(std::shared_ptr<AnalogPort> anPort, int32_t* status) {
     	/* Use the default accumulator configuration */
-    	if (mau::vmxIO->ChannelSupportsCapability(anPort->vmx_chan_info.index, VMXChannelCapability::AccumulatorInput)) {
+    	if (!mau::vmxIO->ChannelSupportsCapability(anPort->vmx_chan_info.index, VMXChannelCapability::AccumulatorInput)) {
     		*status = VMXERR_IO_INVALID_CHANNEL_TYPE;
     		return false;
     	}

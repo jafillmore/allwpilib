@@ -63,8 +63,6 @@ extern "C" {
             return HAL_kInvalidHandle;
         }
 
-        if (!fwd) wpi_relay_channel += kNumRelayHeaders;  // add 4 to reverse channels
-
         // Calculate the corresponding VMXPi Channel Index
         VMXChannelIndex vmx_chan_index = getVMXChannelIndexForWpiLibRelay(wpi_relay_channel, fwd);
         if (vmx_chan_index == INVALID_VMX_CHANNEL_INDEX) {
@@ -87,6 +85,8 @@ extern "C" {
         	*status = MAU_CHANNEL_MAP_ERROR;
             return HAL_kInvalidHandle;
         }
+
+        if (!fwd) wpi_relay_channel += kNumRelayHeaders;  // add 4 to reverse channels
 
         auto relay_handle = relayHandles->Allocate(wpi_relay_channel, status);
 
