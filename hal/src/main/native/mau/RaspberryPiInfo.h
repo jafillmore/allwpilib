@@ -34,7 +34,8 @@ enum class RaspberryPiModel {
 	RPI_CM3_R1_0,				// 01/2017:  0xa020a0
 	RPI2_B_W_BCM2837_R1_2,		// 10/2016:  0xa22042
 	RPI3_BPLUS_R1_3,			// 03/2018:  0xa020d3
-	RPI3_APLUS_R1_0				// 11/2017:  0x9020e0
+	RPI3_APLUS_R1_0,			// 11/2017:  0x9020e0
+	RPI4_B,					// 06/2019:  0xc03111 (4GB), 0xb03111 (2GB), 0xa03111 (1GB)
 };
 
 enum class RaspberryPiUSBPort {

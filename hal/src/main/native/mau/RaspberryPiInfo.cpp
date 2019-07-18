@@ -193,6 +193,7 @@ static std::string getRaspberryPiModelDescription(RaspberryPiModel model) {
 	case RaspberryPiModel::RPI2_B_W_BCM2837_R1_2:	return "Raspberry Pi 2 Model B Plus Rev 1.2";
 	case RaspberryPiModel::RPI3_BPLUS_R1_3:			return "Raspberry Pi 3 Model B Plus Rev 1.3";
 	case RaspberryPiModel::RPI3_APLUS_R1_0:			return "Raspberry Pi 3 Model A Plus Rev 1.0";
+	case RaspberryPiModel::RPI4_B:				return "Raspberry Pi 4 Model B";
 	default:										return "Unknown Raspberry Pi Model";
 	}
 }
@@ -261,6 +262,10 @@ static RaspberryPiModel getRaspberryPiModel(unsigned hwrev) {
 			return RaspberryPiModel::RPI3_BPLUS_R1_3;
 		case 0x9020e0:
 			return RaspberryPiModel::RPI3_APLUS_R1_0;
+		case 0xc03111:
+		case 0xb03111:
+		case 0xa03111:
+			return RaspberryPiModel::RPI4_B;
 		default:
 			return RaspberryPiModel::UNKNOWN;
 		}
@@ -309,6 +314,12 @@ static uint32_t getRaspberryPiRamMB(unsigned hwrev) {
 		case 2:
 			ram_mb = 1024;
 			break;
+		case 3:
+			ram_mb = 2048;
+			break;
+		case 4:
+			ram_mb = 4096;
+			break;
 		}
 	}
 	return ram_mb;
@@ -341,6 +352,7 @@ static bool getRaspberryPiHas40PinGpio(unsigned hwrev) {
 	case RaspberryPiModel::RPI2_B_W_BCM2837_R1_2:
 	case RaspberryPiModel::RPI3_BPLUS_R1_3:
 	case RaspberryPiModel::RPI3_APLUS_R1_0:
+	case RaspberryPiModel::RPI4_B:
 		return true;
 	}
 	return false;
@@ -370,6 +382,7 @@ static int getRaspberryPiNumUSBPorts(unsigned hwrev)
 	case RaspberryPiModel::RPI2_B_W_BCM2837_R1_2:	return 4;
 	case RaspberryPiModel::RPI3_BPLUS_R1_3:			return 4;
 	case RaspberryPiModel::RPI3_APLUS_R1_0:			return 1;
+	case RaspberryPiModel::RPI4_B:				return 4;
 	default:										return 0;
 	}
 }
@@ -415,6 +428,19 @@ static RaspberryPiUSBPort getRaspberryPIUSBPort(unsigned hwrev, std::string shor
 				return RaspberryPiUSBPort::INVALID;
 			}
 			break;
+		case RaspberryPiModel::RPI4_B:
+			if (short_usb_device_id == "1-1.3") {
+				return RaspberryPiUSBPort::RPI_USB_PORTA;
+			} else if (short_usb_device_id == "1-1.4") {
+				return RaspberryPiUSBPort::RPI_USB_PORTB;
+			} else if (short_usb_device_id == "1-1.1") {
+				return RaspberryPiUSBPort::RPI_USB_PORTC;
+			} else if (short_usb_device_id == "1-1.2") {
+				return RaspberryPiUSBPort::RPI_USB_PORTD;
+			} else {
+				return RaspberryPiUSBPort::INVALID;
+			}
+			break;
 		default:
 			return RaspberryPiUSBPort::INVALID;
 	}
@@ -443,7 +469,7 @@ list<USBSerialDeviceInfo> getRaspberryPiUSBSerialDeviceInfoList() {
 		char physical_device_path[1024];
 		char physical_device_id[1024];
 		std::string devpath;
-		RaspberryPiUSBPort physical_usb_port;
+		RaspberryPiUSBPort physical_usb_port = RaspberryPiUSBPort::INVALID;
 		ssize_t pathlen = readlink(classfile.c_str(), physical_device_path, sizeof(physical_device_path));
        		if (pathlen != -1) {
 			physical_device_path[pathlen] = 0;
@@ -465,6 +491,26 @@ list<USBSerialDeviceInfo> getRaspberryPiUSBSerialDeviceInfoList() {
 						devpath.erase(finalcolonpos);
 					}
 					physical_usb_port = getRaspberryPIUSBPort(hwrev, devpath);
+				} else {
+					// Starting with Raspberry Pi Model 4B, the string "usb1"
+					// is present in the usb device path strings
+					size_t usbpos = devpath.find("usb1/");
+					if (usbpos != std::string::npos) {
+						devpath.erase(0, usbpos+4);
+						size_t ttypos = devpath.find("/tty");
+						if (ttypos != std::string::npos) {
+							devpath.erase(ttypos);
+						}
+						size_t finalslashpos = devpath.rfind("/");
+						if (finalslashpos != std::string::npos) {
+							devpath.erase(0, finalslashpos+1);
+						}
+						size_t finalcolonpos = devpath.rfind(":");
+						if (finalslashpos != std::string::npos) {
+							devpath.erase(finalcolonpos);
+						}
+						physical_usb_port = getRaspberryPIUSBPort(hwrev, devpath);
+					}
 				}
 			}
 		}
