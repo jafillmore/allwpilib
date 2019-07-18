@@ -72,7 +72,31 @@ static bool AllocateVMXPiInputCapture(
 		std::shared_ptr<CounterResource> counterResource,
 		std::shared_ptr<DigitalPort> digPort, int32_t* status) {
 
-	if (!mau::vmxIO->ActivateSinglechannelResource(digPort->vmx_chan_info,
+	/* Create a channel info object, based on the original, to isolate
+	 * all but the PWMCaptureInput and PWMCaptureInput2 flags.
+	 */
+	VMXChannelInfo chan_info_copy = digPort->vmx_chan_info;
+	if (digPort->vmx_chan_info.capabilities & PWMCaptureInput) {
+		chan_info_copy.capabilities = PWMCaptureInput;
+	} else if (digPort->vmx_chan_info.capabilities & PWMCaptureInput2) {
+		chan_info_copy.capabilities = PWMCaptureInput2;
+	} else {
+		*status = MAU_DIO_CHANNEL_COUNTER_INCOMPATIBILITY;
+		return false;
+	}
+
+	// It's very possible this digital input resource is already allocated;
+	// in this case, deallocate it now so it can be reallocated below.
+	bool isActive = false;
+	mau::vmxIO->IsResourceActive(digPort->vmx_res_handle, isActive, status);
+	if(isActive) {
+		mau::vmxIO->DeallocateResource(digPort->vmx_res_handle, status);
+		digPort->vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(
+				VMXResourceType::Undefined, INVALID_VMX_RESOURCE_INDEX);
+	}
+	*status = 0;  // Clear status, which may have been set to an error above.
+
+	if (!mau::vmxIO->ActivateSinglechannelResource(chan_info_copy,
 			&counterResource->vmx_config, counterResource->vmx_res_handle,
 			status)) {
 		return false;
@@ -445,6 +469,8 @@ void HAL_SetCounterUpSource(HAL_CounterHandle counterHandle,
 			counter->samplesToAverage,
 			counter->hal_counter_mode);
 
+	counter->up_source_digital_handle = digitalSourceHandle;
+
 	AllocReallocCounter(counter, false, status);
 }
 
@@ -534,6 +560,8 @@ void HAL_SetCounterDownSource(HAL_CounterHandle counterHandle,
 			counter->down_source_active_edge,
 			counter->samplesToAverage,
 			counter->hal_counter_mode);
+
+	counter->down_source_digital_handle = digitalSourceHandle;
 
 	AllocReallocCounter(counter, false, status);
 
