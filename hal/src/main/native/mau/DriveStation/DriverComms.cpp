@@ -25,9 +25,9 @@
 #define WPI_LOGGING_PORT            			1741
 #define NEW_DS_TCP_MESSAGE_WAIT_TIMEOUT_MS 		5
 
-// STDOUT Capture constants
-#define STDOUT_CAPTURE_TIMEOUT_MS				50
-#define MAX_STDOUT_LINE_LEN						32768
+// STDOUT/ERR Capture constants
+#define STD_CAPTURE_TIMEOUT_MS				50
+#define MAX_STD_LINE_LEN				32768
 
 // Buddy-system (constant-time memory allocator) for message memory allocation
 #define LOG_BUFFER_SIZE_POWER  					16	// 16:  64K
@@ -35,6 +35,19 @@
 
 // Logging Message constants
 #define MAX_MESSAGE_LEN							4096	// Maximum allowable individual message length
+
+static bool first_packet = true;
+static uint8_t last_udp_ds_control = 0;
+static uint8_t last_udp_ds_request = 0;
+static uint8_t last_udp_robot_status = 0;
+static uint8_t last_udp_robot_program_trace = 0;
+static char ds_ctl_string[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static char ds_req_string[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static char robot_status_string[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static char robot_program_trace_string[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+static uint64_t tcp_packet_count = 0;
+
 
 static uint64_t ntoh64(uint64_t *input) {
 	uint64_t rval;
@@ -61,11 +74,11 @@ namespace mau {
     namespace comms {
 
     	// DriveStation Protocol working buffers
-    	char ds_udp_send_buffer[44] = {};			// UDP Send Buffer
+    	char ds_udp_send_buffer[63] = {};			// UDP Send Buffer
     	char ds_udp_rcv_buffer[MAX_WPI_DRIVESTATION_UDP_READSIZE] = {};		// UDP Decode Buffer
     	char ds_tcp_rcv_buffer[MAX_WPI_DRIVESTATION_TCP_READSIZE] = {};		// TCP Receive Buffer
 
-    	bool version_data_requested = false;
+    	volatile bool version_data_requested = false;
 
     	// Buddy-system memory allocator, for allocation of log messages
     	BuddyPool *logmsg_mem_allocator = 0;
@@ -85,7 +98,8 @@ namespace mau {
     	// DS UDP Protocol Working Variables
     	uint8_t sq_1 = 0;				// Sequence Number
     	uint8_t sq_2 = 0;				// Sequence Number
-    	uint8_t udp_ds_control = 0;		// Control Word
+    	uint8_t udp_ds_control = 0;			// Control Word
+	uint8_t udp_ds_request = 0;			// 
 
     	void (*shutdown_handler)(int) = 0;
 
@@ -100,20 +114,27 @@ namespace mau {
     	volatile uint32_t	canStatusBusOffCount = 0;
     	volatile uint32_t	canStatusTxFifoFullCount = 0;
     	volatile uint8_t	canStatusRxErrorCount = 0;
-    	volatile uint8_t    canStatusTxErrorCount = 0;
+    	volatile uint8_t	canStatusTxErrorCount = 0;
+
+	volatile bool		robotProgramStarted = false;
+	volatile uint8_t	robotMode = MAU_COMMS_STATE_DISABLED;
+	volatile bool		robotBrownoutProtectionActive = false;
+	volatile bool		robotESTOPActive = false;		
 
     	std::thread udpThread;
     	std::thread tcpThread;
     	std::thread logServerThread;
     	std::thread stdoutCaptureThread;
+        std::thread stderrCaptureThread;
     	std::mutex runLock;
     	volatile bool isRunning = false;
+        volatile bool isLogCaptureRunning = false;
 
     	// Internal Threads
     	void tcpProcess();
     	void udpProcess();
     	void logServerProcess();
-        void stdoutCaptureProcess();
+        void stdCaptureProcess(int fd);
 
     	// Message memory allocation routines
     	void *AllocMessageMemory(size_t len);
@@ -152,9 +173,22 @@ void mau::comms::setShutdownHandler(void (*shutdown_handler_func)(int)) {
 	mau::comms::shutdown_handler = shutdown_handler_func;
 }
 
-void mau::comms::start() {
+void mau::comms::start_log_capture() {
+    if (!isLogCaptureRunning) {
+
+   	logmsg_mem_allocator = new BuddyPool(LOG_BUFFER_SIZE);
+
+	isLogCaptureRunning = true;
+        stdoutCaptureThread = std::thread(stdCaptureProcess, STDOUT_FILENO);
+        stdoutCaptureThread.detach();
+
+	stderrCaptureThread = std::thread(stdCaptureProcess, STDERR_FILENO);
+	stderrCaptureThread.detach();
+    }
+}
+
+void mau::comms::start_ds_protocol_threads() {
     if (!isRunning) {
-    	logmsg_mem_allocator = new BuddyPool(LOG_BUFFER_SIZE);
         Toast::Net::Socket::socket_init();
 
         runLock.lock();
@@ -166,13 +200,12 @@ void mau::comms::start() {
         udpThread.detach();
         tcpThread = std::thread(tcpProcess);
         tcpThread.detach();
-        stdoutCaptureThread = std::thread(stdoutCaptureProcess);
-        stdoutCaptureThread.detach();
     }
 }
 
 void mau::comms::stop() {
     runLock.lock();
+    isLogCaptureRunning = false;
     isRunning = false;
     runLock.unlock();
 }
@@ -202,17 +235,17 @@ void mau::comms::stop() {
 
 
 
-#define UDP_DS_STATUSBYTE_ESTOP				0x80
+#define UDP_DS_STATUSBYTE_ESTOP			0x80
 #define UDP_DS_STATUSBYTE_BROWNOUTPREVENT	0x10
-#define UDP_DS_STATUSBYTE_PROGSTART			0x08
-#define UDP_DS_STATUSBYTE_ENABLED			0x04
-#define UDP_DS_STATUSBYTE_AUTO				0x02
-#define UDP_DS_STATUSBYTE_TEST				0x01
+#define UDP_DS_STATUSBYTE_PROGSTART		0x08
+#define UDP_DS_STATUSBYTE_ENABLED		0x04
+#define UDP_DS_STATUSBYTE_AUTONOMOUS		0x02
+#define UDP_DS_STATUSBYTE_TEST			0x01
 
 #define UDP_DS_USERPROGRAM_TRACE_USERCODE	0x20
 #define UDP_DS_USERPROGRAM_TRACE_ROBORIO	0x10
 #define UDP_DS_USERPROGRAM_TRACE_TEST		0x08
-#define UDP_DS_USERPROGRAM_TRACE_AUTO		0x04
+#define UDP_DS_USERPROGRAM_TRACE_AUTONOMOUS	0x04
 #define UDP_DS_USERPROGRAM_TRACE_TELEOP		0x02
 #define UDP_DS_USERPROGRAM_TRACE_DISABLED	0x01
 
@@ -221,28 +254,68 @@ void mau::comms::stop() {
 
 void mau::comms::encodePacket(char* data) {
 
-	ErrorOrPrintMessage m;
+    ErrorOrPrintMessage m;
 
+    // echo last-received sequence #
     data[0] = sq_1;
     data[1] = sq_2;
-    data[2] = UDP_DS_PROTOCOL_VERSION;							// Comm Version
-    data[3] = udp_ds_control;									// STATUSBYTE (TODO:  "ProgStart" (instead of FMS) and "BrownoutPrevent" bits)
-    data[4] = UDP_DS_USERPROGRAM_TRACE_ROBORIO |
-    		  UDP_DS_USERPROGRAM_TRACE_USERCODE;				// USERPROGRAM_TRACE (TODO:  Add Test/Auto/Tele/Disabled bits)
+    
+    data[2] = UDP_DS_PROTOCOL_VERSION;						// Comm Version					
+    data[3] = 0;								// STATUSBYTE
+    if (!first_packet && robotProgramStarted) {
+	data[3] |= UDP_DS_STATUSBYTE_PROGSTART;
+    }
+    if (robotMode != MAU_COMMS_STATE_DISABLED) {
+        data[3] |= UDP_DS_STATUSBYTE_ENABLED;
+    }
+    if (robotBrownoutProtectionActive) {
+	data[3] |= UDP_DS_STATUSBYTE_BROWNOUTPREVENT;
+    }
+    if (robotESTOPActive) {
+	data[3] |= UDP_DS_STATUSBYTE_ESTOP;
+    }
+    if (robotMode == MAU_COMMS_STATE_AUTONOMOUS) {
+	data[3] |= UDP_DS_STATUSBYTE_AUTONOMOUS;
+    }
+    if (robotMode == MAU_COMMS_STATE_TEST) {
+	data[3] |= UDP_DS_STATUSBYTE_TEST;
+    }
+
+    data[4] = UDP_DS_USERPROGRAM_TRACE_ROBORIO;					// USERPROGRAM_TRACE
+    if (!first_packet) {
+    	data[4] |= UDP_DS_USERPROGRAM_TRACE_USERCODE;	
+    }			
+    if (robotMode == MAU_COMMS_STATE_DISABLED) {
+	data[4] |= UDP_DS_USERPROGRAM_TRACE_DISABLED;
+    }
+    if (robotMode == MAU_COMMS_STATE_AUTONOMOUS) {
+	data[4] |= UDP_DS_USERPROGRAM_TRACE_AUTONOMOUS;
+    }
+    if (robotMode == MAU_COMMS_STATE_TELEOP) {
+	data[4] |= UDP_DS_USERPROGRAM_TRACE_TELEOP;
+    }
+    if (robotMode == MAU_COMMS_STATE_TEST) {
+	data[4] |= UDP_DS_USERPROGRAM_TRACE_TEST;
+    }
 
     double voltage_intpart =
     		static_cast<double>(static_cast<int>(voltage));
     data[5] = (uint8_t) voltage_intpart;
     double voltage_decpart = voltage - voltage_intpart;
     data[6] = (uint8_t) (voltage_decpart * 100);
-    data[7] = 0;												// REQUESTBYTE: Used to make requests of the DS
+    if (first_packet) {
+	data[7] |= UDP_DS_REQUESTBYTE_DISABLE_BIT;
+        data[7] |= UDP_DS_REQUESTBYTE_DATETIME_BIT;
+    } else {
+        data[7] = 0;								// REQUESTBYTE: Used to make requests of the DS
+    }										// TODO:  Add Date/Time request here, at startup
 
     // Tagged Data goes here....
     data[8] = 9;
     data[9] = DS_UDP_PROTOCOL_MEMORY_USAGE;
     uint32_t free_memory = getTotalSystemMemory();
-    *(uint32_t *)&data[10] = htonl(free_memory);
-    *(uint32_t *)&data[14] = htonl(free_memory);
+    *(uint32_t *)&data[10] = htonl(free_memory); // free memory total
+    *(uint32_t *)&data[14] = htonl(free_memory); // largest free block
 
     data[18] = 9;
     data[19] = DS_UDP_PROTOCOL_DISK_USAGE;
@@ -256,6 +329,15 @@ void mau::comms::encodePacket(char* data) {
     *(uint32_t *)&data[38] = htonl(canStatusTxFifoFullCount);
     data[42] = canStatusRxErrorCount;
     data[43] = canStatusTxErrorCount;
+
+    data[44] = 18; // 1 for tag + 1 for uint8 cpu % and 16 (4 each for float for normal/timedstructs/timecritical/isr)
+    data[45] = DS_UDP_PROTOCOL_CPU_USAGE;
+    data[46] = 4; // Count of the following Floats
+    *(uint32_t *)&data[47] = m.FloatToNetworkOrderedU32(0.20F);	// Normal
+    *(uint32_t *)&data[51] = m.FloatToNetworkOrderedU32(0.02F);	// Timed Structs
+    *(uint32_t *)&data[55] = m.FloatToNetworkOrderedU32(0.03F); // TimeCritical
+    *(uint32_t *)&data[59] = m.FloatToNetworkOrderedU32(0.01F);  // ISR
+
 }
 
 void mau::comms::setInputVoltage(double new_voltage) {
@@ -269,6 +351,26 @@ void mau::comms::setCANStatus(float percentBusUtilization, uint32_t busOffCount,
 	mau::comms::canStatusTxFifoFullCount = txFifoFullCount;
 	mau::comms::canStatusRxErrorCount = rxErrorCount;
 	mau::comms::canStatusTxErrorCount = txErrorCount;
+}
+
+void mau::comms::setRobotState(uint8_t mode /*MAU_COMMS_STATE_xxx*/)
+{
+	mau::comms::robotMode = mode;
+}
+
+void mau::comms::setRobotBrownoutProtectionActive(bool brownout_protection_active)
+{
+	mau::comms::robotBrownoutProtectionActive = brownout_protection_active;
+}
+
+void mau::comms::setRobotESTOPActive(bool estop_active)
+{
+	mau::comms::robotESTOPActive = estop_active;
+}
+
+void mau::comms::setRobotProgramStarted(bool program_started)
+{
+	mau::comms::robotProgramStarted = program_started;
 }
 
 //// ----- DriverStation Comms: Decode ----- ////
@@ -397,14 +499,15 @@ void mau::comms::decodeTcpPacket(char* data, int length) {
 	}
 }
 
-void mau::comms::decodeUdpPacket(char* data, int length) {
+// returns MAU_COMMS_SHUTDOWN_XXX
+int mau::comms::decodeUdpPacket(char* data, int length) {
 
-	if (length < DS_UDP_PROTOCOL_HEADER_LENGTH) return;
+	if (length < DS_UDP_PROTOCOL_HEADER_LENGTH) return MAU_COMMS_SHUTDOWN_NONE;
 
 	// Decode Packet Number
 	sq_1 = data[0];
     sq_2 = data[1];
-    uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
+    //uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
 
     char version = data[DS_UDP_PROTOCOL_HEADER_INDEX_VERSION];
 
@@ -417,14 +520,17 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
         bool fms = IS_BIT_SET(udp_ds_control, 3);
         bool eStop = IS_BIT_SET(udp_ds_control, 7);
 
-        uint8_t udp_ds_request = data[DS_UDP_PROTOCOL_HEADER_INDEX_REQUESTBYTE];
-        version_data_requested = IS_BIT_SET(udp_ds_request, 0);	// Requests that version info be sent
-        bool usage_request = IS_BIT_SET(udp_ds_request, 1);
+        udp_ds_request = data[DS_UDP_PROTOCOL_HEADER_INDEX_REQUESTBYTE];
+        bool new_version_data_requested = IS_BIT_SET(udp_ds_request, 0);		// Requests that version info be sent
+	if (new_version_data_requested) {
+		version_data_requested = true;
+        }
+        //bool usage_request = IS_BIT_SET(udp_ds_request, 1);
         bool restart = IS_BIT_SET(udp_ds_request, 2);			// Soft Restart
         bool reboot = IS_BIT_SET(udp_ds_request, 3);			// Hard Restart
-        bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);	// How is this different than Soft Restart?
+        bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);		// Program Start Requested
 
-        int shutdown_code;
+        int shutdown_code = MAU_COMMS_SHUTDOWN_NONE;
         if (reboot || restart) {
         	if (reboot) {
         		shutdown_code = MAU_COMMS_SHUTDOWN_REBOOT;
@@ -440,26 +546,20 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
 #endif
         	}
 
-            if (shutdown_handler) {
-            	shutdown_handler(shutdown_code);
-            } else {
-	            stop();
-	    }
+	    setRobotProgramStarted(false);
 
-            return;
+            return (shutdown_code);
 
         } else if (eStop) {
             printf("NOTICE: Driver Station Estop \n");
 #if 0
     		printf("#DS UDP Seq#:  %d.  Bytes:  %d.  Header Data:  %02X %02X %02X %02X %02X %02X\n", sequence_number, length, data[0], data[1], data[2], data[3], data[4], data[5]);
 #endif
-            if (shutdown_handler) {
-            	shutdown_handler(MAU_COMMS_SHUTDOWN_ESTOP);
-            } else {
-    		stop();
-	    }
 
-            return;
+	    setRobotProgramStarted(false); // Is this correct?
+	    setRobotESTOPActive(true);
+
+            return MAU_COMMS_SHUTDOWN_ESTOP;
 
         }
         HAL_AllianceStationID alliance = (HAL_AllianceStationID)data[DS_UDP_PROTOCOL_HEADER_INDEX_ALLIANCE_STATION_ID];
@@ -560,11 +660,17 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
 				}
 				case DS_UDP_PROTOCOL_TAG_DATE_TIME:
 				{
+#if 0
+					printf("Received Date/Time Data.\n");
+#endif
 					// TODO:  Implement once purpose is understood.
 					break;
 				}
 				case DS_UDP_PROTOCOL_TAG_TIME_ZONE:
 				{
+#if 0
+					printf("Received Time Zone Data.\n");
+#endif
 					// TODO:  Implement once purpose is understood.
 					break;
 				}
@@ -575,6 +681,7 @@ void mau::comms::decodeUdpPacket(char* data, int length) {
         }
         lastDsUDPUpdateReceivedTimestamp = mau::vmxGetTime();
     }
+    return MAU_COMMS_SHUTDOWN_NONE;
 }
 
 namespace mau {
@@ -588,26 +695,38 @@ namespace mau {
 			}
         }
 
-		void tcpProcess() {
+	void tcpProcess() {
 
-        	// The driver station server socket accepts a single TCP client connections
-        	// This is configured as non-blocking.
-			Toast::Net::Socket::ServerSocket dsServerSocket(WPI_DRIVESTATION_TCP_PORT);
-            Toast::Net::Socket::socket_nonblock(dsServerSocket.get_socket());
+            // The driver station server socket accepts a single TCP client connections
+            // This is configured as non-blocking.
+	    Toast::Net::Socket::ServerSocket dsServerSocket(WPI_DRIVESTATION_TCP_PORT);
+            int nonblock_status = Toast::Net::Socket::socket_nonblock(dsServerSocket.get_socket());
+	    if (nonblock_status != 0) {
+		printf("Error %d setting DS Server Socket nonblocking!\n", nonblock_status);
+	    }
             Toast::Net::Socket::SelectiveServerSocket ds_sock(dsServerSocket.get_socket(), MAX_NUM_DS_CONNECTIONS);
-            ds_sock.prepare();
+            int ss_prepare_status = ds_sock.prepare();
+	    if (ss_prepare_status != 0) {
+		printf("Error %d preparing DS Selective Server Socket!\n", ss_prepare_status);
+	    }
             ds_sock.on_data(mau::comms::driverStationTCPDataReceivedCallback);
-            dsServerSocket.open();
-
-        	// The secondary logging server socket accepts multiple TCP client connections
-        	// This is configured as non-blocking.
-        	Toast::Net::Socket::ServerSocket logServerSocket(WPI_LOGGING_PORT);
+	    if (dsServerSocket.SetReuseAddress() != 0) {
+	         printf("ERROR setting ServerSocket SO_REUSEADDR option.\n");
+    	    }
+            int ss_open_status = dsServerSocket.open();
+	    if (ss_open_status != 0) {
+		perror("Bind Failed.  Error");
+		printf("Error %d opening DS Server Socket!\n", ss_open_status);
+	    }
+            // The secondary logging server socket accepts multiple TCP client connections
+            // This is configured as non-blocking.
+            Toast::Net::Socket::ServerSocket logServerSocket(WPI_LOGGING_PORT);
             Toast::Net::Socket::socket_nonblock(logServerSocket.get_socket());
             Toast::Net::Socket::SelectiveServerSocket log_sock(logServerSocket.get_socket(), MAX_NUM_CLIENT_CONNECTIONS);
             log_sock.prepare();
             logServerSocket.open();
 
-			while (isRunning) {
+	    while (isRunning) {
 
     			try {
 					unsigned char version_data_buffer[1024];
@@ -624,6 +743,7 @@ namespace mau {
 					log_sock.prune_disconnected_clients();
 
 					if (version_data_requested) {
+						version_data_requested = false;
 
 						ErrorOrPrintMessage m;
 						uint32_t model_id = 0;
@@ -633,6 +753,7 @@ namespace mau {
 						//element_names[2] = 0;
 						const char *version_strings[4];
 						version_strings[0] = "0.0.000";
+						//version_strings[0] = "FRC_roboRIO_2019_v13";
 						//version_strings[1] = "Scott's Test Version";
 						//version_strings[2] = 0;
 						if (m.FormatVersionDataMessage(version_data_buffer, sizeof(version_data_buffer),
@@ -656,6 +777,7 @@ namespace mau {
 							RobotVersionDataHeader *header = (RobotVersionDataHeader *)version_data_buffer;
 							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
 						}
+
 
 						element_names[0] = "VMXPiFirmware";
 						version_strings[0] = "3.1.222";
@@ -683,19 +805,22 @@ namespace mau {
 							ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(header->len))), ntohs(header->len) + sizeof(uint16_t));
 						}
 
-						version_data_requested = false;
 					}
 
-					// Send pending logging messages to DS client and all non-DS logging clients.
+					// Send pending logging messages to DS client and all non-DS logging clients (if any are connected).
 					// Always send the oldest messages first.
 					// Note that all client sockets are also non-blocking.
-					MessageHeader *p_head = RemoveHead();
-					while (p_head) {
+					if (ds_sock.get_num_connected_clients() > 0) {
+					    MessageHeader *p_head = RemoveHead();
+					    while (p_head) {
 						ds_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
 						log_sock.send_to_all_connected_clients(static_cast<char *>(static_cast<void *>(&(p_head->len))), ntohs(p_head->len) + sizeof(uint16_t));
 						FreeMessageMemory(p_head);
 						p_head = RemoveHead();
+					    }
 					}
+
+					tcp_packet_count++;
 
 					// Block, waiting either for new messages, or a brief timeout
 					std::unique_lock<std::mutex> lck(queueNewDataLock);
@@ -714,7 +839,9 @@ namespace mau {
 				p_head = RemoveHead();
 			}
 
+			ds_sock.close_connected_clients();
 			ds_sock.close();
+
 		}
 
 		void udpProcess() {
@@ -732,10 +859,96 @@ namespace mau {
 					memset(ds_udp_rcv_buffer, 0, MAX_WPI_DRIVESTATION_UDP_READSIZE);
 					int len = sock.read(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr);
 					if (len > 0) {
-						mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
+						uint8_t shutdown_code = mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
 						mau::comms::encodePacket(ds_udp_send_buffer);
 						addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
-						sock.send(ds_udp_send_buffer, 44, &addr);
+						sock.send(ds_udp_send_buffer, 63, &addr);
+
+						bool state_update = false;
+						if (first_packet || (mau::comms::udp_ds_control != last_udp_ds_control)) {
+							state_update = true;
+							ds_ctl_string[0] = IS_BIT_SET(mau::comms::udp_ds_control,7) ? '!' : '-';		  // E-Stop
+							ds_ctl_string[1] = '.';
+							ds_ctl_string[2] = '.';
+							ds_ctl_string[3] = '.';
+							ds_ctl_string[4] = IS_BIT_SET(mau::comms::udp_ds_control,3) ? 'F' : '-';		  // FMS Present
+							ds_ctl_string[5] = IS_BIT_SET(mau::comms::udp_ds_control,2) ? 'E' : '-';		  // Enabled
+							ds_ctl_string[6] = IS_BIT_SET(mau::comms::udp_ds_control,1) ? 'A' : '-';           // Auto
+							ds_ctl_string[7] = IS_BIT_SET(mau::comms::udp_ds_control,0) ? 'X' : '-';		  // Test
+							ds_ctl_string[8] = 0;							
+						}
+						if (first_packet || (mau::comms::udp_ds_request != last_udp_ds_request)) {
+							state_update = true;
+							ds_req_string[0] = '.';
+							ds_req_string[1] = '.';
+							ds_req_string[2] = '.';
+							ds_req_string[3] = IS_BIT_SET(mau::comms::udp_ds_request,4) ? 'P' : '-';            // Prog Start
+							ds_req_string[4] = IS_BIT_SET(mau::comms::udp_ds_request,3) ? 'H' : '-';            // Hard Restart
+							ds_req_string[5] = IS_BIT_SET(mau::comms::udp_ds_request,2) ? 'S' : '-';		   // Soft Restart
+							ds_req_string[6] = IS_BIT_SET(mau::comms::udp_ds_request,1) ? 'U' : '-';		   // Usage Request
+							ds_req_string[7] = IS_BIT_SET(mau::comms::udp_ds_request,0) ? 'V' : '-';		   // Version Request
+							ds_req_string[8] = 0;							
+						}
+
+						char robot_status_code = ds_udp_send_buffer[3];
+						char robot_program_trace = ds_udp_send_buffer[4];
+						
+						if (first_packet || (robot_status_code != last_udp_robot_status)) {
+							state_update = true;
+							robot_status_string[0] = IS_BIT_SET(robot_status_code,7) ? '!' : '-';       // E-Stop
+							robot_status_string[1] = '.';
+							robot_status_string[2] = '.';
+							robot_status_string[3] = IS_BIT_SET(robot_status_code,4) ? 'B' : '-';	    // Brownout-Prevention
+							robot_status_string[4] = IS_BIT_SET(robot_status_code,3) ? 'P' : '-';	    // ProgStart
+							robot_status_string[5] = IS_BIT_SET(robot_status_code,2) ? 'E' : '-';       // Enabled
+							robot_status_string[6] = IS_BIT_SET(robot_status_code,1) ? 'A' : '-';       // Auto
+							robot_status_string[7] = IS_BIT_SET(robot_status_code,0) ? 'X' : '-';       // Test
+							robot_status_string[8] = 0;							
+						}
+						if (first_packet || (robot_program_trace != last_udp_robot_program_trace)) {
+							state_update = true;
+							robot_program_trace_string[0] = '.';
+							robot_program_trace_string[1] = '.';
+							robot_program_trace_string[2] = IS_BIT_SET(robot_program_trace,5) ? 'U' : '-'; // UserCode
+							robot_program_trace_string[3] = IS_BIT_SET(robot_program_trace,4) ? 'R' : '-'; // roboRIO
+							robot_program_trace_string[4] = IS_BIT_SET(robot_program_trace,3) ? 'X' : '-'; // Test
+							robot_program_trace_string[5] = IS_BIT_SET(robot_program_trace,2) ? 'A' : '-'; // Auto
+							robot_program_trace_string[6] = IS_BIT_SET(robot_program_trace,1) ? 'T' : '-'; // Tele
+							robot_program_trace_string[7] = IS_BIT_SET(robot_program_trace,0) ? 'D' : '-'; // Disabled
+							robot_program_trace_string[8] = 0;							
+						}
+
+#if 0
+						if (state_update) {
+							printf("DS CTL: %s REQ: %s - ROBOT STATUS:  %s PROGTRACE:  %s\n", ds_ctl_string, ds_req_string, robot_status_string, robot_program_trace_string);
+						}
+#endif
+
+						last_udp_ds_control = mau::comms::udp_ds_control;
+						last_udp_ds_request = mau::comms::udp_ds_request;
+						last_udp_robot_status = robot_status_code;
+						last_udp_robot_program_trace = robot_program_trace;
+						first_packet = false;
+
+						if (shutdown_code != MAU_COMMS_SHUTDOWN_NONE) {
+
+
+						    // If a shutdown was requested, send a few addtional responses to help
+						    // ensure the driver station is aware the request was received
+				        	    int timeout = 2;
+						    std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+						    sock.send(ds_udp_send_buffer, 63, &addr);
+
+						    std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+						    sock.send(ds_udp_send_buffer, 63, &addr);						    					
+
+						    // Initiate program shutdown
+					            if (shutdown_handler) {
+					            	shutdown_handler(MAU_COMMS_SHUTDOWN_RESTART);
+					            } else {
+						            stop();
+						    }							
+						}
 					}
 				} catch(const std::exception& ex){
 					printf("mau::comms::udpProcess - Caught exception:  %s\n", ex.what());
@@ -846,39 +1059,40 @@ namespace mau {
         	}
         }
 
-        void stdoutCaptureProcess() {
+        void stdCaptureProcess(int capture_fd) {
 
         	fd_set set;
         	struct timeval timeout;
 
         	int out_pipe[2];
-        	int stdout_prev_fd;
+        	int std_prev_fd;
 
-        	// Save current stdout file descriptor
-        	stdout_prev_fd = dup(STDOUT_FILENO);
-        	if (stdout_prev_fd == -1) return;
+        	// Save current std file descriptor
+        	std_prev_fd = dup(capture_fd);
+        	if (std_prev_fd == -1) return;
 
         	if (pipe(out_pipe) != 0) return;
 
         	// Redirect stdout to the pipe
-        	if (dup2(out_pipe[1], STDOUT_FILENO) == -1) return;
+        	if (dup2(out_pipe[1], capture_fd) == -1) return;
         	close(out_pipe[1]);
 
         	FILE *pipe_file = fdopen(out_pipe[0], "r");
 
-        	char *line = (char *)malloc(MAX_STDOUT_LINE_LEN);
+        	char *line = (char *)malloc(MAX_STD_LINE_LEN);
 
 		bool quit_requested = false;
 
-        	while (isRunning || !quit_requested) {
+        	while (isLogCaptureRunning || !quit_requested) {
 
-			quit_requested = !isRunning;
+			quit_requested = !isLogCaptureRunning;
 
         		try {
 					FD_ZERO(&set);
 					FD_SET(out_pipe[0], &set);
 					timeout.tv_sec = 0;
-					timeout.tv_usec = STDOUT_CAPTURE_TIMEOUT_MS * 1000;
+					timeout.tv_usec = STD_CAPTURE_TIMEOUT_MS * 1000;
+ 
 					int ret = select((out_pipe[0] + 1), &set, NULL, NULL, &timeout);
 					if (ret == 0) {
 						// Timeout
@@ -887,10 +1101,10 @@ namespace mau {
 							// Input Available; occurs at end of every line, since STDOUT is configured
 							// for line buffering in Mau HAL Initialization.
 							ssize_t num_read;
-							size_t len = MAX_STDOUT_LINE_LEN;
+							size_t len = MAX_STD_LINE_LEN;
 							while ((num_read = getline(&line, &len, pipe_file)) != -1) {
 								// Output to console FD
-								write(stdout_prev_fd, line, num_read);
+								write(std_prev_fd, line, num_read);
 								// Enqueue Message for transmission to WPI Logging Client
 								if (num_read > 0) {
 									line[num_read - 1] = 0; // replace final line feed with null
@@ -902,14 +1116,14 @@ namespace mau {
 						// Error
 					}
         		} catch(const std::exception& ex){
-        			printf("mau::comms::stdoutCaptureProcess - Caught exception:  %s\n", ex.what());
+        			printf("mau::comms::stdCaptureProcess - Caught exception:  %s\n", ex.what());
         		}
         	}
 
         	free(line);
 
         	// Restore flags and reconnect stdout after done
-        	dup2(stdout_prev_fd, STDOUT_FILENO);
+        	dup2(std_prev_fd, capture_fd);
         	fclose(pipe_file);
         }
     }

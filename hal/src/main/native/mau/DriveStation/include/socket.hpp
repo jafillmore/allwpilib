@@ -133,7 +133,8 @@ namespace Toast {
                     
                     API int open();
                     API int close();
-                    
+		    API int SetReuseAddress();                    
+
                     API ClientSocket accept();
                     
                     API int get_port() { return port; }
@@ -220,6 +221,8 @@ namespace Toast {
 
 					API void send_to_all_connected_clients(char *buffer, size_t length);
 					API void prune_disconnected_clients();
+					API void close_connected_clients();
+					API int get_num_connected_clients();
 
 					Toast::Net::Socket::SOCKET _socket;
 

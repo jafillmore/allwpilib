@@ -199,12 +199,18 @@ int Socket::ClientSocket::read(char *buf, size_t length) {
 }
 
 int Socket::ServerSocket::open() {
+
     int ret = Socket::socket_bind(_socket, port);
     if (ret != 0) {
         return ret;
     }
     Socket::socket_listen(_socket);
     return 0;
+}
+
+int Socket::ServerSocket::SetReuseAddress() {
+    int enable = 1;
+    return setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
 }
 
 int Socket::ServerSocket::close() {
@@ -381,6 +387,25 @@ void Socket::SelectiveServerSocket::prune_disconnected_clients() {
 				Socket::socket_close(_connectionlist[i]);
 				_connectionlist[i] = 0;
 			}
+		}
+	}
+}
+
+int Socket::SelectiveServerSocket::get_num_connected_clients() {
+	int count = 0;
+	for (int i = 0; i < _maxsize; i++) {
+		if (_connectionlist[i] != 0) {
+			count++;
+		}
+	}
+	return count;
+}
+
+void Socket::SelectiveServerSocket::close_connected_clients() {
+	for (int i = 0; i < _maxsize; i++) {
+		if (_connectionlist[i] != 0) {
+			Socket::socket_close(_connectionlist[i]);
+			_connectionlist[i] = 0;
 		}
 	}
 }

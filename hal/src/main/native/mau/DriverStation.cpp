@@ -51,7 +51,9 @@ using namespace hal;
 
 extern "C" {
     void HAL_InitializeDriverStation() {
-        mau::comms::start();
+	mau::comms::start_ds_protocol_threads();
+	mau::comms::setRobotState(MAU_COMMS_STATE_DISABLED);
+	mau::comms::setRobotESTOPActive(false);
     }
 
     void HAL_ReleaseDSMutex() {
@@ -320,8 +322,25 @@ extern "C" {
     }
 }
 
-void HAL_ObserveUserProgramStarting(void) {}
-void HAL_ObserveUserProgramDisabled(void) {}
-void HAL_ObserveUserProgramAutonomous(void) {}
-void HAL_ObserveUserProgramTeleop(void) {}
-void HAL_ObserveUserProgramTest(void) {}
+// Invoked when user program starts; Purpose:  Tell the DS that the robot is ready to be enabled
+void HAL_ObserveUserProgramStarting(void) {
+	mau::comms::setRobotProgramStarted(true);
+}
+
+// Invoked once when user program is disabled
+void HAL_ObserveUserProgramDisabled(void) {
+	mau::comms::setRobotState(MAU_COMMS_STATE_DISABLED);	
+} 
+
+// Invoked once when user program enters autonomous mode
+void HAL_ObserveUserProgramAutonomous(void) {
+	mau::comms::setRobotState(MAU_COMMS_STATE_AUTONOMOUS);	
+}
+
+void HAL_ObserveUserProgramTeleop(void) {
+	mau::comms::setRobotState(MAU_COMMS_STATE_TELEOP);	
+}
+
+void HAL_ObserveUserProgramTest(void) {
+	mau::comms::setRobotState(MAU_COMMS_STATE_TEST);	
+}

@@ -50,10 +50,28 @@ Mau_EnumConverter* mau::enumConverter = 0;
 namespace hal {
     namespace init {
 
+	// Cleans up "external" connections to devices and clients
+        void ExternalCleanup() {
+		if (mau::vmxIO) {
+			if (!mau::vmxIO->ExpireWatchdogNow(mau::vmxError)) {
+				printf("MAU HAL:  Error expiring IO Watchdog.\n");
+				fflush(stdout);
+			}
+		}
+		// Shut down the drive station threads, give them time to terminate.
+		TerminateDriverStation();
+        	int timeout = 1500;
+  		std::this_thread::sleep_for(std::chrono::milliseconds(timeout));		
+	}
+
 	// This shutdown handler is triggered up requests from Driver Station for shutdown/restart/estop.
         void ShutdownHandler(int param) {
+
         	printf("VMX HAL:  Shutdown Handler invoked.\n");
 		fflush(stdout);
+
+		ExternalCleanup();
+
 		switch(param) {
 		case MAU_COMMS_SHUTDOWN_ESTOP:
 			system("/sbin/start-stop-daemon --start --pidfile /var/run/kauailabs/frcKillRobot_EStop.pid --make-pidfile --background --startas /bin/bash -- -c \"/usr/local/frc/bin/frcKillRobot.sh \"");
@@ -72,13 +90,17 @@ namespace hal {
     /* The InternalKillHandler() ensures that this process is killed; this is required in cases
      * where the SIGTERM handler is not sufficient to terminate the process.  Note that this
      * handler should only be invoked after all resources are released.
+     *
+     * This handle is typically invoked from a SIGTERM signal handler.
      */
 	void InternalKillHandler() {
-		TerminateDriverStation();
-        	int timeout = 1500;
-  		std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+
 		printf("Entering VMX HAL Internal Kill Handler.\n");
   		fflush(stdout);
+		fprintf(stderr, "Entering VMX HAL Internal Kill Handler.\n");
+
+		ExternalCleanup();
+		int timeout = 1500;
   		int kill_status = kill(0,0);
   		if (kill_status == 0) {
   			printf("FRC robot app did not respond to SIGTERM within %d ms.  Sending SIGKILL.\n", timeout);
@@ -101,7 +123,7 @@ namespace hal {
 
         bool InitializeHAL() {
 
-        	Mau_DriveData::initializeDriveData();
+       	    Mau_DriveData::initializeDriveData();
 
             fileHandler = new Mau_FileHandler();
             Mau_EnumConverter* enums = fileHandler->getEnumConverter();
@@ -119,7 +141,9 @@ namespace hal {
             	printf("Error initializing VMX-pi HAL.\n");
             	vmxpi = 0;
             	return false;
-            }
+            } else {
+		printf("VMX HAL:  Library version %s\n", vmxpi->version.GetHALVersion().c_str());
+	    }
 
             mau::vmxIMU = &vmxpi->ahrs;
             mau::vmxIO = &vmxpi->io;
@@ -382,6 +406,8 @@ HAL_Bool HAL_GetBrownedOut(int32_t* status) {
 }
 
 HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
+
+    // Initialize stdout/stderr capture.
     static std::atomic_bool initialized{false};
     static wpi::mutex initializeMutex;
     // Initial check, as if it's true initialization has finished
@@ -391,14 +417,17 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
     // Second check in case another thread was waiting
     if (initialized) return true;
 
+    setlinebuf(stdin);
+    setlinebuf(stdout);
+    setlinebuf(stderr);
+    mau::comms::start_log_capture();
+
     if (!hal::init::InitializeHAL()) {
     	return false;
     }
 
     hal::init::HAL_IsInitialized.store(true);
 
-    setlinebuf(stdin);
-    setlinebuf(stdout);
     wpi::outs().SetUnbuffered();
 
     if (HAL_LoadExtensions() < 0) return false;

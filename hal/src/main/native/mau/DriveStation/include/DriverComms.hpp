@@ -5,9 +5,15 @@
 
 #define IS_BIT_SET(expression, bit) ((expression & (1 << bit)) != 0)
 
+#define MAU_COMMS_SHUTDOWN_NONE		0
 #define MAU_COMMS_SHUTDOWN_ESTOP 	1
 #define MAU_COMMS_SHUTDOWN_REBOOT	2
-#define MAU_COMMS_SHUTDOWN_RESTART  3
+#define MAU_COMMS_SHUTDOWN_RESTART  	3
+
+#define MAU_COMMS_STATE_DISABLED	0
+#define MAU_COMMS_STATE_AUTONOMOUS	1
+#define MAU_COMMS_STATE_TELEOP		2
+#define MAU_COMMS_STATE_TEST		3
 
 namespace mau {
     namespace comms {
@@ -29,13 +35,18 @@ namespace mau {
     	extern void (*shutdown_handler)(int);
 
         void setShutdownHandler(void (*shutdown_handler)(int));
-        void start();
+        void start_log_capture();
+        void start_ds_protocol_threads();
         void stop();
-        void decodeUdpPacket(char* data, int length);
+        int decodeUdpPacket(char* data, int length); // returns MAU_COMMS_SHUTDOWN_XXX code
         void encodePacket(char* data);
         void decodeTcpPacket(char* data, int length);
         void setInputVoltage(double voltage);
         void setCANStatus(float percentBusUtilization, uint32_t busOffCount, uint32_t txFifoFullCount, uint8_t rxErrorCount, uint8_t txErrorCount);
         int32_t enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, uint8_t flags, const char *details, const char *location, const char *callStack);
+	void setRobotProgramStarted(bool program_started);
+	void setRobotState(uint8_t mode /*MAU_COMMS_STATE_xxx*/);
+	void setRobotBrownoutProtectionActive(bool brownout_protection_active);
+	void setRobotESTOPActive(bool estop_active);
     }
 }
