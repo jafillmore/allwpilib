@@ -578,80 +578,56 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
         int i = DS_UDP_PROTOCOL_HEADER_LENGTH;
         bool search = true;
 
+		int joy_id = 0;
         while (i < length && search) {
             int struct_size = data[i];
             char tag = data[i + 1];
             switch (tag) {
 				case DS_UDP_PROTOCOL_TAG_JOYSTICK_STATE:
 				{
-					bool remaining_joystick_data = true;
-					int joy_id = 0;
-
-			        for (int joyNum = 0; joyNum < HAL_kMaxJoysticks; joyNum++) {
-			            _TempJoyData* tempJoy = &joys[joyNum];
-			            tempJoy->has_update = false;
-			        }
-
-					while (remaining_joystick_data) {
-						_TempJoyData* joy = &joys[joy_id];
-						joy->has_update = true;
-						char axisCount = data[i + 2];
-						if (axisCount > HAL_kMaxJoystickAxes) {
-							axisCount = HAL_kMaxJoystickAxes;
-							printf("DriverComms::decodeUdpPacket got too-large axis count during Joystick Update; this event was discarded.  Value limited to miaximum.\n");
-						}
-						joy->axis_count = axisCount;
-						for (int ax = 0; ax < joy->axis_count; ax++) {
-							joy->axis[ax] = data[i + 2 + ax + 1];
-						}
-						int b = i + 2 + axisCount + 1;
-						joy->button_count = data[b];
-						int button_delta = (joy->button_count / 8 + ((joy->button_count % 8 == 0) ? 0 : 1));
-						uint32_t total_mask = 0;
-						for (int bm = 0; bm < button_delta; bm++) {
-							uint8_t m = data[b + bm + 1];
-							total_mask = (total_mask << (bm * 8)) | m;
-						}
-						joy->button_mask = total_mask;
-						b += button_delta + 1;
-						char povCount = data[b];
-						if (povCount > HAL_kMaxJoystickPOVs) {
-							povCount = HAL_kMaxJoystickPOVs;
-							printf("DriverComms::decodeUdpPacket got too-large POV count during Joystick Update; this event was discarded.  Value limited to miaximum.\n");
-						}
-						joy->pov_count = povCount;
-						int bytes_for_pov = 0;
-						for (int pv = 0; pv < joy->pov_count; pv++) {
-							uint8_t a1 = data[b + 1 + (pv * 2)];
-							uint8_t a2 = data[b + 1 + (pv * 2) + 1];
-							joy->pov[pv] = (uint16_t) (a1 << 8 | a2);
-							bytes_for_pov += 2;
-						}
-
-						int next_index = b + bytes_for_pov;
-						if (next_index >= (i + struct_size)) {
-							remaining_joystick_data = false;
-
-					        for (int joyNum = 0; joyNum < HAL_kMaxJoysticks; joyNum++) {
-					            _TempJoyData* tempJoy = &joys[joyNum];
-					            if (tempJoy->has_update) {
-					            	Mau_DriveData::updateJoyAxis(joyNum, tempJoy->axis_count, tempJoy->axis);
-					            	Mau_DriveData::updateJoyPOV(joyNum, tempJoy->pov_count, tempJoy->pov);
-					            	Mau_DriveData::updateJoyButtons(joyNum, tempJoy->button_count, tempJoy->button_mask);
-					            }
-					        }
-						} else {
-							joy_id++;
-							if (joy_id >= HAL_kMaxJoysticks) {
-								// This is a sign of an internal error.
-								printf("DriverComms::decodeUdpPacket got extraneous data during Joystick Update; this event was discarded.\n");
-								break;
-							}
-						}
+					_TempJoyData* joy = &joys[joy_id];
+					memset(joy,0,sizeof(_TempJoyData));
+					char axisCount = data[i + 2];
+					if (axisCount > HAL_kMaxJoystickAxes) {
+						axisCount = HAL_kMaxJoystickAxes;
+						printf("DriverComms::decodeUdpPacket got too-large axis count during Joystick Update; this event was discarded.  Value limited to miaximum.\n");
+					}
+					joy->axis_count = axisCount;
+					for (int ax = 0; ax < joy->axis_count; ax++) {
+						joy->axis[ax] = data[i + 2 + ax + 1];
+					}
+					int b = i + 2 + axisCount + 1;
+					joy->button_count = data[b];
+					int button_delta = (joy->button_count / 8 + ((joy->button_count % 8 == 0) ? 0 : 1));
+					uint32_t total_mask = 0;
+					for (int bm = 0; bm < button_delta; bm++) {
+						uint8_t m = data[b + bm + 1];
+						total_mask = (total_mask << (bm * 8)) | m;
+					}
+					joy->button_mask = total_mask;
+					b += button_delta + 1;
+					char povCount = data[b];
+					if (povCount > HAL_kMaxJoystickPOVs) {
+						povCount = HAL_kMaxJoystickPOVs;
+						printf("DriverComms::decodeUdpPacket got too-large POV count during Joystick Update; this event was discarded.  Value limited to miaximum.\n");
+					}
+					joy->pov_count = povCount;
+					int bytes_for_pov = 0;
+					for (int pv = 0; pv < joy->pov_count; pv++) {
+						uint8_t a1 = data[b + 1 + (pv * 2)];
+						uint8_t a2 = data[b + 1 + (pv * 2) + 1];
+						joy->pov[pv] = (uint16_t) (a1 << 8 | a2);
+						bytes_for_pov += 2;
 					}
 
-					break;
+		            Mau_DriveData::updateJoyAxis(joy_id, joy->axis_count, joy->axis);
+				    Mau_DriveData::updateJoyPOV(joy_id, joy->pov_count, joy->pov);
+				    Mau_DriveData::updateJoyButtons(joy_id, joy->button_count, joy->button_mask);
+
+				    joy_id++;
 				}
+				break;
+
 				case DS_UDP_PROTOCOL_MATCH_TIME_COUNTDOWN:
 				{
 					float matchTime = ErrorOrPrintMessage::NetworkOrderedU32ToFloat(*(uint32_t *)(&data[i + 2]));
