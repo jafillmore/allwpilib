@@ -125,12 +125,12 @@ void Mau_DriveData::updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes
 
 void Mau_DriveData::updateJoyPOV(int joyNumber, int povsCount, uint16_t* povs) {
     memLock.lock();
+    // If change in pov count, reinitialize all povs to 0 before updating
     if (joysticks[joyNumber].joyPOVs.count != povsCount) {
     	joysticks[joyNumber].joyPOVs.count = povsCount;
         for (int index = 0; index < HAL_kMaxJoystickPOVs; index++) {
             joysticks[joyNumber].joyPOVs.povs[index] = 0;
         }
-
     }
     for (int index = 0; index < povsCount; index++) {
         joysticks[joyNumber].joyPOVs.povs[index] = povs[index];
