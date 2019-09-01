@@ -120,13 +120,13 @@ namespace mau {
 	volatile uint8_t	robotMode = MAU_COMMS_STATE_DISABLED;
 	volatile bool		robotBrownoutProtectionActive = false;
 	volatile bool		robotESTOPActive = false;		
+	volatile bool		notUserCode = false;
 
     	std::thread udpThread;
     	std::thread tcpThread;
     	std::thread logServerThread;
     	std::thread stdoutCaptureThread;
         std::thread stderrCaptureThread;
-    	std::mutex runLock;
     	volatile bool isRunning = false;
         volatile bool isLogCaptureRunning = false;
 
@@ -191,10 +191,8 @@ void mau::comms::start_ds_protocol_threads() {
     if (!isRunning) {
         Toast::Net::Socket::socket_init();
 
-        runLock.lock();
         isRunning = true;
         printf("Server Running...\n");
-        runLock.unlock();
 
         udpThread = std::thread(udpProcess);
         udpThread.detach();
@@ -204,10 +202,8 @@ void mau::comms::start_ds_protocol_threads() {
 }
 
 void mau::comms::stop() {
-    runLock.lock();
     isLogCaptureRunning = false;
     isRunning = false;
-    runLock.unlock();
 }
 
 //// ----- DriverStation Comms: Encode ----- ////
@@ -282,7 +278,7 @@ void mau::comms::encodePacket(char* data) {
     }
 
     data[4] = UDP_DS_USERPROGRAM_TRACE_ROBORIO;					// USERPROGRAM_TRACE
-    if (!first_packet) {
+    if (!first_packet && !notUserCode) {
     	data[4] |= UDP_DS_USERPROGRAM_TRACE_USERCODE;	
     }			
     if (robotMode == MAU_COMMS_STATE_DISABLED) {
@@ -361,6 +357,11 @@ void mau::comms::setRobotState(uint8_t mode /*MAU_COMMS_STATE_xxx*/)
 void mau::comms::setRobotBrownoutProtectionActive(bool brownout_protection_active)
 {
 	mau::comms::robotBrownoutProtectionActive = brownout_protection_active;
+}
+
+void mau::comms::setNotUserCode(bool not_user_code)
+{
+	mau::comms::notUserCode = not_user_code;
 }
 
 void mau::comms::setRobotESTOPActive(bool estop_active)
@@ -702,6 +703,7 @@ namespace mau {
             log_sock.prepare();
             logServerSocket.open();
 
+
 	    while (isRunning) {
 
     			try {
@@ -821,15 +823,19 @@ namespace mau {
 		}
 
 		void udpProcess() {
+
+			/* Set this thread as very high (but not highest) priority using SCHED_FIFO scheduling. */
+			struct sched_param param;
+			param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
+			sched_setscheduler(0, SCHED_FIFO, &param);
+
 			Toast::Net::Socket::DatagramSocket sock(WPI_DRIVESTATION_UDP_ROBOTLISTEN_PORT);
 			sock.bind();
 
 			Toast::Net::Socket::SocketAddress addr;
 			while (true) {
-				runLock.lock();
 				if (!isRunning)
 					break;
-				runLock.unlock();
 
 				try {
 					memset(ds_udp_rcv_buffer, 0, MAX_WPI_DRIVESTATION_UDP_READSIZE);

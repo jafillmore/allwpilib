@@ -26,7 +26,8 @@ namespace hal {
 
         	VMXErrorCode vmxerr;
 			if (!mau::vmxCAN->OpenReceiveStream(blackboardStreamHandle, 0x0, 0x0, defaultReceiveStreamMaxMessages, &vmxerr)) {
-				std::printf("Failed to open default CAN Receive Stream!\n");
+				std::printf("Failed to open default CAN Receive Stream.  CAN Initialization Failed!\n");
+				return;
 			} else {
 				if (!mau::vmxCAN->EnableReceiveStreamBlackboard(blackboardStreamHandle, true, &vmxerr)) {
 					std::printf("Failed top enable default CAN Reception");
@@ -57,11 +58,11 @@ namespace hal {
 				printf("Set VMX CAN Mode to NORMAL.\n");
 			}
 
-			/* It's recommended to delay 20 Milliseconds after transitioning modes -
+			/* It's recommended to delay 10 Milliseconds after transitioning modes -
 			 * to allow the CAN circuitry to stabilize; otherwise, sometimes
 			 * there will be errors transmitting data during this period.
 			 */
-			mau::vmxTime->DelayMilliseconds(20);
+			mau::vmxTime->DelayMilliseconds(10);
 
         }
     }

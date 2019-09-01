@@ -48,5 +48,6 @@ namespace mau {
 	void setRobotState(uint8_t mode /*MAU_COMMS_STATE_xxx*/);
 	void setRobotBrownoutProtectionActive(bool brownout_protection_active);
 	void setRobotESTOPActive(bool estop_active);
+	void setNotUserCode(bool not_user_code);
     }
 }

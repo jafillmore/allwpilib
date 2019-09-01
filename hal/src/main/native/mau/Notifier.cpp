@@ -14,7 +14,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+//#include <siginfo.h>
 #include <time.h>
+#include <sys/syscall.h>
 
 #include <wpi/condition_variable.h>
 #include <wpi/mutex.h>
@@ -145,7 +147,7 @@ static void alarmCallback(int signum) {
     if (timer_settime (*notifierAlarm, 0, &new_value, &old_value) == -1) {
         perror ("timer_settime in Notifier alarmCallback.");
 #ifdef ENABLE_ALARM_DEBUG
-        sprintf (buffer, "Error invoking timer_settime, trying to set new ClosestTrigger:  %llu; delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu (currentTime: %llu; closestTrigger:  %llu)\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec, currentTime, closestTrigger);
+        sprintf (buffer, "Error invoking timer_settime, trying to set new ClosestTrigger:  delta:  %llu; tv_sec:  %lu; tv_nsec:  %lu (currentTime: %llu; closestTrigger:  %llu)\n", delta, new_value.it_value.tv_sec, new_value.it_value.tv_nsec, currentTime, closestTrigger);
         write (STDOUT_FILENO, buffer, strlen (buffer));
 #endif
     } else {
@@ -162,10 +164,72 @@ static void alarmCallback(int signum) {
   }
 }
 
+static bool quit_sigalrm_receiver_thread = false;
+static pthread_t sigalrm_receiver_thread;
+static volatile bool notifier_active = false;
+
+void *sigalrm_receiver_thread_func(void *arg) {
+	struct sched_param param;
+    struct sigaction action;
+    sigevent_t sev;
+    sigset_t set;
+    siginfo_t siginfo;
+    struct timespec timeout;
+
+    /* SIGALRM for alarm callback */
+    memset (&action, 0, sizeof (struct sigaction));
+    action.sa_handler = alarmCallback;
+    if (sigaction (SIGALRM, &action, NULL) == -1) {
+  	  perror ("sigaction");
+    }
+
+    sev.sigev_notify = SIGEV_THREAD_ID;
+    sev.sigev_signo = SIGALRM;
+    //sev.sigev_notify_thread_id = syscall(__NR_gettid);
+    sev._sigev_un._tid = syscall(__NR_gettid);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+    if (timer_create (CLOCK_MONOTONIC, &sev, &notifierTimer) == -1) {
+  	  perror ("timer_create");
+    } else {
+      notifierAlarm = &notifierTimer;
+    }
+
+#ifdef ENABLE_ALARM_DEBUG
+    printf("sigalrm_receiver_thread_func() started.\n");
+#endif
+
+	quit_sigalrm_receiver_thread = false;
+
+	/* Set this thread as highest priority */
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    sched_setscheduler(0, SCHED_FIFO, &param);
+
+    timeout.tv_nsec = 50 * 1000000; // 50 milliseconds
+    timeout.tv_sec = 0;
+
+	while (!quit_sigalrm_receiver_thread) {
+		int signum = sigtimedwait(&set, &siginfo, &timeout);
+		if (signum == -1) {
+				if (notifier_active && (errno == EAGAIN)) {
+					perror("Timeout in SIGALRM sigtimedwait().\n");
+				} else {
+					perror("sigwait in sigalrm_receiver_thread().");
+				}
+		}
+		alarmCallback(signum);
+	}
+	return NULL;
+}
+
 static void cleanupNotifierAtExit() {
   if (notifierAlarm) {
     timer_delete(*notifierAlarm);
     notifierAlarm = nullptr;
+    quit_sigalrm_receiver_thread = true;
   }
 }
 
@@ -202,25 +266,7 @@ HAL_NotifierHandle HAL_InitializeNotifier(int32_t* status) {
     // create alarm if not already created
 
     if (!notifierAlarm) {
-
-      struct sigaction action;
-
-      /* SIGALRM for alarm callback */
-      memset (&action, 0, sizeof (struct sigaction));
-      action.sa_handler = alarmCallback;
-      if (sigaction (SIGALRM, &action, NULL) == -1) {
-    	  perror ("sigaction");
-    	  *status = HAL_HANDLE_ERROR;
-    	  return HAL_kInvalidHandle;
-      }
-      
-      if (timer_create (CLOCK_MONOTONIC, NULL, &notifierTimer) == -1) {
-    	  perror ("timer_create");
-    	  *status = HAL_HANDLE_ERROR;
-    	  return HAL_kInvalidHandle;
-      } else {
-        notifierAlarm = &notifierTimer;
-      }
+      pthread_create(&sigalrm_receiver_thread, NULL, sigalrm_receiver_thread_func, NULL);
     }
   }
 
@@ -283,6 +329,7 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return;
   if (!notifierAlarm)  return;
+  notifier_active = true;
 
 #ifdef ENABLE_ALARM_DEBUG
   printf("ERROR:  HAL_UpdateNotifierAlarm entered - new trigger time:  %llu.\n", triggerTime);
@@ -406,12 +453,25 @@ uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
   auto notifier = notifierHandles->Get(notifierHandle);
   if (!notifier) return 0;
   try {
-    std::unique_lock<wpi::mutex> lock(notifier->mutex);
+    std::unique_lock<std::mutex> lock(notifier->mutex);
     notifier->cond.wait(lock, [&] {
-      return !notifier->active || notifier->triggeredTime != UINT64_MAX;
+      return (!notifier->active || notifier->triggeredTime != UINT64_MAX);
     });
-  } catch(...) {
+  } catch(std::exception& e) {
+	printf("%s exception during HAL_WaitForNotifierAlarm\n", e.what());
 	notifier->triggeredTime = 0;
+  } catch(...) {
+	printf("Error!  HAL_WaitForNotifierAlarm exception of unknown type.\n");
+	notifier->triggeredTime = 0;
+  }
+  if (!notifier->active) {
+	printf("Error!  Inactive Notifier discovered during HAL_WaitForNotifierAlarm.");
+  }
+  if (notifier->triggeredTime == 0) {
+	printf("Error!  Notifier Triggered Time of 0 discovered during HAL_WaitForNotifierAlarm.");
+  }
+  if (0 != *status) {
+	printf("Error!  Unclean status (%d) discovered during HAL_WaitForNotifierAlarm.", *status);
   }
   return notifier->active ? notifier->triggeredTime : 0;
 }

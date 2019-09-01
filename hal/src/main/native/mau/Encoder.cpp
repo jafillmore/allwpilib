@@ -38,6 +38,8 @@ struct EncoderResource {
 				   	   // it is not at all clear why the FPGA Index is made visible from the HAL API....
 	bool reverse_direction = false;
 	int32_t samplesToAverage = 0;
+	int32_t lastEncoderValue = 0;
+	uint32_t readErrorCount = 0;
 	VMXResourceHandle index_interrupt_vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(
 			VMXResourceType::Undefined, INVALID_VMX_RESOURCE_INDEX);
 	bool index_interrupt_is_owned = false;
@@ -194,9 +196,25 @@ int32_t HAL_GetEncoder(HAL_EncoderHandle encoderHandle, int32_t* status) {
 		return 0;
 	}
 
+	/* In case of intermittent board communication error (e.g., due to  */
+	/* CRC error during communication), return the last successfully    */
+	/* returned value.                                                  */
+	/* This behavior is implemented due to the robot base code which    */
+	/* will terminate when non-zero status, generating an "Unclean      */
+	/* Status Exception.                                                */
 	int32_t counts;
+	const int c_max_successive_comm_errors = 3;
 	if(!mau::vmxIO->Encoder_GetCount(encoder->vmx_res_handle, counts, status)) {
-		return 0;
+		if ((VMXERR_IO_BOARD_COMM_ERROR == *status) && (encoder->readErrorCount < c_max_successive_comm_errors)) {
+			*status = 0;
+			counts = encoder->lastEncoderValue;
+		} else {
+			return 0;
+		}
+		encoder->readErrorCount++;
+	} else {
+		encoder->readErrorCount = 0;
+		encoder->lastEncoderValue = counts;
 	}
 
 	if (encoder->reverse_direction) {

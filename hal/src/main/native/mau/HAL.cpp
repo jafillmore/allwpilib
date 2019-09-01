@@ -47,6 +47,8 @@ VMXErrorCode* mau::vmxError = &vmxErrCode;
 Mau_ChannelMap* mau::channelMap = 0;
 Mau_EnumConverter* mau::enumConverter = 0;
 
+static bool shutdown_handler_invoked = false;
+
 namespace hal {
     namespace init {
 
@@ -68,6 +70,7 @@ namespace hal {
         void ShutdownHandler(int param) {
 
         	printf("VMX HAL:  Shutdown Handler invoked.\n");
+        shutdown_handler_invoked = true;
 		fflush(stdout);
 
 		ExternalCleanup();
@@ -98,6 +101,7 @@ namespace hal {
 		printf("Entering VMX HAL Internal Kill Handler.\n");
   		fflush(stdout);
 		fprintf(stderr, "Entering VMX HAL Internal Kill Handler.\n");
+		shutdown_handler_invoked = true;
 
 		ExternalCleanup();
 		int timeout = 1500;
@@ -123,6 +127,7 @@ namespace hal {
 
         bool InitializeHAL() {
 
+	    bool success = true;
        	    Mau_DriveData::initializeDriveData();
 
             fileHandler = new Mau_FileHandler();
@@ -137,10 +142,10 @@ namespace hal {
             vmxpi = new VMXPi(realtime, hertz);
 
             if (!vmxpi->IsOpen()) {
-           	delete vmxpi;
-            	printf("Error initializing VMX-pi HAL.\n");
-            	vmxpi = 0;
-            	return false;
+           	//delete vmxpi;
+            	printf("VMX HAL:  Error initializing VMX-pi HAL Library.\n");
+            	//vmxpi = 0;
+            	success = false;
             } else {
 		printf("VMX HAL:  Library version %s\n", vmxpi->version.GetHALVersion().c_str());
 	    }
@@ -207,7 +212,7 @@ namespace hal {
             InitializeSPI();
             InitializeThreads();
 
-            return true;
+            return success;
         }
     }
 }
@@ -420,15 +425,26 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
     setlinebuf(stdin);
     setlinebuf(stdout);
     setlinebuf(stderr);
+    wpi::outs().SetUnbuffered();
     mau::comms::start_log_capture();
 
     if (!hal::init::InitializeHAL()) {
+    	// in case of failure, init driver station so that status reporting can occur.
+    	HAL_InitializeDriverStation();
+    	mau::comms::setRobotProgramStarted(false);
+    	mau::comms::setNotUserCode(true);
+    	while (!shutdown_handler_invoked) {
+    		printf("Error Initializing VMX-pi HAL.  Robot app failed to start.\n");
+    		// Now, wait for 5 seconds - giving time for the remote driver
+    		// station to receive logging of errors occurring during startup.
+    		int timeout = 5000;
+    		std::this_thread::sleep_for(std::chrono::milliseconds(timeout));
+    	}
+    	hal::init::TerminateDriverStation();
     	return false;
     }
 
     hal::init::HAL_IsInitialized.store(true);
-
-    wpi::outs().SetUnbuffered();
 
     if (HAL_LoadExtensions() < 0) return false;
     //Mau_restartTiming();
