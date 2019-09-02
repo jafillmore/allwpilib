@@ -433,7 +433,7 @@ HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {
     	HAL_InitializeDriverStation();
     	mau::comms::setRobotProgramStarted(false);
     	mau::comms::setNotUserCode(true);
-    	while (!shutdown_handler_invoked) {
+    	while (true) {
     		printf("Error Initializing VMX-pi HAL.  Robot app failed to start.\n");
     		// Now, wait for 5 seconds - giving time for the remote driver
     		// station to receive logging of errors occurring during startup.

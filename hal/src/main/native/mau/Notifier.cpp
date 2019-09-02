@@ -214,8 +214,10 @@ void *sigalrm_receiver_thread_func(void *arg) {
 	while (!quit_sigalrm_receiver_thread) {
 		int signum = sigtimedwait(&set, &siginfo, &timeout);
 		if (signum == -1) {
-				if (notifier_active && (errno == EAGAIN)) {
-					perror("Timeout in SIGALRM sigtimedwait().\n");
+				if (errno == EAGAIN) {
+					if (notifier_active) {
+						perror("Timeout in SIGALRM sigtimedwait().\n");
+					}
 				} else {
 					perror("sigwait in sigalrm_receiver_thread().");
 				}

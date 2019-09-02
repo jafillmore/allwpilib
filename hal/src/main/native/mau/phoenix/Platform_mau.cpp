@@ -40,7 +40,7 @@ void CANbus_GetStatus(float * percentBusUtilization, uint32_t * busOffCount,
 
 int32_t CANbus_SendFrame(uint32_t messageID, const uint8_t *data,
 		uint8_t dataSize) {
-	int32_t status;
+	int32_t status = 0;
 	int32_t periodMs = 0; // TODO:  Check this
 	HAL_CAN_SendMessage(messageID | 0x80000000, data, dataSize, periodMs,
 			&status);
@@ -70,21 +70,30 @@ int32_t CANbus_ReceiveFrame(canframe_t * toFillArray, uint32_t capacity,
 				*numberFilled = currMessagesRead;
 				return 0;
 			} else {
+				*numberFilled = 0;
 				return 1; // Return error indication, no messages retrieved.
 			}
 		}
 
 		if (currMessagesRead > 0) {
 			for (uint32_t i = 0; i < currMessagesRead; i++) {
-				toFillArray[currCANStreamMessageIndex].arbID = msgs[i].messageID
-						& 0x1FFFFFFF;
-				std::memcpy(toFillArray[currCANStreamMessageIndex].data,
-						msgs[i].data, msgs[i].dataSize);
-				toFillArray[currCANStreamMessageIndex].dlc = msgs[i].dataSize;
-				toFillArray[currCANStreamMessageIndex].timeStampUs =
-						msgs[i].timeStamp;
-				//Don't set any flags on toFill for right now (TODO:  Check w/Omar on this part???)
-				currCANStreamMessageIndex++;
+				if (currCANStreamMessageIndex < capacity) {
+					toFillArray[currCANStreamMessageIndex].arbID = msgs[i].messageID
+							& 0x1FFFFFFF;
+					if (msgs[i].dataSize > 8) {
+						printf("Error:  CAN Frame Data Size limited to 8 in VMX-pi Platform_mau CANbus_ReceiveFrame().\n");
+						msgs[i].dataSize = 8;
+					}
+					std::memcpy(toFillArray[currCANStreamMessageIndex].data,
+							msgs[i].data, msgs[i].dataSize);
+					toFillArray[currCANStreamMessageIndex].dlc = msgs[i].dataSize;
+					toFillArray[currCANStreamMessageIndex].timeStampUs =
+							msgs[i].timeStamp;
+					//Don't set any flags on toFill for right now (TODO:  Check w/Omar on this part???)
+					currCANStreamMessageIndex++;
+				} else {
+					printf("Over-capacity in VMX-pi Platform_mau CANbus_ReceiveFrame().\n");
+				}
 			}
 		}
 		if (currMessagesRead < currMessagesToRead) {
@@ -145,21 +154,30 @@ void CANComm_ReadStreamSession(uint32_t sessionHandle, canframe_t *messages,
 		HAL_CAN_ReadStreamSession(sessionHandle, msgs, currMessagesToRead,
 				&currMessagesRead, status);
 		if (*status != 0) {
+			*messagesRead = currCANStreamMessageIndex;
 			return;
 		}
 
 		if (currMessagesRead > 0) {
 			for (uint32_t i = 0; i < currMessagesRead; i++) {
 				// TODO:  can the ANDing of 0x1FFFFFFF be removed?
-				messages[currCANStreamMessageIndex].arbID = msgs[i].messageID
-						& 0x1FFFFFFF;
-				std::memcpy(messages[currCANStreamMessageIndex].data,
-						msgs[i].data, msgs[i].dataSize);
-				messages[currCANStreamMessageIndex].dlc = msgs[i].dataSize;
-				messages[currCANStreamMessageIndex].timeStampUs =
-						msgs[i].timeStamp;
-				//Don't set any flags on toFill for right now (TODO:  Check w/Omar on this part???)
-				currCANStreamMessageIndex++;
+				if (currCANStreamMessageIndex < messagesToRead) {
+					messages[currCANStreamMessageIndex].arbID = msgs[i].messageID
+							& 0x1FFFFFFF;
+					if (msgs[i].dataSize > 8) {
+						printf("Error:  CAN Frame Data Size limited to 8 in VMX-pi Platform_mau CANbus_ReceiveFrame().\n");
+						msgs[i].dataSize = 8;
+					}
+					std::memcpy(messages[currCANStreamMessageIndex].data,
+							msgs[i].data, msgs[i].dataSize);
+					messages[currCANStreamMessageIndex].dlc = msgs[i].dataSize;
+					messages[currCANStreamMessageIndex].timeStampUs =
+							msgs[i].timeStamp;
+					//Don't set any flags on toFill for right now (TODO:  Check w/Omar on this part???)
+					currCANStreamMessageIndex++;
+				} else {
+					printf("Over-capacity in VMX-pi Platform_mau CANComm_ReadStreamSession().\n");
+				}
 			}
 		}
 	}
