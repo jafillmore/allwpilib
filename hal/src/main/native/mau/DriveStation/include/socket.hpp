@@ -244,6 +244,7 @@ namespace Toast {
 				API int bind();
 
 				API int read(char *buf, size_t length, SocketAddress *addr);
+				API int read_with_timeout(char *buf, size_t length, Socket::SocketAddress *addr, uint32_t wait_milliseconds);
 				API int send(const char *buffer, size_t length, SocketAddress *addr);
 
 				API int close();

@@ -38,11 +38,11 @@ public:
 
     // Updates upon receipt of Driver Station Packets (from IO Worker Threads)
 
-    static void updateMatchTime(float currMatchTime);
     static void updateMatchGameSpecificMessage(uint8_t msg_len, uint8_t *msg_data);
     static void updateMatchIdentifyInfo(char *event_name, uint8_t match_type, uint16_t match_number, uint8_t replay_number);
 
     static void updateControlWordAndAllianceID(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id);
+    static void updateDSAttached(bool attached);
     static uint32_t getNewDSDataAvailableCounter();
 
     static void updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes);
@@ -50,7 +50,13 @@ public:
     static void updateJoyButtons(int joyNumber, uint8_t buttonCount, uint32_t buttons);
     static void updateJoyDescriptor(int joyNumber, HAL_JoystickDescriptor* desc);
     static void updateJoyOutputs(int32_t joyNumber, int64_t outputs, int32_t leftRumble, int32_t rightRumble);
-
+    static void updateLock();
+    static void updateUnlockAndSignal();
+    static void updateControlWordAndAllianceIDUnsafe(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id);
+    static void updateJoyAxisUnsafe(int joyNumber, int16_t axisCount, int8_t* axes);
+    static void updateJoyPOVUnsafe(int joyNumber, int povsCount, uint16_t* povs);
+    static void updateJoyButtonsUnsafe(int joyNumber, uint8_t buttonCount, uint32_t buttons);
+    static void updateMatchTimeUnsafe(float currMatchTime);
     // Methods to retrieve copies of cached DriverStation data, invoked from wpilibc Driver Station
 
 	static void scribeMatchInfo(HAL_MatchInfo* info);

@@ -230,6 +230,8 @@ void mau::comms::stop() {
 #define DS_UDP_PROTOCOL_HEADER_INDEX_ALLIANCE_STATION_ID	5
 
 
+#define DS_COMM_TIMEOUT_MICROSECONDS 		2000000
+
 
 #define UDP_DS_STATUSBYTE_ESTOP			0x80
 #define UDP_DS_STATUSBYTE_BROWNOUTPREVENT	0x10
@@ -508,7 +510,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 	// Decode Packet Number
 	sq_1 = data[0];
     sq_2 = data[1];
-    //uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
+    uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
 
     char version = data[DS_UDP_PROTOCOL_HEADER_INDEX_VERSION];
 
@@ -566,7 +568,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
         HAL_AllianceStationID alliance = (HAL_AllianceStationID)data[DS_UDP_PROTOCOL_HEADER_INDEX_ALLIANCE_STATION_ID];
 
         bool ds_attached;
-        if (mau::vmxGetTime() - lastDsUDPUpdateReceivedTimestamp > 1000000) {
+        if (mau::vmxGetTime() - lastDsUDPUpdateReceivedTimestamp > DS_COMM_TIMEOUT_MICROSECONDS) {
             // DS Disconnected
             ds_attached = false;
         } else {
@@ -574,7 +576,8 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
             ds_attached = true;
         }
 
-        Mau_DriveData::updateControlWordAndAllianceID(enabled, auton, test, eStop, fms, ds_attached, alliance);
+	// Before updating any drive date, acquire the lock
+	Mau_DriveData::updateLock();
 
         int i = DS_UDP_PROTOCOL_HEADER_LENGTH;
         bool search = true;
@@ -621,9 +624,9 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 						bytes_for_pov += 2;
 					}
 
-		            Mau_DriveData::updateJoyAxis(joy_id, joy->axis_count, joy->axis);
-				    Mau_DriveData::updateJoyPOV(joy_id, joy->pov_count, joy->pov);
-				    Mau_DriveData::updateJoyButtons(joy_id, joy->button_count, joy->button_mask);
+		            	    Mau_DriveData::updateJoyAxisUnsafe(joy_id, joy->axis_count, joy->axis);
+				    Mau_DriveData::updateJoyPOVUnsafe(joy_id, joy->pov_count, joy->pov);
+				    Mau_DriveData::updateJoyButtonsUnsafe(joy_id, joy->button_count, joy->button_mask);
 
 				    joy_id++;
 				}
@@ -632,7 +635,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 				case DS_UDP_PROTOCOL_MATCH_TIME_COUNTDOWN:
 				{
 					float matchTime = ErrorOrPrintMessage::NetworkOrderedU32ToFloat(*(uint32_t *)(&data[i + 2]));
-					Mau_DriveData::updateMatchTime(matchTime);
+					Mau_DriveData::updateMatchTimeUnsafe(matchTime);
 					break;
 				}
 				case DS_UDP_PROTOCOL_TAG_DATE_TIME:
@@ -640,7 +643,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 #if 0
 					printf("Received Date/Time Data.\n");
 #endif
-					// TODO:  Implement once purpose is understood.
+					// TODO:  Implement once purpose is understood.  Remember that lock is acquired during this period.
 					break;
 				}
 				case DS_UDP_PROTOCOL_TAG_TIME_ZONE:
@@ -648,7 +651,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 #if 0
 					printf("Received Time Zone Data.\n");
 #endif
-					// TODO:  Implement once purpose is understood.
+					// TODO:  Implement once purpose is understood.  Remember that lock is acquired during this period.
 					break;
 				}
 				default:
@@ -656,7 +659,14 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
             }
             i += struct_size + 1;
         }
-        lastDsUDPUpdateReceivedTimestamp = mau::vmxGetTime();
+
+	// Perform final update, release lock and signal that new data is available
+        Mau_DriveData::updateControlWordAndAllianceIDUnsafe(enabled, auton, test, eStop, fms, ds_attached, alliance);
+	Mau_DriveData::updateUnlockAndSignal();
+
+	uint64_t now_time = mau::vmxGetTime();
+	uint64_t delta = now_time - lastDsUDPUpdateReceivedTimestamp;
+        lastDsUDPUpdateReceivedTimestamp = now_time;
     }
     return MAU_COMMS_SHUTDOWN_NONE;
 }
@@ -703,7 +713,8 @@ namespace mau {
             log_sock.prepare();
             logServerSocket.open();
 
-
+	    int num_ds_connected_clients = 0;
+	    int num_log_connected_clients = 0;
 	    while (isRunning) {
 
     			try {
@@ -715,10 +726,27 @@ namespace mau {
 					// Prune dead DS client, if they have become disconnected.
 					ds_sock.prune_disconnected_clients();
 
+					int curr_num_ds_connected_clients = ds_sock.get_num_connected_clients();
+
 					// Check for new non-DS logging clients (non-blocking)
 					log_sock.accept();
 					// Prune dead non-DS logging clients
 					log_sock.prune_disconnected_clients();
+
+					int curr_num_log_connected_clients = log_sock.get_num_connected_clients();
+
+					if (curr_num_ds_connected_clients != num_ds_connected_clients) {	
+#if 0
+						printf("Changed # of ds connected clients.  Was:  %d, Now:  %d\n", num_ds_connected_clients, curr_num_ds_connected_clients);
+#endif
+						num_ds_connected_clients = curr_num_ds_connected_clients;
+					}
+					if (curr_num_log_connected_clients != num_log_connected_clients) {	
+#if 0
+						printf("Changed # of log connected clients.  Was:  %d, Now:  %d\n", num_log_connected_clients, curr_num_log_connected_clients);
+#endif
+						num_log_connected_clients = curr_num_log_connected_clients;
+					}
 
 					if (version_data_requested) {
 						version_data_requested = false;
@@ -839,7 +867,7 @@ namespace mau {
 
 				try {
 					memset(ds_udp_rcv_buffer, 0, MAX_WPI_DRIVESTATION_UDP_READSIZE);
-					int len = sock.read(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr);
+					int len = sock.read_with_timeout(ds_udp_rcv_buffer, MAX_WPI_DRIVESTATION_UDP_READSIZE, &addr, 500);
 					if (len > 0) {
 						uint8_t shutdown_code = mau::comms::decodeUdpPacket(ds_udp_rcv_buffer, len);
 						mau::comms::encodePacket(ds_udp_send_buffer);
@@ -931,6 +959,11 @@ namespace mau {
 						            stop();
 						    }							
 						}
+					} else {
+						// No data read.  Check to see if the ds is still attached.
+					        if (mau::vmxGetTime() - lastDsUDPUpdateReceivedTimestamp > DS_COMM_TIMEOUT_MICROSECONDS) {					            
+					            Mau_DriveData::updateDSAttached(false);
+					        }
 					}
 				} catch(const std::exception& ex){
 					printf("mau::comms::udpProcess - Caught exception:  %s\n", ex.what());
@@ -940,6 +973,7 @@ namespace mau {
 		}
 
     	void *AllocMessageMemory(size_t len) {
+		if (!logmsg_mem_allocator) return 0;
     		void *p_mem;
     		allocLock.lock();
     		p_mem = logmsg_mem_allocator->Acquire(len);
@@ -949,6 +983,7 @@ namespace mau {
     	}
 
     	void FreeMessageMemory(void *p_mem) {
+		if (!p_mem) return;
     		allocLock.lock();
     		logmsg_mem_allocator->Release(p_mem);
     		allocLock.unlock();
@@ -1005,6 +1040,7 @@ namespace mau {
     	// the oldest allocated messages are deleted, until there is sufficient
     	// memory available for this message.
     	void *AllocMessageMemoryWithReclamation(size_t len) {
+		if (!logmsg_mem_allocator) return 0;
     		unsigned char *p_mem = static_cast<unsigned char *>(AllocMessageMemory(len));
     		if (!p_mem) {
     			// No memory available.  Keep removing oldest messages until sufficient memory is available
@@ -1061,7 +1097,8 @@ namespace mau {
 
         	FILE *pipe_file = fdopen(out_pipe[0], "r");
 
-        	char *line = (char *)malloc(MAX_STD_LINE_LEN);
+        	char *line = (char *)malloc(MAX_STD_LINE_LEN+1);
+		memset(line,0,MAX_STD_LINE_LEN + 1);
 
 		bool quit_requested = false;
 

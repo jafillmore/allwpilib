@@ -18,8 +18,6 @@
 
 #include "hal/CAN.h"
 #include "hal/DriverStation.h"
-#include "MauInternal.h"
-#include "MauTime.h"
 #include "CANInternal.h"
 
 namespace ctre {
@@ -52,7 +50,7 @@ int32_t CANbus_ReceiveFrame(canframe_t * toFillArray, uint32_t capacity,
 		uint32_t * numberFilled) {
 	HAL_CANStreamMessage msgs[NUM_CAN_MESSAGES_IN_BATCH];
 	uint32_t remainingMessagesToRead = capacity;
-	uint32_t default_stream_handle = Mau_HAL_GetDefaultCANStreamHandle();
+	uint32_t default_stream_handle = MAU_HAL_BLACKBOARD_STREAM_HANDLE; // Constant defined by Mau HAL (see CANInternal.h)
 
 	uint32_t currCANStreamMessageIndex = 0;
 	while (remainingMessagesToRead > 0) {

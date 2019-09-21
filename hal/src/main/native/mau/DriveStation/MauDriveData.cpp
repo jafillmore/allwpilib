@@ -65,7 +65,7 @@ void Mau_DriveData::updateMatchIdentifyInfo(char *event_name, uint8_t match_type
     unlockAndSignal();
 }
 
-void Mau_DriveData::updateMatchTime(float currMatchTime) {
+void Mau_DriveData::updateMatchTimeUnsafe(float currMatchTime) {
 	matchTime = currMatchTime;
 }
 
@@ -82,8 +82,8 @@ void Mau_DriveData::updateMatchGameSpecificMessage(uint8_t msg_len, uint8_t *msg
 }
 
 // --- Update: ControlWord --- //
-void Mau_DriveData::updateControlWordAndAllianceID(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id) {
-    memLock.lock();
+
+void Mau_DriveData::updateControlWordAndAllianceIDUnsafe(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id) {
     controlWord.enabled = enabled;
     controlWord.autonomous = auton;
     controlWord.test = test;
@@ -92,6 +92,19 @@ void Mau_DriveData::updateControlWordAndAllianceID(bool enabled, bool auton, boo
     controlWord.dsAttached = ds;
 
     allianceID = id;
+    newDSDataAvailableCounter++;
+}
+
+void Mau_DriveData::updateControlWordAndAllianceID(bool enabled, bool auton, bool test, bool eStop, bool fms, bool ds, HAL_AllianceStationID id) {
+    memLock.lock();
+    updateControlWordAndAllianceIDUnsafe(enabled, auton, test, eStop, fms, ds, id);
+    unlockAndSignal();
+}
+
+void Mau_DriveData::updateDSAttached(bool attached)
+{
+    memLock.lock();
+    controlWord.dsAttached = attached;
     newDSDataAvailableCounter++;
     unlockAndSignal();
 }
@@ -104,6 +117,34 @@ uint32_t Mau_DriveData::getNewDSDataAvailableCounter() {
 
 void Mau_DriveData::updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes) {
     memLock.lock();
+    updateJoyAxisUnsafe(joyNumber, axisCount, axes);
+    unlockAndSignal();
+}
+
+void Mau_DriveData::updateJoyPOV(int joyNumber, int povsCount, uint16_t* povs) {
+    memLock.lock();
+    updateJoyPOVUnsafe(joyNumber, povsCount, povs);
+    unlockAndSignal();
+}
+
+void Mau_DriveData::updateJoyButtons(int joyNumber, uint8_t buttonCount, uint32_t buttons) {
+    memLock.lock();
+    updateJoyButtonsUnsafe(joyNumber, buttonCount, buttons);
+    unlockAndSignal();
+}
+
+void Mau_DriveData::updateLock()
+{
+    memLock.lock();
+}
+
+void Mau_DriveData::updateUnlockAndSignal()
+{
+    unlockAndSignal();
+}
+
+void Mau_DriveData::updateJoyAxisUnsafe(int joyNumber, int16_t axisCount, int8_t* axes)
+{
     // If change in axis count, reinitialize all axes to 0 before updating
     if (joysticks[joyNumber].joyAxes.count != axisCount) {
         joysticks[joyNumber].joyAxes.count = axisCount;
@@ -120,11 +161,9 @@ void Mau_DriveData::updateJoyAxis(int joyNumber, int16_t axisCount, int8_t* axes
     	}
         joysticks[joyNumber].joyAxes.axes[index] = joystickValue;
     }
-    unlockAndSignal();
 }
-
-void Mau_DriveData::updateJoyPOV(int joyNumber, int povsCount, uint16_t* povs) {
-    memLock.lock();
+void Mau_DriveData::updateJoyPOVUnsafe(int joyNumber, int povsCount, uint16_t* povs)
+{
     // If change in pov count, reinitialize all povs to 0 before updating
     if (joysticks[joyNumber].joyPOVs.count != povsCount) {
     	joysticks[joyNumber].joyPOVs.count = povsCount;
@@ -136,14 +175,11 @@ void Mau_DriveData::updateJoyPOV(int joyNumber, int povsCount, uint16_t* povs) {
         joysticks[joyNumber].joyPOVs.povs[index] = povs[index];
         index++;
     }
-    unlockAndSignal();
 }
-
-void Mau_DriveData::updateJoyButtons(int joyNumber, uint8_t buttonCount, uint32_t buttons) {
-    memLock.lock();
+void Mau_DriveData::updateJoyButtonsUnsafe(int joyNumber, uint8_t buttonCount, uint32_t buttons)
+{
     joysticks[joyNumber].joyButtons.count = buttonCount;
     joysticks[joyNumber].joyButtons.buttons = buttons;
-    unlockAndSignal();
 }
 
 void Mau_DriveData::updateJoyDescriptor(int joyNumber, HAL_JoystickDescriptor* desc) {

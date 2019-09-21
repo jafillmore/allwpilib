@@ -18,6 +18,8 @@
 #include "hal/HAL.h"
 #include "hal/handles/UnlimitedHandleResource.h"
 #include "MauTime.h"
+#include <chrono>
+#include <thread>
 
 using namespace hal;
 
@@ -230,6 +232,7 @@ void HAL_ReadCANPacketTimeout(HAL_CANHandle handle, int32_t apiId,
   uint32_t messageId = CreateCANId(can.get(), apiId);
   uint8_t dataSize = 0;
   uint32_t ts = 0;
+
   HAL_CAN_ReceiveMessage(&messageId, 0x1FFFFFFF, data, &dataSize, &ts, status);
 
   std::lock_guard<wpi::mutex> lock(can->mapMutex);
@@ -259,6 +262,29 @@ void HAL_ReadCANPacketTimeout(HAL_CANHandle handle, int32_t apiId,
       *status = 0;
     }
   }
+  if (*status != 0) {
+    /* HACK:  temporary workaround while this issue is discussed w/REV. */
+    /* Currently, responses to parameter (e.g., Firmware Version)       */
+    /* requests are received after this function is called repeatedly.  */
+    /* The current assumption is that this works on the reference       */
+    /* platform due to differences in timing; so this workaround adds   */
+    /* delay (equal to the requested timeout period), an approach that  */
+    /* has been shown to provide sufficient delay for the response to   */
+    /* be received as expected.                                         */
+    if ((can->manufacturer == 5 /*REV Robotics*/) &&
+        (can->deviceType == HAL_CAN_Dev_kMotorController)) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(timeoutMs));	
+    }
+  }
+#if 0
+  uint64_t currentTime = HAL_GetFPGATime(status);
+  if( (messageId == 0x2052601) && (*status == 0)) {
+	printf("HAL_ReadCanPacketTimeout (%u ms):  MessageID:  0x%x, status:  %d, length:  %d %02X %02X %02X %02X %02X %02X %02X %02X - timestamp:  %llu, curr fpga time:  %llu.\n", 
+		timeoutMs, messageId, *status, *length, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], *receivedTimestamp, currentTime);
+  } else if (messageId == 0x2052601) {
+	printf("HAL_ReadCanPacketTimeout (%u ms):  NO RESPONSE for MessageID:  0x%x, status:  %d\n", timeoutMs, messageId, *status);
+  }
+#endif
 }
 
 void HAL_ReadCANPeriodicPacket(HAL_CANHandle handle, int32_t apiId,

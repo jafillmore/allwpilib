@@ -14,7 +14,7 @@
 
 namespace hal {
     namespace init {
-    	static VMXCANReceiveStreamHandle blackboardStreamHandle = 0;
+    	static VMXCANReceiveStreamHandle blackboardStreamHandle = MAU_HAL_BLACKBOARD_STREAM_HANDLE;
     	static uint32_t defaultReceiveStreamMaxMessages = 100;
     	static bool blackboardInitialized = false;
         void InitializeCAN() {
@@ -30,7 +30,7 @@ namespace hal {
 				return;
 			} else {
 				if (!mau::vmxCAN->EnableReceiveStreamBlackboard(blackboardStreamHandle, true, &vmxerr)) {
-					std::printf("Failed top enable default CAN Reception");
+					std::printf("Failed to enable default CAN Reception");
 				} else {
 					blackboardInitialized = true;
 				}
@@ -57,33 +57,44 @@ namespace hal {
 			} else {
 				printf("Set VMX CAN Mode to NORMAL.\n");
 			}
-
-			/* It's recommended to delay 10 Milliseconds after transitioning modes -
+			/* It's recommended to delay 20 Milliseconds after transitioning modes -
 			 * to allow the CAN circuitry to stabilize; otherwise, sometimes
 			 * there will be errors transmitting data during this period.
 			 */
 			mau::vmxTime->DelayMilliseconds(10);
-
         }
     }
 }
 
 extern "C" {
 
-	uint32_t Mau_HAL_GetDefaultCANStreamHandle() {
-		return hal::init::blackboardStreamHandle;
-	}
-
     void HAL_CAN_SendMessage(uint32_t messageID, const uint8_t* data, uint8_t dataSize, int32_t periodMs, int32_t* status) {
 	if (!mau::vmxCAN) {
 		printf("HAL_CAN_SendMessage() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
+	if (status) *status = 0;
 
     	VMXCANMessage message;
+	memset(&message,0,sizeof(message));
 	message.messageID = messageID;
 	message.setData(data, dataSize);
 	message.dataSize = dataSize;
-    	mau::vmxCAN->SendMessage(message, periodMs, status);
+    	if (mau::vmxCAN->SendMessage(message, periodMs, status)) {
+#if 0
+		if (messageID ==0x2052601) {
+			printf("HAL_CAN_SendMessage success - MessageID 0x%x, size:  %d, %02X %02X %02X %02X %02X %02X %02X %02x - periodMs:  %d\n",
+				messageID, dataSize, message.data[0], message.data[1], message.data[2], message.data[3], message.data[4], message.data[5], message.data[6], message.data[7], periodMs);
+		}
+#endif
+	} else {
+#if 0
+		if (messageID ==0x2052601) {
+			printf("HAL_CAN_SendMessage FAIL - MessageID 0x%x, size:  %d, %02X %02X %02X %02X %02X %02X %02X %02x - periodMs:  %d, status:  %d\n",
+				messageID, dataSize, message.data[0], message.data[1], message.data[2], message.data[3], message.data[4], message.data[5], message.data[6], message.data[7], periodMs, *status);
+		}
+#endif
+	}
     }
 
     // timeStamp represents the system timestamp (i.e., "FPGA Timestamp") converted to milliseconds.
@@ -97,6 +108,7 @@ extern "C" {
                                 uint32_t* timeStamp, int32_t* status) {
 	if (!mau::vmxCAN) {
 		printf("HAL_CAN_ReceiveMessage() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
 		VMXCANTimestampedMessage blackboard_msg;
 		uint64_t sys_timestamp;
@@ -105,6 +117,7 @@ extern "C" {
 			*status = VMXERR_CAN_INVALID_RECEIVE_STREAM_HANDLE;
 			return;
 		}
+		if (status) *status = 0;
 		if (mau::vmxCAN->GetBlackboardEntry(hal::init::blackboardStreamHandle, *messageID, blackboard_msg, sys_timestamp, already_retrieved, status)) {
 			if (*status != VMXERR_CAN_BLACKBOARD_ENTRY_NOT_PRESENT) {
 				if (!already_retrieved) {
@@ -125,16 +138,19 @@ extern "C" {
                                    int32_t* status) {
 	if (!mau::vmxCAN) {
 		printf("HAL_CAN_OpenStreamSession() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
     	VMXCANReceiveStreamHandle handle;
-    	if (mau::vmxCAN->OpenReceiveStream(handle, messageID, messageIDMask, maxMessages, status)) {
+    	if (status) *status = 0;
+	if (mau::vmxCAN->OpenReceiveStream(handle, messageID, messageIDMask, maxMessages, status)) {
     		*sessionHandle = handle;
     	}
     }
 
     void HAL_CAN_CloseStreamSession(uint32_t sessionHandle) {
-	if (!mau::vmxCAN) {
+	if (!mau::vmxCAN) {		
 		printf("HAL_CAN_CloseStreamSession() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
     	VMXErrorCode error;
     	mau::vmxCAN->CloseReceiveStream(sessionHandle, &error);
@@ -146,10 +162,12 @@ extern "C" {
                                    uint32_t* messagesRead, int32_t* status) {
 	if (!mau::vmxCAN) {
 		printf("HAL_CAN_ReadStreamSession() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
     	VMXCANTimestampedMessage vmxMessages[NUM_VMXCAN_MESSAGES_IN_BATCH];
     	uint32_t remainingMessagesToRead = messagesToRead;
     	uint32_t currCANStreamMessageIndex = 0;
+	if (status) *status = 0;
     	while (remainingMessagesToRead > 0) {
     		uint32_t currMessagesToRead =
     				(remainingMessagesToRead > NUM_VMXCAN_MESSAGES_IN_BATCH) ?
@@ -176,7 +194,9 @@ extern "C" {
                               uint32_t* receiveErrorCount, uint32_t* transmitErrorCount, int32_t* status) {
 	if (!mau::vmxCAN) {
 		printf("HAL_CAN_GetCANStatus() invoked when mau::vmxCAN is NULL!\n");
+		return;
 	}
+	if (status) *status = 0;
     	VMXCANBusStatus busStatus;
     	if (mau::vmxCAN->GetCANBUSStatus(busStatus, status)) {
     		*percentBusUtilization = busStatus.percentBusUtilization;

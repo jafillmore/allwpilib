@@ -423,6 +423,27 @@ int Socket::DatagramSocket::read(char *buf, size_t length, Socket::SocketAddress
 	return ::recvfrom(_socket, buf, length, 0, (struct sockaddr *)addr->raw_address(), ptr);
 }
 
+int Socket::DatagramSocket::read_with_timeout(char *buf, size_t length, Socket::SocketAddress *addr, uint32_t wait_milliseconds) {
+	fd_set set;
+	struct timeval timeout;
+	FD_ZERO(&set);
+	FD_SET(_socket, &set);
+	
+	timeout.tv_sec = wait_milliseconds / 1000;
+	timeout.tv_usec = (wait_milliseconds % 1000) * 1000;
+
+	int rv = select(_socket+1, &set, NULL, NULL, &timeout);
+	if (rv == -1) {
+		perror("Socket::DatagramSocket::read_with_timeout - select()"); // error
+		return -2;
+	} else if (rv == 0) {
+		return -1; // timeout
+	}
+
+	unsigned int *ptr = (unsigned int *)addr->raw_address_len_ptr();	
+	return ::recvfrom(_socket, buf, length, 0, (struct sockaddr *)addr->raw_address(), ptr);
+}
+
 int Socket::DatagramSocket::send(const char *buf, size_t length, Socket::SocketAddress *addr) {
 	return sendto(_socket, buf, length, 0, (struct sockaddr *)addr->raw_address(), addr->raw_address_length());
 }

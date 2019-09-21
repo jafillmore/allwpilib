@@ -41,6 +41,8 @@ VMXTime* mau::vmxTime = 0;
 VMXPower* mau::vmxPower = 0;
 VMXThread* mau::vmxThread = 0;
 
+bool mau::vmxIOActive = false;
+
 static VMXErrorCode vmxErrCode;
 VMXErrorCode* mau::vmxError = &vmxErrCode;
 
@@ -59,6 +61,7 @@ namespace hal {
 				printf("MAU HAL:  Error expiring IO Watchdog.\n");
 				fflush(stdout);
 			}
+			mau::vmxIOActive = false;
 		}
 		// Shut down the drive station threads, give them time to terminate.
 		TerminateDriverStation();
@@ -162,6 +165,10 @@ namespace hal {
     	    	p_vmxpi->registerFinalShutdownHandler(hal::init::InternalKillHandler);
     	    }
 
+	    /* Initialize (early) the CAN subsystem. */
+            InitializeCAN();
+            InitializeCANAPI();
+
 	    /* Enable the IO Watchdog */
 	    VMXErrorCode vmxerr;
 	    mau::vmxIO->SetWatchdogManagedOutputs(true /* flexdio */, true /* hicurrdio */, true /* commdio */, &vmxerr);
@@ -187,8 +194,6 @@ namespace hal {
             InitializeAnalogInput();
             InitializeAnalogInternal();
             InitializeAnalogOutput();
-            InitializeCAN();
-            InitializeCANAPI();
             InitializeCompressor();
             InitializeConstants();
             InitializeCounter();
@@ -398,16 +403,15 @@ uint64_t HAL_GetFPGATime(int32_t* status) {
  */
 HAL_Bool HAL_GetFPGAButton(int32_t* status) {
     // return SimRoboRioData[0].GetFPGAButton();
-    // TODO: ALL DYLAN! ALL!!!!
-    return 0;
+    return 0; // TODO:  Add code to determine state of "FPGA" button
 }
 
 HAL_Bool HAL_GetSystemActive(int32_t* status) {
-    return true;  // Figure out if we need to handle this
+    return mau::vmxIOActive;
 }
 
 HAL_Bool HAL_GetBrownedOut(int32_t* status) {
-    return false;  // Figure out if we need to detect a brownout condition
+    return false;  // TODO:  Add code to determine brownout state
 }
 
 HAL_Bool HAL_Initialize(int32_t timeout, int32_t mode) {

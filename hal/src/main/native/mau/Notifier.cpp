@@ -18,8 +18,10 @@
 #include <time.h>
 #include <sys/syscall.h>
 
-#include <wpi/condition_variable.h>
-#include <wpi/mutex.h>
+//#include <wpi/condition_variable.h>
+//#include <wpi/mutex.h>
+#include <condition_variable>
+#include <mutex>
 
 #include "HALInitializer.h"
 #include "hal/Errors.h"
@@ -34,7 +36,7 @@ using namespace hal;
 
 static timer_t notifierTimer;
 
-static wpi::mutex notifierMutex;
+static std::mutex notifierMutex;
 static timer_t *notifierAlarm = 0;
 static uint64_t closestTrigger{UINT64_MAX};
 
@@ -44,8 +46,8 @@ struct Notifier {
   uint64_t triggerTime = UINT64_MAX;
   uint64_t triggeredTime = UINT64_MAX;
   bool active = true;
-  wpi::mutex mutex;
-  wpi::condition_variable cond;
+  std::mutex mutex;
+  std::condition_variable cond;
 };
 
 }  // namespace
@@ -62,7 +64,7 @@ class NotifierHandleContainer
   void Cleanup() {
     ForEach([](HAL_NotifierHandle handle, Notifier* notifier) {
       {
-        std::lock_guard<wpi::mutex> lock(notifier->mutex);
+        std::lock_guard<std::mutex> lock(notifier->mutex);
         notifier->active = false;
       }
       notifier->cond.notify_all();  // wake up any waiting threads
@@ -87,9 +89,11 @@ static void alarmCallback(int signum) {
   if (!notifierHandles) return;
   if (!notifierAlarm) return;
 
+  std::lock_guard<std::mutex> lock(notifierMutex);
+
 #ifdef ENABLE_ALARM_DEBUG
   struct timespec tp;
-  char buffer [80];
+  char buffer [1024];
 
   uint64_t currFPGATime = HAL_GetFPGATime(&status);
   uint64_t currFPGADelta = currFPGATime - closestTrigger;
@@ -98,13 +102,11 @@ static void alarmCallback(int signum) {
     if (clock_gettime (CLOCK_MONOTONIC, &tp) == -1)
         perror ("clock_gettime");
 
-    sprintf (buffer, "alarmCallback:  FPGATime:  %lld (delta:  %lld); %ld s %ld ns overrun = %d\n", currFPGATime, currFPGADelta, tp.tv_sec,
+    sprintf (buffer, "alarmCallback:  FPGATime:  %lld, Closest Trigger:  %lld (delta:  %lld); %ld s %ld ns overrun = %d\n", currFPGATime, closestTrigger, currFPGADelta, tp.tv_sec,
                         tp.tv_nsec, timer_getoverrun (*notifierAlarm));
     write (STDOUT_FILENO, buffer, strlen (buffer));
   }
 #endif
-
-  std::lock_guard<wpi::mutex> lock(notifierMutex);
 
 #ifdef ENABLE_ALARM_DEBUG
         sprintf (buffer, "alarmCallback:  Got notifierMutex.\n");
@@ -118,12 +120,12 @@ static void alarmCallback(int signum) {
   notifierHandles->ForEach([&](HAL_NotifierHandle handle, Notifier* notifier) {
     if (notifier->triggerTime == UINT64_MAX) return;
     if (currentTime == 0) currentTime = HAL_GetFPGATime(&status);
-    std::unique_lock<wpi::mutex> lock(notifier->mutex);
+    std::unique_lock<std::mutex> lock(notifier->mutex);
     if (notifier->triggerTime < currentTime) {
       notifier->triggerTime = UINT64_MAX;
       notifier->triggeredTime = currentTime;
       lock.unlock();
-      notifier->cond.notify_all();
+      notifier->cond.notify_one();
     } else if (notifier->triggerTime < closestTrigger) {
       closestTrigger = notifier->triggerTime;
     }
@@ -177,7 +179,12 @@ void *sigalrm_receiver_thread_func(void *arg) {
     struct timespec timeout;
 
     /* SIGALRM for alarm callback */
-    memset (&action, 0, sizeof (struct sigaction));
+    memset(&action, 0, sizeof (struct sigaction));
+    memset(&sev, 0, sizeof(sev));
+    memset(&set, 0, sizeof(set));
+    memset(&siginfo, 0, sizeof(siginfo));
+    memset(&timeout, 0, sizeof(timeout));
+
     action.sa_handler = alarmCallback;
     if (sigaction (SIGALRM, &action, NULL) == -1) {
   	  perror ("sigaction");
@@ -187,6 +194,7 @@ void *sigalrm_receiver_thread_func(void *arg) {
     sev.sigev_signo = SIGALRM;
     //sev.sigev_notify_thread_id = syscall(__NR_gettid);
     sev._sigev_un._tid = syscall(__NR_gettid);
+    sev.sigev_value.sival_int = 0;
 
     sigemptyset(&set);
     sigaddset(&set, SIGALRM);
@@ -202,21 +210,22 @@ void *sigalrm_receiver_thread_func(void *arg) {
     printf("sigalrm_receiver_thread_func() started.\n");
 #endif
 
-	quit_sigalrm_receiver_thread = false;
+    quit_sigalrm_receiver_thread = false;
 
 	/* Set this thread as highest priority */
     param.sched_priority = sched_get_priority_max(SCHED_FIFO);
     sched_setscheduler(0, SCHED_FIFO, &param);
 
-    timeout.tv_nsec = 50 * 1000000; // 50 milliseconds
-    timeout.tv_sec = 0;
-
 	while (!quit_sigalrm_receiver_thread) {
+		timeout.tv_nsec = 50 * 1000000; // 50 milliseconds
+		timeout.tv_sec = 0;
 		int signum = sigtimedwait(&set, &siginfo, &timeout);
 		if (signum == -1) {
 				if (errno == EAGAIN) {
 					if (notifier_active) {
+#ifdef ENABLE_ALARM_DEBUG
 						perror("Timeout in SIGALRM sigtimedwait().\n");
+#endif
 					}
 				} else {
 					perror("sigwait in sigalrm_receiver_thread().");
@@ -264,7 +273,7 @@ HAL_NotifierHandle HAL_InitializeNotifier(int32_t* status) {
     std::atexit(cleanupNotifierAtExit);
 
   if (notifierRefCount.fetch_add(1) == 0) {
-    std::lock_guard<wpi::mutex> lock(notifierMutex);
+    std::lock_guard<std::mutex> lock(notifierMutex);
     // create alarm if not already created
 
     if (!notifierAlarm) {
@@ -286,7 +295,7 @@ void HAL_StopNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
   if (!notifier) return;
 
   {
-    std::lock_guard<wpi::mutex> lock(notifier->mutex);
+    std::lock_guard<std::mutex> lock(notifier->mutex);
     notifier->triggerTime = UINT64_MAX;
     notifier->triggeredTime = 0;
     notifier->active = false;
@@ -300,7 +309,7 @@ void HAL_CleanNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
 
   // Just in case HAL_StopNotifier() wasn't called...
   {
-    std::lock_guard<wpi::mutex> lock(notifier->mutex);
+    std::lock_guard<std::mutex> lock(notifier->mutex);
     notifier->triggerTime = UINT64_MAX;
     notifier->triggeredTime = 0;
     notifier->active = false;
@@ -319,7 +328,7 @@ void HAL_CleanNotifier(HAL_NotifierHandle notifierHandle, int32_t* status) {
     // if (notifierAlarm) notifierAlarm->writeEnable(false, status);
     // if (notifierManager) notifierManager->disable(status);
 
-    // std::lock_guard<wpi::mutex> lock(notifierMutex);
+    // std::lock_guard<std::mutex> lock(notifierMutex);
     // notifierAlarm = nullptr;
     // notifierManager = nullptr;
     // closestTrigger = UINT64_MAX;
@@ -334,17 +343,17 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
   notifier_active = true;
 
 #ifdef ENABLE_ALARM_DEBUG
-  printf("ERROR:  HAL_UpdateNotifierAlarm entered - new trigger time:  %llu.\n", triggerTime);
+  printf("TRACE:  HAL_UpdateNotifierAlarm entered - new trigger time:  %llu.\n", triggerTime);
   fflush(stdout);
 #endif
 
   {
-    std::lock_guard<wpi::mutex> lock(notifier->mutex);
+    std::lock_guard<std::mutex> lock(notifier->mutex);
     notifier->triggerTime = triggerTime;
     notifier->triggeredTime = UINT64_MAX;
   }
 
-  std::lock_guard<wpi::mutex> lock(notifierMutex);
+  std::lock_guard<std::mutex> lock(notifierMutex);
 
   // Update alarm time if closer than current.
   if (triggerTime < closestTrigger) {
@@ -361,7 +370,7 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
     if (currentTime > closestTrigger) {
 	if (was_active) {
     	    {
-    		std::lock_guard<wpi::mutex> notifier_lock(notifier->mutex);
+    		std::lock_guard<std::mutex> notifier_lock(notifier->mutex);
     		// closest trigger already expired; trigger callback directly
     		// this will cause the next closest trigger to be configured.
     		notifier->triggerTime = UINT64_MAX;
@@ -411,7 +420,7 @@ void HAL_UpdateNotifierAlarm(HAL_NotifierHandle notifierHandle,
 #endif
   }
 #ifdef ENABLE_ALARM_DEBUG
-  printf("ERROR:  HAL_UpdateNotifierAlarm exiting.\n");
+  printf("TRACE:  HAL_UpdateNotifierAlarm exiting.\n");
   fflush(stdout);
 #endif
 }
@@ -422,7 +431,7 @@ void HAL_CancelNotifierAlarm(HAL_NotifierHandle notifierHandle,
   if (!notifier) return;
 
   {
-    std::lock_guard<wpi::mutex> lock(notifier->mutex);
+    std::lock_guard<std::mutex> lock(notifier->mutex);
     notifier->triggerTime = UINT64_MAX;
   }
 }
@@ -437,7 +446,7 @@ uint64_t HAL_WaitForNotifierAlarm(HAL_NotifierHandle notifierHandle,
   auto timeoutTime = hal::fpga_clock::epoch()
 			+ std::chrono::duration<double>(5.0);
 
-  std::unique_lock<wpi::mutex> lock(notifier->mutex);
+  std::unique_lock<std::mutex> lock(notifier->mutex);
   bool wait_timeout = notifier->cond.wait_until(lock, timeoutTime, [&] {
     return !notifier->active || notifier->triggeredTime != UINT64_MAX;
   });

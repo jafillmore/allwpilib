@@ -26,6 +26,8 @@ namespace mau {
     extern Mau_ChannelMap* channelMap;
     extern Mau_EnumConverter* enumConverter;
 
+    extern bool vmxIOActive;
+
     inline VMXChannelInfo GetChannelInfo(hal::HAL_HandleEnum hal_handle_type, int channel_index) {
     	VMXChannelInfo chan_info =
     			channelMap->getChannelInfo(enumConverter->getHandleLabel(hal_handle_type), channel_index);
