@@ -106,7 +106,6 @@ if (NOT WITHOUT_JAVA)
     install(TARGETS halvmxjni EXPORT halvmxjni DESTINATION "${main_lib_dest}")
 
     file(GLOB hal_sim_native_src src/main/native/mau/simjni/*.cpp)
-
 endif()
 
 file(GLOB
@@ -184,9 +183,6 @@ else()
     set (hal_config_dir share/hal)
 endif()
 
-# Add Phoenix platform library to built items
-add_subdirectory(src/main/native/mau/phoenix)
-
 install(FILES hal-config.cmake DESTINATION ${hal_config_dir})
 install(EXPORT hal DESTINATION ${hal_config_dir})
 
@@ -254,3 +250,6 @@ add_custom_command(TARGET hal POST_BUILD
 add_custom_command(TARGET hal POST_BUILD
 		   COMMAND cp -r
 		   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/sim ${CMAKE_CURRENT_BINARY_DIR}/sources/sim)
+
+# Add Phoenix platform library to built items
+add_subdirectory(src/main/native/mau/phoenix)
