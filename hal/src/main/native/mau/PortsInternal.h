@@ -67,6 +67,8 @@ namespace hal {
     constexpr int32_t kNumPDPModules = 63;
     constexpr int32_t kNumPDPChannels = 16;
     constexpr int32_t kNumCanTalons = 63;
+    constexpr int32_t kNumDutyCycles = kNumDigitalChannels; // TODO:  Is this correct for VMX-pi HAL?
+    constexpr int32_t kNumAddressableLEDs = 2; // TODO:  Is this correct for VMX-pi HAL?
 
     enum class HAL_ChannelAddressDomain {
     	/* NOTE:  This enumeration does not contain Relay Channels */

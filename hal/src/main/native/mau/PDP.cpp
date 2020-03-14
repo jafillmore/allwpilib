@@ -173,9 +173,8 @@ double HAL_GetPDPTemperature(HAL_PDPHandle handle, int32_t* status) {
   int32_t length = 0;
   uint64_t receivedTimestamp = 0;
 
-  HAL_ReadCANPeriodicPacket(handle, Status3, pdpStatus.data, &length,
-                            &receivedTimestamp, TimeoutMs, StatusPeriodMs,
-                            status);
+  HAL_ReadCANPacketTimeout(handle, Status3, pdpStatus.data, &length,
+                            &receivedTimestamp, TimeoutMs, status);
 
   return pdpStatus.bits.temp * 1.03250836957542 - 67.8564500484966;
 }
@@ -185,8 +184,8 @@ double HAL_GetPDPVoltage(HAL_PDPHandle handle, int32_t* status) {
   int32_t length = 0;
   uint64_t receivedTimestamp = 0;
 
-  HAL_ReadCANPeriodicPacket(handle, Status3, pdpStatus.data, &length,
-                            &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+  HAL_ReadCANPacketTimeout(handle, Status3, pdpStatus.data, &length,
+                            &receivedTimestamp, TimeoutMs,
                             status);
 
   return pdpStatus.bits.busVoltage * 0.05 + 4.0; /* 50mV per unit plus 4V. */
@@ -206,8 +205,8 @@ double HAL_GetPDPChannelCurrent(HAL_PDPHandle handle, int32_t channel,
 
   if (channel <= 5) {
     PdpStatus1 pdpStatus;
-    HAL_ReadCANPeriodicPacket(handle, Status1, pdpStatus.data, &length,
-                              &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+    HAL_ReadCANPacketTimeout(handle, Status1, pdpStatus.data, &length,
+                              &receivedTimestamp, TimeoutMs,
                               status);
     switch (channel) {
       case 0:
@@ -237,8 +236,8 @@ double HAL_GetPDPChannelCurrent(HAL_PDPHandle handle, int32_t channel,
     }
   } else if (channel <= 11) {
     PdpStatus2 pdpStatus;
-    HAL_ReadCANPeriodicPacket(handle, Status2, pdpStatus.data, &length,
-                              &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+    HAL_ReadCANPacketTimeout(handle, Status2, pdpStatus.data, &length,
+                              &receivedTimestamp, TimeoutMs,
                               status);
     switch (channel) {
       case 6:
@@ -268,8 +267,8 @@ double HAL_GetPDPChannelCurrent(HAL_PDPHandle handle, int32_t channel,
     }
   } else {
     PdpStatus3 pdpStatus;
-    HAL_ReadCANPeriodicPacket(handle, Status3, pdpStatus.data, &length,
-                              &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+    HAL_ReadCANPacketTimeout(handle, Status3, pdpStatus.data, &length,
+                              &receivedTimestamp, TimeoutMs,
                               status);
     switch (channel) {
       case 12:
@@ -295,13 +294,82 @@ double HAL_GetPDPChannelCurrent(HAL_PDPHandle handle, int32_t channel,
   return raw * 0.125; /* 7.3 fixed pt value in Amps */
 }
 
+void HAL_GetPDPAllChannelCurrents(HAL_PDPHandle handle, double* currents,
+                                  int32_t* status) {
+  int32_t length = 0;
+  uint64_t receivedTimestamp = 0;
+  PdpStatus1 pdpStatus;
+  HAL_ReadCANPacketTimeout(handle, Status1, pdpStatus.data, &length,
+                           &receivedTimestamp, TimeoutMs, status);
+  if (*status != 0) return;
+  PdpStatus2 pdpStatus2;
+  HAL_ReadCANPacketTimeout(handle, Status2, pdpStatus2.data, &length,
+                           &receivedTimestamp, TimeoutMs, status);
+  if (*status != 0) return;
+  PdpStatus3 pdpStatus3;
+  HAL_ReadCANPacketTimeout(handle, Status3, pdpStatus3.data, &length,
+                           &receivedTimestamp, TimeoutMs, status);
+  if (*status != 0) return;
+
+  currents[0] = ((static_cast<uint32_t>(pdpStatus.bits.chan1_h8) << 2) |
+                 pdpStatus.bits.chan1_l2) *
+                0.125;
+  currents[1] = ((static_cast<uint32_t>(pdpStatus.bits.chan2_h6) << 4) |
+                 pdpStatus.bits.chan2_l4) *
+                0.125;
+  currents[2] = ((static_cast<uint32_t>(pdpStatus.bits.chan3_h4) << 6) |
+                 pdpStatus.bits.chan3_l6) *
+                0.125;
+  currents[3] = ((static_cast<uint32_t>(pdpStatus.bits.chan4_h2) << 8) |
+                 pdpStatus.bits.chan4_l8) *
+                0.125;
+  currents[4] = ((static_cast<uint32_t>(pdpStatus.bits.chan5_h8) << 2) |
+                 pdpStatus.bits.chan5_l2) *
+                0.125;
+  currents[5] = ((static_cast<uint32_t>(pdpStatus.bits.chan6_h6) << 4) |
+                 pdpStatus.bits.chan6_l4) *
+                0.125;
+
+  currents[6] = ((static_cast<uint32_t>(pdpStatus2.bits.chan7_h8) << 2) |
+                 pdpStatus2.bits.chan7_l2) *
+                0.125;
+  currents[7] = ((static_cast<uint32_t>(pdpStatus2.bits.chan8_h6) << 4) |
+                 pdpStatus2.bits.chan8_l4) *
+                0.125;
+  currents[8] = ((static_cast<uint32_t>(pdpStatus2.bits.chan9_h4) << 6) |
+                 pdpStatus2.bits.chan9_l6) *
+                0.125;
+  currents[9] = ((static_cast<uint32_t>(pdpStatus2.bits.chan10_h2) << 8) |
+                 pdpStatus2.bits.chan10_l8) *
+                0.125;
+  currents[10] = ((static_cast<uint32_t>(pdpStatus2.bits.chan11_h8) << 2) |
+                  pdpStatus2.bits.chan11_l2) *
+                 0.125;
+  currents[11] = ((static_cast<uint32_t>(pdpStatus2.bits.chan12_h6) << 4) |
+                  pdpStatus2.bits.chan12_l4) *
+                 0.125;
+
+  currents[12] = ((static_cast<uint32_t>(pdpStatus3.bits.chan13_h8) << 2) |
+                  pdpStatus3.bits.chan13_l2) *
+                 0.125;
+  currents[13] = ((static_cast<uint32_t>(pdpStatus3.bits.chan14_h6) << 4) |
+                  pdpStatus3.bits.chan14_l4) *
+                 0.125;
+  currents[14] = ((static_cast<uint32_t>(pdpStatus3.bits.chan15_h4) << 6) |
+                  pdpStatus3.bits.chan15_l6) *
+                 0.125;
+  currents[15] = ((static_cast<uint32_t>(pdpStatus3.bits.chan16_h2) << 8) |
+                  pdpStatus3.bits.chan16_l8) *
+                 0.125;
+}
+
 double HAL_GetPDPTotalCurrent(HAL_PDPHandle handle, int32_t* status) {
   PdpStatusEnergy pdpStatus;
   int32_t length = 0;
   uint64_t receivedTimestamp = 0;
 
-  HAL_ReadCANPeriodicPacket(handle, StatusEnergy, pdpStatus.data, &length,
-                            &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+  HAL_ReadCANPacketTimeout(handle, StatusEnergy, pdpStatus.data, &length,
+                            &receivedTimestamp, TimeoutMs,
                             status);
 
   uint32_t raw;
@@ -316,8 +384,8 @@ double HAL_GetPDPTotalPower(HAL_PDPHandle handle, int32_t* status) {
   int32_t length = 0;
   uint64_t receivedTimestamp = 0;
 
-  HAL_ReadCANPeriodicPacket(handle, StatusEnergy, pdpStatus.data, &length,
-                            &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+  HAL_ReadCANPacketTimeout(handle, StatusEnergy, pdpStatus.data, &length,
+                            &receivedTimestamp, TimeoutMs,
                             status);
 
   uint32_t raw;
@@ -334,8 +402,8 @@ double HAL_GetPDPTotalEnergy(HAL_PDPHandle handle, int32_t* status) {
   int32_t length = 0;
   uint64_t receivedTimestamp = 0;
 
-  HAL_ReadCANPeriodicPacket(handle, StatusEnergy, pdpStatus.data, &length,
-                            &receivedTimestamp, TimeoutMs, StatusPeriodMs,
+  HAL_ReadCANPacketTimeout(handle, StatusEnergy, pdpStatus.data, &length,
+                            &receivedTimestamp, TimeoutMs,
                             status);
 
   uint32_t raw;

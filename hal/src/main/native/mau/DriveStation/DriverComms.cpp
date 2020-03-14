@@ -146,9 +146,6 @@ namespace mau {
     	// Integrated Memory Allocation & Queue Routines
     	void *AllocMessageMemoryWithReclamation(size_t len);
 
-    	// Internal helpers
-        void enqueuePrintMessage(char *msg);
-
         uint32_t getTotalSystemMemory();
         uint64_t getAvailableDiskSpace();
     }
@@ -398,6 +395,27 @@ int32_t mau::comms::enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, u
 	return -1;
 }
 
+int32_t mau::comms::enqueuePrintMessage(char *msg) {
+	ErrorOrPrintMessage m;
+	// Calculate required length
+	int len = m.FormatPrintMessage(NULL, MAX_MESSAGE_LEN, sequence_number, msg);
+	if (len < 0) return - 1;
+
+	// Allocate storage for message
+	unsigned char *p_mem = static_cast<unsigned char *>(AllocMessageMemoryWithReclamation(len));
+	if (p_mem) {
+		len = m.FormatPrintMessage(p_mem, len, sequence_number, msg);
+		if (len > 0) {
+			sequence_number++;
+			AddTail(static_cast<MessageHeader *>(static_cast<void *>(p_mem)));
+                        return 0;
+		} else {
+			FreeMessageMemory(p_mem);
+		}
+	}
+	return -1;
+}
+
 // All protocol tags are sent in ROBOT->DS direction, except where indicated below
 #define DS_TCP_PROTOCOL_TAG_ERROR_WARN_MSG			0	// Same format as currently used, <markup>, etc.
 #define DS_TCP_PROTOCOL_USAGE_REPORT				1	// Same as currently used
@@ -510,7 +528,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 	// Decode Packet Number
 	sq_1 = data[0];
     sq_2 = data[1];
-    uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
+    //uint16_t sequence_number = (static_cast<uint16_t>(sq_1) << 8) + sq_2;
 
     char version = data[DS_UDP_PROTOCOL_HEADER_INDEX_VERSION];
 
@@ -531,7 +549,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
         //bool usage_request = IS_BIT_SET(udp_ds_request, 1);
         bool restart = IS_BIT_SET(udp_ds_request, 2);			// Soft Restart
         bool reboot = IS_BIT_SET(udp_ds_request, 3);			// Hard Restart
-        bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);		// Program Start Requested
+        //bool progStartRequest = IS_BIT_SET(udp_ds_request, 4);		// Program Start Requested
 
         int shutdown_code = MAU_COMMS_SHUTDOWN_NONE;
         if (reboot || restart) {
@@ -665,7 +683,7 @@ int mau::comms::decodeUdpPacket(char* data, int length) {
 	Mau_DriveData::updateUnlockAndSignal();
 
 	uint64_t now_time = mau::vmxGetTime();
-	uint64_t delta = now_time - lastDsUDPUpdateReceivedTimestamp;
+	//uint64_t delta = now_time - lastDsUDPUpdateReceivedTimestamp;
         lastDsUDPUpdateReceivedTimestamp = now_time;
     }
     return MAU_COMMS_SHUTDOWN_NONE;
@@ -874,9 +892,13 @@ namespace mau {
 						addr.set_port(WPI_DRIVESTATION_UDP_DSLISTEN_PORT);
 						sock.send(ds_udp_send_buffer, 63, &addr);
 
+#if 0
 						bool state_update = false;
+#endif
 						if (first_packet || (mau::comms::udp_ds_control != last_udp_ds_control)) {
+#if 0
 							state_update = true;
+#endif
 							ds_ctl_string[0] = IS_BIT_SET(mau::comms::udp_ds_control,7) ? '!' : '-';		  // E-Stop
 							ds_ctl_string[1] = '.';
 							ds_ctl_string[2] = '.';
@@ -888,7 +910,9 @@ namespace mau {
 							ds_ctl_string[8] = 0;							
 						}
 						if (first_packet || (mau::comms::udp_ds_request != last_udp_ds_request)) {
+#if 0
 							state_update = true;
+#endif
 							ds_req_string[0] = '.';
 							ds_req_string[1] = '.';
 							ds_req_string[2] = '.';
@@ -904,7 +928,9 @@ namespace mau {
 						char robot_program_trace = ds_udp_send_buffer[4];
 						
 						if (first_packet || (robot_status_code != last_udp_robot_status)) {
+#if 0
 							state_update = true;
+#endif
 							robot_status_string[0] = IS_BIT_SET(robot_status_code,7) ? '!' : '-';       // E-Stop
 							robot_status_string[1] = '.';
 							robot_status_string[2] = '.';
@@ -916,7 +942,9 @@ namespace mau {
 							robot_status_string[8] = 0;							
 						}
 						if (first_packet || (robot_program_trace != last_udp_robot_program_trace)) {
+#if 0
 							state_update = true;
+#endif
 							robot_program_trace_string[0] = '.';
 							robot_program_trace_string[1] = '.';
 							robot_program_trace_string[2] = IS_BIT_SET(robot_program_trace,5) ? 'U' : '-'; // UserCode
@@ -1058,25 +1086,6 @@ namespace mau {
     		return p_mem;
     	}
 
-        void enqueuePrintMessage(char *msg) {
-        	ErrorOrPrintMessage m;
-        	// Calculate required length
-        	int len = m.FormatPrintMessage(NULL, MAX_MESSAGE_LEN, sequence_number, msg);
-        	if (len < 0) return;
-
-        	// Allocate storage for message
-        	unsigned char *p_mem = static_cast<unsigned char *>(AllocMessageMemoryWithReclamation(len));
-        	if (p_mem) {
-        		len = m.FormatPrintMessage(p_mem, len, sequence_number, msg);
-        		if (len > 0) {
-        			sequence_number++;
-        			AddTail(static_cast<MessageHeader *>(static_cast<void *>(p_mem)));
-        		} else {
-        			FreeMessageMemory(p_mem);
-        		}
-        	}
-        }
-
         void stdCaptureProcess(int capture_fd) {
 
         	fd_set set;
@@ -1128,7 +1137,7 @@ namespace mau {
 								if (num_read > 0) {
 									line[num_read - 1] = 0; // replace final line feed with null
 								}
-								enqueuePrintMessage(line);
+								mau::comms::enqueuePrintMessage(line);
 							}
 						}
 					} else {

@@ -250,6 +250,20 @@ extern "C" {
         return retval;
     }
 
+    int32_t HAL_SendConsoleLine(const char* line) {
+      wpi::StringRef lineRef{line};
+      if (lineRef.size() <= 65535) {
+        // Send directly
+        mau::comms::enqueuePrintMessage((char *)line);
+        return 0;
+      } else {
+        // Need to truncate
+        std::string newLine{line, 65535};
+        mau::comms::enqueuePrintMessage((char *)newLine.c_str());
+        return 0;
+      }
+    }
+
     int32_t HAL_GetControlWord(HAL_ControlWord* controlWord) {
         *controlWord = Mau_DriveData::readControlWord();
         return 0;

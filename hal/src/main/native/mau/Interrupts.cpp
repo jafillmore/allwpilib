@@ -479,4 +479,42 @@ void HAL_SetInterruptUpSourceEdge(HAL_InterruptHandle interruptHandle,
 	}
 }
 
+void HAL_ReleaseWaitingInterrupt(HAL_InterruptHandle interruptHandle,
+                                 int32_t* status) {
+  auto anInterrupt = interruptHandles->Get(interruptHandle);
+  if (anInterrupt == nullptr) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
+
+  int16_t hal_interrupt_handle_index = getHandleIndex(interruptHandle);
+  if (hal_interrupt_handle_index >= kNumInterrupts) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
+
+  if (INVALID_VMX_RESOURCE_HANDLE(anInterrupt->vmx_res_handle)) {
+    *status = VMXERR_IO_INVALID_RESOURCE_HANDLE;
+    return;
+  }
+
+  VMXResourceIndex vmx_interrupt_res_index = EXTRACT_VMX_RESOURCE_INDEX(anInterrupt->vmx_res_handle);
+  if (vmx_interrupt_res_index >= kNumVMXPiInterrupts) {
+    *status = VMXERR_IO_INVALID_RESOURCE_INDEX;
+    return;
+  }
+
+
+#if 0
+
+  mau::vmxIO->DeallocateResource(anInterrupt->vmx_res_handle, status);
+
+  HAL_EnableInterrupts(interruptHandle, status);
+#endif
+
+  std::printf("HAL_ReleaseWaitingInterrupt() - TODO:  Implementatation goes here.");
+
+}
+
+
 }  // extern "C"

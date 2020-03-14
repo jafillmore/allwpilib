@@ -83,7 +83,7 @@ static void DeallocateVMXAnalogTrigger(std::shared_ptr<AnalogTriggerResource> po
 }
 
 extern "C" {
-    HAL_AnalogTriggerHandle HAL_InitializeAnalogTrigger(HAL_AnalogInputHandle anInHandle, int32_t* index,
+    HAL_AnalogTriggerHandle HAL_InitializeAnalogTrigger(HAL_AnalogInputHandle anInHandle,
                                                         int32_t* status) {
         hal::init::CheckInit();
         // ensure we are given a valid and active AnalogInput handle
@@ -114,6 +114,39 @@ extern "C" {
             analogTriggerHandles->Free(handle);
             return HAL_kInvalidHandle;
         }
+    }
+
+    HAL_AnalogTriggerHandle HAL_InitializeAnalogTriggerDutyCycle(
+        HAL_DutyCycleHandle dutyCycleHandle, int32_t* status) {
+      hal::init::CheckInit();
+#if 0
+      // ensure we are given a valid and active DutyCycle handle
+      auto dutyCycle = dutyCycleHandles->Get(dutyCycleHandle);
+      if (dutyCycle == nullptr) {
+        *status = HAL_HANDLE_ERROR;
+        return HAL_kInvalidHandle;
+      }
+      HAL_AnalogTriggerHandle handle = analogTriggerHandles->Allocate();
+      if (handle == HAL_kInvalidHandle) {
+        *status = NO_AVAILABLE_RESOURCES;
+        return HAL_kInvalidHandle;
+      }
+      auto trigger = analogTriggerHandles->Get(handle);
+      if (trigger == nullptr) {  // would only occur on thread issue
+        *status = HAL_HANDLE_ERROR;
+        return HAL_kInvalidHandle;
+      }
+      trigger->handle = dutyCycleHandle;
+      trigger->index = static_cast<uint8_t>(getHandleIndex(handle));
+
+
+      trigger->trigger.reset(tAnalogTrigger::create(trigger->index, status));
+      trigger->trigger->writeSourceSelect_Channel(dutyCycle->index, status);
+      trigger->trigger->writeSourceSelect_DutyCycle(true, status);
+      return handle;
+#endif
+        *status = HAL_HANDLE_ERROR;
+        return HAL_kInvalidHandle;
     }
 
     // Note:  caller owns the analog input handle, even after the trigger is freed.
@@ -163,6 +196,42 @@ extern "C" {
         trigger->vmx_config.SetThresholdLow(static_cast<uint16_t>(lower));
         trigger->vmx_config.SetThresholdHigh(static_cast<uint16_t>(upper));
         AllocateVMXAnalogTrigger(trigger->analogInputHandle, trigger, status);
+    }
+
+    void HAL_SetAnalogTriggerLimitsDutyCycle(
+        HAL_AnalogTriggerHandle analogTriggerHandle, double lower, double upper,
+        int32_t* status) {
+      auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
+      if (trigger == nullptr) {
+        *status = HAL_HANDLE_ERROR;
+        return;
+      }
+#if 0
+      if (getHandleType(trigger->handle) != HAL_HandleEnum::DutyCycle) {
+        *status = HAL_HANDLE_ERROR;
+        return;
+      }
+      if (lower > upper) {
+        *status = ANALOG_TRIGGER_LIMIT_ORDER_ERROR;
+        return;
+      }
+
+      if (lower < 0.0 || upper > 1.0) {
+        *status = PARAMETER_OUT_OF_RANGE;
+        return;
+      }
+
+      int32_t scaleFactor =
+          HAL_GetDutyCycleOutputScaleFactor(trigger->handle, status);
+      if (*status != 0) {
+        return;
+      }
+
+      trigger->trigger->writeLowerLimit(static_cast<int32_t>(scaleFactor * lower),
+                                        status);
+      trigger->trigger->writeUpperLimit(static_cast<int32_t>(scaleFactor * upper),
+                                        status);
+#endif
     }
 
     void HAL_SetAnalogTriggerLimitsVoltage(HAL_AnalogTriggerHandle analogTriggerHandle, double lower_volts, double upper_volts,
@@ -267,4 +336,18 @@ extern "C" {
             return false;
         }
     }
+
+    // Newly added in 2020 WPI Library HAL
+    // Returns the trigger's "index" value, which is used by Mau
+
+    int32_t HAL_GetAnalogTriggerFPGAIndex(
+        HAL_AnalogTriggerHandle analogTriggerHandle, int32_t* status) {
+        auto trigger = analogTriggerHandles->Get(analogTriggerHandle);
+        if (trigger == nullptr) {
+          *status = HAL_HANDLE_ERROR;
+          return -1;
+        }
+        return trigger->index;
+    }
+
 }

@@ -151,6 +151,9 @@ extern "C" {
         digitalChannelHandles->Free(dioPortHandle, HAL_HandleEnum::DIO);
     }
 
+    void HAL_SetDIOSimDevice(HAL_DigitalHandle handle, HAL_SimDeviceHandle device) {
+    }
+
     /**
      * Allocate a DO PWM Generator.
      * Allocate PWM generators so that they are not accidentally reused.

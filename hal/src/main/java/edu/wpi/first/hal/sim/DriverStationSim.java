@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-/* Copyright (c) 2018 FIRST. All Rights Reserved.                             */
+/* Copyright (c) 2018-2019 FIRST. All Rights Reserved.                        */
 /* Open Source Software - may be modified and shared by FRC teams. The code   */
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project.                                                               */
@@ -77,6 +77,15 @@ public class DriverStationSim {
   }
   public void notifyNewData() {
     DriverStationDataJNI.notifyNewData();
+  }
+
+  /**
+   * Toggles suppression of DriverStation.reportError and reportWarning messages.
+   *
+   * @param shouldSend If false then messages will will be suppressed.
+   */
+  public void setSendError(boolean shouldSend) {
+    DriverStationDataJNI.setSendError(shouldSend);
   }
 
   public void resetData() {

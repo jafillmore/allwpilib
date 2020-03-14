@@ -188,6 +188,9 @@ void HAL_FreeEncoder(HAL_EncoderHandle encoderHandle, int32_t* status) {
 	encoderHandles->Free(encoderHandle);
 }
 
+void HAL_SetEncoderSimDevice(HAL_EncoderHandle handle,
+                             HAL_SimDeviceHandle device) {}
+
 /* Get the current count from the encoder.  This method compensates for the decoding type. */
 int32_t HAL_GetEncoder(HAL_EncoderHandle encoderHandle, int32_t* status) {
 	auto encoder = encoderHandles->Get(encoderHandle);

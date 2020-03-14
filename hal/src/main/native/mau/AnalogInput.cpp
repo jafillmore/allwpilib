@@ -39,7 +39,7 @@ extern "C" {
 
         port->vmx_config = AccumulatorConfig();
         // Clear all capabilities except for Accumulator Input
-        if ((port->vmx_chan_info.capabilities && VMXChannelCapability::AccumulatorInput) == 0) {
+        if ((port->vmx_chan_info.capabilities & VMXChannelCapability::AccumulatorInput) == 0) {
         	// Error:  This VMX Channel doesn't have AccumulatorInput Capability.
         	return HAL_kInvalidHandle;
         }
@@ -69,6 +69,9 @@ extern "C" {
     HAL_Bool HAL_CheckAnalogInputChannel(int32_t channel) {
    		return isWPILibChannelValid(HAL_ChannelAddressDomain::AnalogInput, channel);
     }
+
+    void HAL_SetAnalogInputSimDevice(HAL_AnalogInputHandle handle,
+                                     HAL_SimDeviceHandle device) {}
 
     /**
      * Set the sample rate per channel for all analog channels.

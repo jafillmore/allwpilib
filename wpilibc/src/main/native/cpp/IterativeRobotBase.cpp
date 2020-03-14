@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-/* Copyright (c) 2017-2018 FIRST. All Rights Reserved.                        */
+/* Copyright (c) 2017-2020 FIRST. All Rights Reserved.                        */
 /* Open Source Software - may be modified and shared by FRC teams. The code   */
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project.                                                               */
@@ -9,23 +9,32 @@
 
 #include <cstdio>
 
-#include <hal/HAL.h>
+#include <hal/DriverStation.h>
+#include <hal/FRCUsageReporting.h>
+#include <wpi/Format.h>
 #include <wpi/SmallString.h>
 #include <wpi/raw_ostream.h>
 
 #include "frc/DriverStation.h"
 #include "frc/Timer.h"
-#include "frc/commands/Scheduler.h"
 #include "frc/livewindow/LiveWindow.h"
+#include "frc/shuffleboard/Shuffleboard.h"
 #include "frc/smartdashboard/SmartDashboard.h"
 
 using namespace frc;
 
 IterativeRobotBase::IterativeRobotBase(double period)
+    : IterativeRobotBase(units::second_t(period)) {}
+
+IterativeRobotBase::IterativeRobotBase(units::second_t period)
     : m_period(period),
       m_watchdog(period, [this] { PrintLoopOverrunMessage(); }) {}
 
 void IterativeRobotBase::RobotInit() {
+  wpi::outs() << "Default " << __FUNCTION__ << "() method... Override me!\n";
+}
+
+void IterativeRobotBase::SimulationInit() {
   wpi::outs() << "Default " << __FUNCTION__ << "() method... Override me!\n";
 }
 
@@ -46,6 +55,14 @@ void IterativeRobotBase::TestInit() {
 }
 
 void IterativeRobotBase::RobotPeriodic() {
+  static bool firstRun = true;
+  if (firstRun) {
+    wpi::outs() << "Default " << __FUNCTION__ << "() method... Override me!\n";
+    firstRun = false;
+  }
+}
+
+void IterativeRobotBase::SimulationPeriodic() {
   static bool firstRun = true;
   if (firstRun) {
     wpi::outs() << "Default " << __FUNCTION__ << "() method... Override me!\n";
@@ -94,6 +111,7 @@ void IterativeRobotBase::LoopFunc() {
     // either a different mode or from power-on.
     if (m_lastMode != Mode::kDisabled) {
       LiveWindow::GetInstance()->SetEnabled(false);
+      Shuffleboard::DisableActuatorWidgets();
       DisabledInit();
       m_watchdog.AddEpoch("DisabledInit()");
       m_lastMode = Mode::kDisabled;
@@ -107,6 +125,7 @@ void IterativeRobotBase::LoopFunc() {
     // either a different mode or from power-on.
     if (m_lastMode != Mode::kAutonomous) {
       LiveWindow::GetInstance()->SetEnabled(false);
+      Shuffleboard::DisableActuatorWidgets();
       AutonomousInit();
       m_watchdog.AddEpoch("AutonomousInit()");
       m_lastMode = Mode::kAutonomous;
@@ -120,10 +139,10 @@ void IterativeRobotBase::LoopFunc() {
     // either a different mode or from power-on.
     if (m_lastMode != Mode::kTeleop) {
       LiveWindow::GetInstance()->SetEnabled(false);
+      Shuffleboard::DisableActuatorWidgets();
       TeleopInit();
       m_watchdog.AddEpoch("TeleopInit()");
       m_lastMode = Mode::kTeleop;
-      Scheduler::GetInstance()->SetEnabled(true);
     }
 
     HAL_ObserveUserProgramTeleop();
@@ -134,6 +153,7 @@ void IterativeRobotBase::LoopFunc() {
     // either a different mode or from power-on.
     if (m_lastMode != Mode::kTest) {
       LiveWindow::GetInstance()->SetEnabled(true);
+      Shuffleboard::EnableActuatorWidgets();
       TestInit();
       m_watchdog.AddEpoch("TestInit()");
       m_lastMode = Mode::kTest;
@@ -146,10 +166,20 @@ void IterativeRobotBase::LoopFunc() {
 
   RobotPeriodic();
   m_watchdog.AddEpoch("RobotPeriodic()");
-  m_watchdog.Disable();
-  SmartDashboard::UpdateValues();
 
+  SmartDashboard::UpdateValues();
+  m_watchdog.AddEpoch("SmartDashboard::UpdateValues()");
   LiveWindow::GetInstance()->UpdateValues();
+  m_watchdog.AddEpoch("LiveWindow::UpdateValues()");
+  Shuffleboard::Update();
+  m_watchdog.AddEpoch("Shuffleboard::Update()");
+
+  if (IsSimulation()) {
+    SimulationPeriodic();
+    m_watchdog.AddEpoch("SimulationPeriodic()");
+  }
+
+  m_watchdog.Disable();
 
   // Warn on loop time overruns
   if (m_watchdog.IsExpired()) {
@@ -161,7 +191,8 @@ void IterativeRobotBase::PrintLoopOverrunMessage() {
   wpi::SmallString<128> str;
   wpi::raw_svector_ostream buf(str);
 
-  buf << "Loop time of " << m_period << "s overrun\n";
+  buf << "Loop time of " << wpi::format("%.6f", m_period.to<double>())
+      << "s overrun\n";
 
   DriverStation::ReportWarning(str);
 }

@@ -5,12 +5,16 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
+#include <mutex>
+
 #include "hal/SPI.h"
 #include "hal/Errors.h"
 
 #include "HALInitializer.h"
 #include "InterruptsInternal.h"
 #include "MauInternal.h"
+#include <wpi/mutex.h>
+static constexpr int32_t kSpiMaxHandles = 5;
 
 using namespace hal;
 
@@ -26,6 +30,10 @@ static SPIConfig spi_cfg(500000 /* Bitrate */);
 static int handle = -1;  // This handle is specified by the user.
 
 static AutoTransmitEngineHandle engine_handle = INVALID_AUTO_TRANSMIT_ENGINE_HANDLE;
+
+static wpi::mutex spiAutoMutex;
+static int32_t spiAutoPort = kSpiMaxHandles;
+static std::atomic_bool spiAutoRunning{false};
 
 static void ReinitializeSPIIfAlreadyAllocated(HAL_SPIPort port, int32_t *status) {
 	if (INVALID_VMX_RESOURCE_HANDLE(vmx_res_handle)) {
@@ -222,6 +230,7 @@ void HAL_SetSPIHandle(HAL_SPIPort port, int32_t handle_value) {
  */
 void HAL_InitSPIAuto(HAL_SPIPort port, int32_t bufferSize, int32_t* status) {
 	mau::vmxIO->AutoTransmit_Allocate(engine_handle, status);
+	spiAutoPort = port;
 }
 
 /**
@@ -231,6 +240,7 @@ void HAL_FreeSPIAuto(HAL_SPIPort port, int32_t* status) {
 	mau::vmxIO->AutoTransmit_Stop(engine_handle, status);
 	mau::vmxIO->AutoTransmit_Deallocate(engine_handle, status);
 	engine_handle = INVALID_AUTO_TRANSMIT_ENGINE_HANDLE;
+	spiAutoPort = kSpiMaxHandles;
 }
 
 /**
@@ -341,4 +351,18 @@ int32_t HAL_GetSPIAutoDroppedCount(HAL_SPIPort port, int32_t* status) {
 	int32_t num_dropped = 0;
 	mau::vmxIO->AutoTransmit_GetNumDropped(engine_handle, num_dropped, status);
 	return num_dropped;
+}
+
+void HAL_ConfigureSPIAutoStall(HAL_SPIPort port, int32_t csToSclkTicks,
+                               int32_t stallTicks, int32_t pow2BytesPerRead,
+                               int32_t* status) {
+  std::scoped_lock lock(spiAutoMutex);
+  // FPGA only has one auto SPI engine
+  if (port != spiAutoPort) {
+    *status = INCOMPATIBLE_STATE;
+    return;
+  }
+
+  std::printf("TODO:  HAL_ConfigureSPIAutoStall() implementation goes here.");
+  // TODO:  Implement this in VMX-pi HAL Library
 }

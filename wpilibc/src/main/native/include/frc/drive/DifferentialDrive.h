@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-/* Copyright (c) 2008-2018 FIRST. All Rights Reserved.                        */
+/* Copyright (c) 2008-2019 FIRST. All Rights Reserved.                        */
 /* Open Source Software - may be modified and shared by FRC teams. The code   */
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project.                                                               */
@@ -10,6 +10,8 @@
 #include <wpi/raw_ostream.h>
 
 #include "frc/drive/RobotDriveBase.h"
+#include "frc/smartdashboard/Sendable.h"
+#include "frc/smartdashboard/SendableHelper.h"
 
 namespace frc {
 
@@ -28,12 +30,12 @@ class SpeedController;
  * @code{.cpp}
  * class Robot {
  *  public:
- *   frc::Spark m_frontLeft{1};
- *   frc::Spark m_rearLeft{2};
+ *   frc::PWMVictorSPX m_frontLeft{1};
+ *   frc::PWMVictorSPX m_rearLeft{2};
  *   frc::SpeedControllerGroup m_left{m_frontLeft, m_rearLeft};
  *
- *   frc::Spark m_frontRight{3};
- *   frc::Spark m_rearRight{4};
+ *   frc::PWMVictorSPX m_frontRight{3};
+ *   frc::PWMVictorSPX m_rearRight{4};
  *   frc::SpeedControllerGroup m_right{m_frontRight, m_rearRight};
  *
  *   frc::DifferentialDrive m_drive{m_left, m_right};
@@ -44,14 +46,14 @@ class SpeedController;
  * @code{.cpp}
  * class Robot {
  *  public:
- *   frc::Spark m_frontLeft{1};
- *   frc::Spark m_midLeft{2};
- *   frc::Spark m_rearLeft{3};
+ *   frc::PWMVictorSPX m_frontLeft{1};
+ *   frc::PWMVictorSPX m_midLeft{2};
+ *   frc::PWMVictorSPX m_rearLeft{3};
  *   frc::SpeedControllerGroup m_left{m_frontLeft, m_midLeft, m_rearLeft};
  *
- *   frc::Spark m_frontRight{4};
- *   frc::Spark m_midRight{5};
- *   frc::Spark m_rearRight{6};
+ *   frc::PWMVictorSPX m_frontRight{4};
+ *   frc::PWMVictorSPX m_midRight{5};
+ *   frc::PWMVictorSPX m_rearRight{6};
  *   frc::SpeedControllerGroup m_right{m_frontRight, m_midRight, m_rearRight};
  *
  *   frc::DifferentialDrive m_drive{m_left, m_right};
@@ -96,7 +98,9 @@ class SpeedController;
  * RobotDrive#Drive(double, double) with the addition of a quick turn
  * mode. However, it is not designed to give exactly the same response.
  */
-class DifferentialDrive : public RobotDriveBase {
+class DifferentialDrive : public RobotDriveBase,
+                          public Sendable,
+                          public SendableHelper<DifferentialDrive> {
  public:
   static constexpr double kDefaultQuickStopThreshold = 0.2;
   static constexpr double kDefaultQuickStopAlpha = 0.1;
@@ -121,7 +125,7 @@ class DifferentialDrive : public RobotDriveBase {
    * by negating the value passed for rotation.
    *
    * @param xSpeed        The speed at which the robot should drive along the X
-   *                      axis [-1.0..1.0]. Forward is negative.
+   *                      axis [-1.0..1.0]. Forward is positive.
    * @param zRotation     The rotation rate of the robot around the Z axis
    *                      [-1.0..1.0]. Clockwise is positive.
    * @param squareInputs If set, decreases the input sensitivity at low speeds.
@@ -208,8 +212,8 @@ class DifferentialDrive : public RobotDriveBase {
   void InitSendable(SendableBuilder& builder) override;
 
  private:
-  SpeedController& m_leftMotor;
-  SpeedController& m_rightMotor;
+  SpeedController* m_leftMotor;
+  SpeedController* m_rightMotor;
 
   double m_quickStopThreshold = kDefaultQuickStopThreshold;
   double m_quickStopAlpha = kDefaultQuickStopAlpha;

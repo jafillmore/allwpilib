@@ -15,36 +15,36 @@
 extern "C" {
 #endif
 
-void HAL_InitializeOSSerialPort(HAL_SerialPort port, int32_t* status);
-void HAL_SetOSSerialBaudRate(HAL_SerialPort port, int32_t baud,
+HAL_SerialPortHandle HAL_InitializeOSSerialPort(HAL_SerialPort port, int32_t* status);
+void HAL_SetOSSerialBaudRate(HAL_SerialPortHandle handle, int32_t baud,
                              int32_t* status);
-void HAL_SetOSSerialDataBits(HAL_SerialPort port, int32_t bits,
+void HAL_SetOSSerialDataBits(HAL_SerialPortHandle handle, int32_t bits,
                              int32_t* status);
-void HAL_SetOSSerialParity(HAL_SerialPort port, int32_t parity,
+void HAL_SetOSSerialParity(HAL_SerialPortHandle handle, int32_t parity,
                            int32_t* status);
-void HAL_SetOSSerialStopBits(HAL_SerialPort port, int32_t stopBits,
+void HAL_SetOSSerialStopBits(HAL_SerialPortHandle handle, int32_t stopBits,
                              int32_t* status);
-void HAL_SetOSSerialWriteMode(HAL_SerialPort port, int32_t mode,
+void HAL_SetOSSerialWriteMode(HAL_SerialPortHandle handle, int32_t mode,
                               int32_t* status);
-void HAL_SetOSSerialFlowControl(HAL_SerialPort port, int32_t flow,
+void HAL_SetOSSerialFlowControl(HAL_SerialPortHandle handle, int32_t flow,
                                 int32_t* status);
-void HAL_SetOSSerialTimeout(HAL_SerialPort port, double timeout,
+void HAL_SetOSSerialTimeout(HAL_SerialPortHandle handle, double timeout,
                             int32_t* status);
-void HAL_EnableOSSerialTermination(HAL_SerialPort port, char terminator,
+void HAL_EnableOSSerialTermination(HAL_SerialPortHandle handle, char terminator,
                                    int32_t* status);
-void HAL_DisableOSSerialTermination(HAL_SerialPort port, int32_t* status);
-void HAL_SetOSSerialReadBufferSize(HAL_SerialPort port, int32_t size,
+void HAL_DisableOSSerialTermination(HAL_SerialPortHandle handle, int32_t* status);
+void HAL_SetOSSerialReadBufferSize(HAL_SerialPortHandle handle, int32_t size,
                                    int32_t* status);
-void HAL_SetOSSerialWriteBufferSize(HAL_SerialPort port, int32_t size,
+void HAL_SetOSSerialWriteBufferSize(HAL_SerialPortHandle handlet, int32_t size,
                                     int32_t* status);
-int32_t HAL_GetOSSerialBytesReceived(HAL_SerialPort port, int32_t* status);
-int32_t HAL_ReadOSSerial(HAL_SerialPort port, char* buffer, int32_t count,
+int32_t HAL_GetOSSerialBytesReceived(HAL_SerialPortHandle handle, int32_t* status);
+int32_t HAL_ReadOSSerial(HAL_SerialPortHandle handle, char* buffer, int32_t count,
                          int32_t* status);
-int32_t HAL_WriteOSSerial(HAL_SerialPort port, const char* buffer,
+int32_t HAL_WriteOSSerial(HAL_SerialPortHandle handle, const char* buffer,
                           int32_t count, int32_t* status);
-void HAL_FlushOSSerial(HAL_SerialPort port, int32_t* status);
-void HAL_ClearOSSerial(HAL_SerialPort port, int32_t* status);
-void HAL_CloseOSSerial(HAL_SerialPort port, int32_t* status);
+void HAL_FlushOSSerial(HAL_SerialPortHandle handle, int32_t* status);
+void HAL_ClearOSSerial(HAL_SerialPortHandle handle, int32_t* status);
+void HAL_CloseOSSerial(HAL_SerialPortHandle handle, int32_t* status);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

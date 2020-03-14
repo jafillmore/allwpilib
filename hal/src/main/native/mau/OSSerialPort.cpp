@@ -28,6 +28,8 @@
 #include "HALInitializer.h"
 #include "RaspberryPiInfo.h"
 
+#define INVALID_OS_SERIAL_PORT_INDEX -1
+
 static int portHandles[4]{-1, -1, -1, -1};
 static std::chrono::milliseconds portTimeouts[4]{
     std::chrono::milliseconds(0), std::chrono::milliseconds(0),
@@ -40,6 +42,15 @@ void InitializeOSSerialPort() {
     portHandles[i] = -1;
     portTimeouts[i] = std::chrono::milliseconds(0);
   }
+}
+
+int GetOSSerialPortIndex(int handle) {
+  for (int i = 0; i < 4; i++) {
+    if (portHandles[i] == handle) {
+      return i;
+    }
+  }  
+  return INVALID_OS_SERIAL_PORT_INDEX;
 }
 }  // namespace init
 }  // namespace hal
@@ -87,20 +98,20 @@ std::string GetOSSerialPortName(HAL_SerialPort port,
 
 extern "C" {
 
-void HAL_InitializeOSSerialPort(HAL_SerialPort port, int32_t* status) {
+HAL_SerialPortHandle HAL_InitializeOSSerialPort(HAL_SerialPort port, int32_t* status) {
   hal::init::CheckInit();
   std::string portName;
 
   portName = GetOSSerialPortName(port, status);
 
   if (*status < 0) {
-    return;
+    return HAL_kInvalidHandle;
   }
 
   int fs = open(portName.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
   if (fs == -1) {
     *status = HAL_SERIAL_PORT_OPEN_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
   portHandles[port] = fs;
 
@@ -112,10 +123,17 @@ void HAL_InitializeOSSerialPort(HAL_SerialPort port, int32_t* status) {
   options.c_lflag = 0;
   tcflush(fs, TCIFLUSH);
   tcsetattr(fs, TCSANOW, &options);
+
+  return portHandles[port];
 }
 
-void HAL_SetOSSerialBaudRate(HAL_SerialPort port, int32_t baud,
+void HAL_SetOSSerialBaudRate(HAL_SerialPortHandle handle, int32_t baud,
                              int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   int baudRate = -1;
   switch (baud) {
     case 9600:
@@ -152,9 +170,15 @@ void HAL_SetOSSerialBaudRate(HAL_SerialPort port, int32_t baud,
   }
 }
 
-void HAL_SetOSSerialDataBits(HAL_SerialPort port, int32_t bits,
+void HAL_SetOSSerialDataBits(HAL_SerialPortHandle handle, int32_t bits,
                              int32_t* status) {
   int numBits = -1;
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
+
   switch (bits) {
     case 5:
       numBits = CS5;
@@ -184,8 +208,14 @@ void HAL_SetOSSerialDataBits(HAL_SerialPort port, int32_t bits,
   }
 }
 
-void HAL_SetOSSerialParity(HAL_SerialPort port, int32_t parity,
+void HAL_SetOSSerialParity(HAL_SerialPortHandle handle, int32_t parity,
                            int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
+
   // Just set none parity
   struct termios options;
   tcgetattr(portHandles[port], &options);
@@ -197,8 +227,13 @@ void HAL_SetOSSerialParity(HAL_SerialPort port, int32_t parity,
   }
 }
 
-void HAL_SetOSSerialStopBits(HAL_SerialPort port, int32_t stopBits,
+void HAL_SetOSSerialStopBits(HAL_SerialPortHandle handle, int32_t stopBits,
                              int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   // Force 1 stop bit
   struct termios options;
   tcgetattr(portHandles[port], &options);
@@ -210,51 +245,67 @@ void HAL_SetOSSerialStopBits(HAL_SerialPort port, int32_t stopBits,
   }
 }
 
-void HAL_SetOSSerialWriteMode(HAL_SerialPort port, int32_t mode,
+void HAL_SetOSSerialWriteMode(HAL_SerialPortHandle handle, int32_t mode,
                               int32_t* status) {
   // No op
 }
 
-void HAL_SetOSSerialFlowControl(HAL_SerialPort port, int32_t flow,
+void HAL_SetOSSerialFlowControl(HAL_SerialPortHandle handle, int32_t flow,
                                 int32_t* status) {
   // No op
 }
 
-void HAL_SetOSSerialTimeout(HAL_SerialPort port, double timeout,
+void HAL_SetOSSerialTimeout(HAL_SerialPortHandle handle, double timeout,
                             int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   // Convert to millis
   int t = timeout / 1000;
   portTimeouts[port] = std::chrono::milliseconds(t);
 }
 
-void HAL_EnableOSSerialTermination(HAL_SerialPort port, char terminator,
+void HAL_EnableOSSerialTermination(HAL_SerialPortHandle handle, char terminator,
                                    int32_t* status) {
   // \n is hardcoded for now. Will fix later
   // Seems like a VISA only setting, need to check
 }
 
-void HAL_DisableOSSerialTermination(HAL_SerialPort port, int32_t* status) {
+void HAL_DisableOSSerialTermination(HAL_SerialPortHandle handle, int32_t* status) {
   // Seems like a VISA only setting, need to check
 }
 
-void HAL_SetOSSerialReadBufferSize(HAL_SerialPort port, int32_t size,
+void HAL_SetOSSerialReadBufferSize(HAL_SerialPortHandle handle, int32_t size,
                                    int32_t* status) {
   // No op
 }
 
-void HAL_SetOSSerialWriteBufferSize(HAL_SerialPort port, int32_t size,
+void HAL_SetOSSerialWriteBufferSize(HAL_SerialPortHandle handle, int32_t size,
                                     int32_t* status) {
   // No op
 }
 
-int32_t HAL_GetOSSerialBytesReceived(HAL_SerialPort port, int32_t* status) {
+int32_t HAL_GetOSSerialBytesReceived(HAL_SerialPortHandle handle, int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return 0;
+  }
   int bytes = 0;
   ioctl(portHandles[port], FIONREAD, &bytes);
   return bytes;
 }
 
-int32_t HAL_ReadOSSerial(HAL_SerialPort port, char* buffer, int32_t count,
+int32_t HAL_ReadOSSerial(HAL_SerialPortHandle handle, char* buffer, int32_t count,
                          int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return 0;
+  }
+
   auto endTime = std::chrono::steady_clock::now() + portTimeouts[port];
 
   int bytesRead = 0;
@@ -276,17 +327,37 @@ int32_t HAL_ReadOSSerial(HAL_SerialPort port, char* buffer, int32_t count,
   return bytesRead;
 }
 
-int32_t HAL_WriteOSSerial(HAL_SerialPort port, const char* buffer,
+int32_t HAL_WriteOSSerial(HAL_SerialPortHandle handle, const char* buffer,
                           int32_t count, int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return 0;
+  }
   return write(portHandles[port], buffer, count);
 }
-void HAL_FlushOSSerial(HAL_SerialPort port, int32_t* status) {
+void HAL_FlushOSSerial(HAL_SerialPortHandle handle, int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   tcdrain(portHandles[port]);
 }
-void HAL_ClearOSSerial(HAL_SerialPort port, int32_t* status) {
+void HAL_ClearOSSerial(HAL_SerialPortHandle handle, int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   tcflush(portHandles[port], TCIOFLUSH);
 }
-void HAL_CloseOSSerial(HAL_SerialPort port, int32_t* status) {
+void HAL_CloseOSSerial(HAL_SerialPortHandle handle, int32_t* status) {
+  auto port = hal::init::GetOSSerialPortIndex(handle);
+  if (port == INVALID_OS_SERIAL_PORT_INDEX) {
+    *status = HAL_HANDLE_ERROR;
+    return;
+  }
   close(portHandles[port]);
 }
 

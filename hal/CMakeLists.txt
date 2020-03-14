@@ -1,5 +1,8 @@
 project(hal)
 
+include(CompileWarnings)
+include(AddTest)
+
 file(STRINGS src/generate/Instances.txt RAW_INSTANCES)
 file(STRINGS src/generate/ResourceType.txt RAW_RESOURCE_TYPES)
 
@@ -79,6 +82,8 @@ if (NOT WITHOUT_JAVA)
     set_target_properties(haljni PROPERTIES OUTPUT_NAME "wpiHaljni")
     set_target_properties(halvmxjni PROPERTIES OUTPUT_NAME "vmxHaljni")
 
+    wpilib_target_warnings(haljni)
+
     target_link_libraries(haljni PUBLIC hal wpiutil)
     target_link_libraries(halvmxjni PUBLIC hal)
 
@@ -106,9 +111,16 @@ if (NOT WITHOUT_JAVA)
     install(TARGETS halvmxjni EXPORT halvmxjni DESTINATION "${main_lib_dest}")
 
     file(GLOB hal_sim_native_src src/main/native/mau/simjni/*.cpp)
+
+endif()
+
+if (WITH_TESTS)
+    wpilib_add_test(hal src/test/native/cpp)
+    target_link_libraries(hal_test hal gtest)
 endif()
 
 file(GLOB
+    hal_shared_native_src src/main/native/cpp/*.cpp
     hal_shared_native_src src/main/native/cpp/cpp/*.cpp
     hal_shared_native_src src/main/native/cpp/handles/*.cpp
     hal_sim_native_src src/main/native/mau/*.cpp
@@ -118,6 +130,7 @@ file(GLOB
     hal_sim_native_src src/main/native/mau/phoenix/*.cpp
     hal_sim_native_src src/main/native/mau/navX/src/*.cpp)
 add_library(hal ${hal_shared_native_src} ${hal_shared_jni_src})
+wpilib_target_warnings(hal)
 
 if(USE_EXTERNAL_HAL)
     include(${EXTERNAL_HAL_FILE})
@@ -147,9 +160,7 @@ target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau>)
 target_include_directories(hal PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/mau/DriveStation/include>)
-
-# Include Phoenix include header file path
-include_directories(/home/pi/Phoenix-Linux-SocketCAN-Example/include)
+include_directories(hal /home/pi/Phoenix-Linux-SocketCAN-Example/include)
 
 # Specify link to VMXPI HAL Library
 find_library(VMXPI_HAL_CPP vmxpi_hal_cpp PATHS /usr/local/lib/vmxpi)
@@ -170,20 +181,24 @@ endif()
 
 install(TARGETS hal EXPORT hal DESTINATION "${main_lib_dest}")
 install(DIRECTORY src/main/native/include/ DESTINATION "${include_dest}/hal")
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gen DESTINATION "${include_dest}/hal")
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/gen/ DESTINATION "${include_dest}/hal")
 install(DIRECTORY src/main/native/mau/navX/include/ DESTINATION "${include_dest}/hal")
 
 if (NOT WITHOUT_JAVA AND MSVC)
     install(TARGETS hal RUNTIME DESTINATION "${jni_lib_dest}" COMPONENT Runtime)
 endif()
 
-if (MSVC)
+if (MSVC OR FLAT_INSTALL_WPILIB)
     set (hal_config_dir ${wpilib_dest})
 else()
     set (hal_config_dir share/hal)
 endif()
 
-install(FILES hal-config.cmake DESTINATION ${hal_config_dir})
+# Add Phoenix platform library to built items
+add_subdirectory(src/main/native/mau/phoenix)
+
+configure_file(hal-config.cmake.in ${CMAKE_BINARY_DIR}/hal-config.cmake )
+install(FILES ${CMAKE_BINARY_DIR}/hal-config.cmake DESTINATION ${hal_config_dir})
 install(EXPORT hal DESTINATION ${hal_config_dir})
 
 # Copy license/third-party notices to build directory
@@ -250,6 +265,3 @@ add_custom_command(TARGET hal POST_BUILD
 add_custom_command(TARGET hal POST_BUILD
 		   COMMAND cp -r
 		   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/sim ${CMAKE_CURRENT_BINARY_DIR}/sources/sim)
-
-# Add Phoenix platform library to built items
-add_subdirectory(src/main/native/mau/phoenix)

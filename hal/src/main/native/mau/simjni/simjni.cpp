@@ -21,9 +21,5 @@ void SimOnUnload(JavaVM * vm, void* reserved) {
 }
 }
 
-static void ThrowSimException(JNIEnv* env) {
-
-}
-
 // The remaining Sim functions are stubs; the pattern for their generation can
 // be acquired from <allwpilib_root>/hal/simjni.gradle. 

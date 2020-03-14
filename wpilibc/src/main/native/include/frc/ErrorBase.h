@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------*/
-/* Copyright (c) 2008-2018 FIRST. All Rights Reserved.                        */
+/* Copyright (c) 2008-2019 FIRST. All Rights Reserved.                        */
 /* Open Source Software - may be modified and shared by FRC teams. The code   */
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project.                                                               */
@@ -7,12 +7,17 @@
 
 #pragma once
 
+#include <vector>
+
 #include <wpi/StringRef.h>
 #include <wpi/Twine.h>
 #include <wpi/mutex.h>
 
 #include "frc/Base.h"
 #include "frc/Error.h"
+
+// Forward declared manually to avoid needing to pull in entire HAL header.
+extern "C" const char* HAL_GetErrorMessage(int32_t code);
 
 #define wpi_setErrnoErrorWithContext(context) \
   this->SetErrnoError((context), __FILE__, __FUNCTION__, __LINE__)
@@ -33,6 +38,22 @@
       this->SetErrorRange((code), (min), (max), (req), (context), __FILE__, \
                           __FUNCTION__, __LINE__);                          \
   } while (0)
+
+#define wpi_setHALError(code)                                     \
+  do {                                                            \
+    if ((code) != 0)                                              \
+      this->SetError((code), HAL_GetErrorMessage(code), __FILE__, \
+                     __FUNCTION__, __LINE__);                     \
+  } while (0)
+
+#define wpi_setHALErrorWithRange(code, min, max, req)                        \
+  do {                                                                       \
+    if ((code) != 0)                                                         \
+      this->SetErrorRange((code), (min), (max), (req),                       \
+                          HAL_GetErrorMessage(code), __FILE__, __FUNCTION__, \
+                          __LINE__);                                         \
+  } while (0)
+
 #define wpi_setError(code) wpi_setErrorWithContext(code, "")
 #define wpi_setStaticErrorWithContext(object, code, context)                 \
   do {                                                                       \
@@ -41,24 +62,33 @@
   } while (0)
 #define wpi_setStaticError(object, code) \
   wpi_setStaticErrorWithContext(object, code, "")
+
 #define wpi_setGlobalErrorWithContext(code, context)                \
   do {                                                              \
     if ((code) != 0)                                                \
       ::frc::ErrorBase::SetGlobalError((code), (context), __FILE__, \
                                        __FUNCTION__, __LINE__);     \
   } while (0)
+
+#define wpi_setGlobalHALError(code)                                       \
+  do {                                                                    \
+    if ((code) != 0)                                                      \
+      ::frc::ErrorBase::SetGlobalError((code), HAL_GetErrorMessage(code), \
+                                       __FILE__, __FUNCTION__, __LINE__); \
+  } while (0)
+
 #define wpi_setGlobalError(code) wpi_setGlobalErrorWithContext(code, "")
 #define wpi_setWPIErrorWithContext(error, context)                    \
-  this->SetWPIError((wpi_error_s_##error), (wpi_error_value_##error), \
+  this->SetWPIError(wpi_error_s_##error(), wpi_error_value_##error(), \
                     (context), __FILE__, __FUNCTION__, __LINE__)
 #define wpi_setWPIError(error) (wpi_setWPIErrorWithContext(error, ""))
 #define wpi_setStaticWPIErrorWithContext(object, error, context)  \
-  object->SetWPIError((wpi_error_s_##error), (context), __FILE__, \
+  object->SetWPIError(wpi_error_s_##error(), (context), __FILE__, \
                       __FUNCTION__, __LINE__)
 #define wpi_setStaticWPIError(object, error) \
   wpi_setStaticWPIErrorWithContext(object, error, "")
 #define wpi_setGlobalWPIErrorWithContext(error, context)                \
-  ::frc::ErrorBase::SetGlobalWPIError((wpi_error_s_##error), (context), \
+  ::frc::ErrorBase::SetGlobalWPIError(wpi_error_s_##error(), (context), \
                                       __FILE__, __FUNCTION__, __LINE__)
 #define wpi_setGlobalWPIError(error) wpi_setGlobalWPIErrorWithContext(error, "")
 
@@ -77,6 +107,8 @@ class ErrorBase {
   ErrorBase();
   virtual ~ErrorBase() = default;
 
+  ErrorBase(const ErrorBase&) = default;
+  ErrorBase& operator=(const ErrorBase&) = default;
   ErrorBase(ErrorBase&&) = default;
   ErrorBase& operator=(ErrorBase&&) = default;
 
@@ -191,9 +223,19 @@ class ErrorBase {
                                 wpi::StringRef function, int lineNumber);
 
   /**
-   * Retrieve the current global error.
+   * Retrieve the last global error.
    */
-  static const Error& GetGlobalError();
+  static Error GetGlobalError();
+
+  /**
+   * Retrieve all global errors.
+   */
+  static std::vector<Error> GetGlobalErrors();
+
+  /**
+   * Clear global errors.
+   */
+  void ClearGlobalErrors();
 
  protected:
   mutable Error m_error;

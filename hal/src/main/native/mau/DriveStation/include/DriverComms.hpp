@@ -44,6 +44,7 @@ namespace mau {
         void setInputVoltage(double voltage);
         void setCANStatus(float percentBusUtilization, uint32_t busOffCount, uint32_t txFifoFullCount, uint8_t rxErrorCount, uint8_t txErrorCount);
         int32_t enqueueErrorMessage(uint16_t num_occur, int32_t errorCode, uint8_t flags, const char *details, const char *location, const char *callStack);
+        int32_t enqueuePrintMessage(char *msg);
 	void setRobotProgramStarted(bool program_started);
 	void setRobotState(uint8_t mode /*MAU_COMMS_STATE_xxx*/);
 	void setRobotBrownoutProtectionActive(bool brownout_protection_active);
