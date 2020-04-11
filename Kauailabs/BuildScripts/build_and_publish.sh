@@ -22,8 +22,8 @@ do
 		sudo rm -r wpilib_build_${BUILD_DIR}
 		mkdir wpilib_build_${BUILD_DIR}/
 		cd wpilib_build_${BUILD_DIR}
-		export JAVA_HOME=/usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt
-		cmake -D WITHOUT_ALLWPILIB=OFF -D WITHOUT_JAVA=${BUILD_CPP_ONLY} -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DBUILD_SHARED_LIBS=${SHARED_LIBS} -D OpenCV_DIR=/home/pi/opencv-3.3.1/build ~/allwpilib
+		export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-armhf
+		cmake -D WITHOUT_ALLWPILIB=OFF -D WITHOUT_JAVA=${BUILD_CPP_ONLY} -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DBUILD_SHARED_LIBS=${SHARED_LIBS} -D OpenCV_DIR=/home/pi/opencv-3.4.7/build ~/allwpilib
 		make -j5
 		sudo make install
 		cd hal
@@ -38,6 +38,7 @@ do
 done
 
 # Once all the builds are complete, publish the final results to MavenCentral
+cd ~
 cd wpilib_build_${BUILD_DIR}
 cd hal
 #gradle --rerun-tasks publish

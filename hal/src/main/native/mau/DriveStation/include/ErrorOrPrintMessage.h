@@ -76,11 +76,14 @@ public:
 
 	static inline float NetworkOrderedU32ToFloat(uint32_t net_ordered_float) {
 		uint32_t host_ordered_float = ntohl(net_ordered_float);
-		return *(float *)&host_ordered_float;
+		float ret;
+		memcpy(&ret, &host_ordered_float, sizeof(float));
+		return ret;
 	}
 
 	static inline uint32_t FloatToNetworkOrderedU32(float value) {
-		uint32_t host_ordered_float = *(uint32_t *)&value;
+		uint32_t host_ordered_float;
+		memcpy(&host_ordered_float, &value, sizeof(uint32_t));
 		return htonl(host_ordered_float);
 	}
 
