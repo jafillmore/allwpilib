@@ -20,10 +20,13 @@ using namespace hal;
 
 namespace {
 struct AddressableLED {
-  int led; // Some sort of handle to the led string object in the VMX-pi HAL
-  void* ledBuffer;
-  size_t ledBufferSize;
-  int32_t stringLength = 1;
+  HAL_DigitalHandle pwm_handle = HAL_kInvalidHandle;
+  int buffer_num_pixels = 0;
+  LEDArrayBufferHandle buffer_handle = 0;
+  pthread_t update_thread;
+  bool update_thread_running = false;
+  bool stop_update_thread = false;
+  int32_t wpi_digital_input_channel = -1;
 };
 }  // namespace
 
@@ -43,27 +46,47 @@ void InitializeAddressableLED() {
 }  // namespace init
 }  // namespace hal
 
+void *ledarray_update_thread_func(void *arg) {
+    AddressableLED *p_ledinfo = (AddressableLED *)arg;
+    if (p_ledinfo) {        
+	if (p_led_info->pwm_handle != HAL_kInvalidHandle) {
+  		auto port =
+		      hal::digitalChannelHandles->Get(lp_led_info->pwm_handle, hal::HAL_HandleEnum::PWM);
+		if (port) {
+			while(!p_led_info->stop_update_thread) {
+				int32_t status;
+				mau::vmxIO->LEDArray_Render(port->vmx_res_handle, &status);
+				std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			}
+		}
+        }
+    }
+}
+
 extern "C" {
+
+// The PWM Port Handle passed in is currently allocated.  This function must
+// first deallocate the port handle, then reallocate it as LEDArray_OneWire.
 
 HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
     HAL_DigitalHandle outputPort, int32_t* status) {
   hal::init::CheckInit();
 
-  auto digitalPort =
+  auto port =
       hal::digitalChannelHandles->Get(outputPort, hal::HAL_HandleEnum::PWM);
 
-  if (!digitalPort) {
-    // If DIO was passed, channel error, else generic error
-    if (getHandleType(outputPort) == hal::HAL_HandleEnum::DIO) {
-      *status = HAL_LED_CHANNEL_ERROR;
-    } else {
-      *status = HAL_HANDLE_ERROR;
-    }
+  if (!port) {
+    *status = HAL_LED_CHANNEL_ERROR;
     return HAL_kInvalidHandle;
   }
 
-  if (digitalPort->channel >= kNumPWMHeaders) {
-    *status = HAL_LED_CHANNEL_ERROR;
+  // Retrieve certain values from the DigitalPort object
+  int32_t wpi_digital_input_channel = port->channel;
+  VMXChannelInfo vmx_chan_info = port->vmx_chan_info;
+
+  // Verify the channel has LEDArray_OneWire capability
+  if ((vmx_chan_info.capabilities & VMXChannelCapability::LEDArray_OneWire) == 0) {
+    *status = MAU_PWM_CHANNEL_LEDARRAY_INCOMPATIBILITY;
     return HAL_kInvalidHandle;
   }
 
@@ -77,124 +100,154 @@ HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
   auto led = addressableLEDHandles->Get(handle);
 
   if (!led) {
+    addressableLEDHandles->Free(handle);
     *status = HAL_HANDLE_ERROR;
     return HAL_kInvalidHandle;
   }
 
-#if 0
-  led->led.reset(tLED::create(status));
-
+  // The passed-in PWM Handle is already allocated.  It must be deallocated before rellocation
+  // as a LEDArray_OneWire channel
+  HAL_FreePWMPort(outputPort, &status);
   if (*status != 0) {
     addressableLEDHandles->Free(handle);
     return HAL_kInvalidHandle;
   }
 
-  led->led->writeOutputSelect(digitalPort->channel, status);
-
-  if (*status != 0) {
-    addressableLEDHandles->Free(handle);
-    return HAL_kInvalidHandle;
-  }
-
-  led->ledBuffer = nullptr;
-  led->ledBufferSize = 0;
-
-  uint32_t session = led->led->getSystemInterface()->getHandle();
-#endif
-  // Todo:  Implement in VMX-pi HAL
-  *status = -1;
-
-  std::printf("HAL_InitializeAddressableLED - TODO - Implementation goes Here.");
-
-  if (*status != 0) {
-    addressableLEDHandles->Free(handle);
-    return HAL_kInvalidHandle;
+  /* Set Configuration to defaults, including WPI-library compliant PWM Frequency and DutyCycle */
+  port->ledarray_config = LEDArray_OneWireConfig();
+  if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &port->ledarray_config, port->vmx_res_handle, status)) {
+      int32_t temp_status;
+      HAL_InitializePWMPort(HAL_GetPort(wpi_digital_input_channel), temp_status);
+      addressableLEDHandles->Free(handle);
+      return HAL_kInvalidHandle;
+  } else {
+    led->pwm_handle = outputPort;
+    port->configSet = true;
+    led->wpi_digital_input_channel = wpi_digital_input_channel;
   }
 
   return handle;
 }
 
 void HAL_FreeAddressableLED(HAL_AddressableLEDHandle handle) {
+
+  auto led = addressableLEDHandles->Get(handle);
+
+  if (!led) {
+    return;
+  }
+
+  auto port =
+      hal::digitalChannelHandles->Get(led->pwm_handle, hal::HAL_HandleEnum::PWM);
+
+  if (!port) {
+    return;
+  }
+
+  // Stop thread (if any) which is currently updating the LEDARray.
+  int32_t status;
+  HAL_StopAddressableLEDOutput(handle, &status);
+
+  // Now that the thread is stopped, free the LEDArray Buffer
+  if (led->buffer_handle) {
+    mau::vmxIO->LEDArrayBuffer_Delete(led->buffer_handle);
+    led->buffer_handle = 0;
+  }
+
+  // Deallocate the LEDArray_OneWire Resource, if currently allocated
+  VMXResourceHandle vmxResource = port->vmx_res_handle;
+  bool allocated = false;
+  bool isShared = false;
+  int32_t status;
+  mau::vmxIO->IsResourceAllocated(vmxResource, allocated, isShared, status);
+  if (allocated) {
+	mau::vmxIO->DeallocateResource(vmxResource, status);
+        port->vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
+	port->configSet = false;
+  }  
+
+  int32_t temp_status;
+  HAL_InitializePWMPort(HAL_GetPort(led->wpi_digital_input_channel), temp_status);
+  
   addressableLEDHandles->Free(handle);
 }
+
+// NOTE:  This does not appear to be used, and thus it's not strictly required to implement it now.
 
 void HAL_SetAddressableLEDOutputPort(HAL_AddressableLEDHandle handle,
                                      HAL_DigitalHandle outputPort,
                                      int32_t* status) {
-  auto digitalPort =
-      hal::digitalChannelHandles->Get(outputPort, hal::HAL_HandleEnum::PWM);
-
-  if (!digitalPort) {
-    *status = HAL_HANDLE_ERROR;
-    return;
-  }
-
-  auto led = addressableLEDHandles->Get(handle);
-  if (!led) {
-    *status = HAL_HANDLE_ERROR;
-    return;
-  }
-
   std::printf("HAL_SetAddressableLEDOutputPort - TODO - Implementation goes Here.");
-
 }
 
 void HAL_SetAddressableLEDLength(HAL_AddressableLEDHandle handle,
                                  int32_t length, int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
+    return HAL_kInvalidHandle;
+  }
+
+  auto port =
+      hal::digitalChannelHandles->Get(led->pwm_handle, hal::HAL_HandleEnum::PWM);
+
+  if (!port) {
+    *status = HAL_LED_CHANNEL_ERROR;
+    return HAL_kInvalidHandle;
+  }
+
+  VMXResourceHandle vmxResource = port->vmx_res_handle;
+  port->ledarray_config.SetNumPixels(length);
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+    std::printf("HAL_SetAddressableLEDLength Error:  %s\n", HAL_GetErrorMessage(*status));
     return;
+  } else {
+    led->buffer_num_pixels = length;
+    if (led->buffer_handle) {
+      if (!mau::vmxIO->LEDArrayBuffer_Delete(led->buffer_handle, status)) {
+        std::printf("Error deleting VMXIO LEDArray Buffer:  %s\n", HAL_GetErrorMessage(*status));
+      }
+      led->buffer_handle = 0;
+    }
+    if (!mau::vmxIO->LEDArrayBuffer_Create(length, led->buffer_handle, status)) {
+      std::printf("Error creating VMXIO LEDArray Buffer:  %s\n", HAL_GetErrorMessage(*status));
+    }
   }
-
-  if (length > HAL_kAddressableLEDMaxLength) {
-    *status = PARAMETER_OUT_OF_RANGE;
-    return;
-  }
-
-#if 0
-  led->led->strobeReset(status);
-
-  while (led->led->readPixelWriteIndex(status) != 0) {
-  }
-
-  if (*status != 0) {
-    return;
-  }
-
-  led->led->writeStringLength(length, status);
-
-  led->stringLength = length;
-#endif
-  std::printf("HAL_SetAddressableLEDLength - TODO - Implementation goes Here.");
 }
 
-static_assert(sizeof(HAL_AddressableLEDData) == sizeof(uint32_t),
-              "LED Data must be 32 bit");
+static_assert(sizeof(AddressableLED::LEDData) == sizeof(HAL_AddressableLEDData),
+              "LED Structs MUST be the same size");
 
 void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
                                  const struct HAL_AddressableLEDData* data,
                                  int32_t length, int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
 
-  if (length > led->stringLength) {
-    *status = PARAMETER_OUT_OF_RANGE;
-    return;
+  int num_pixels = led->buffer_num_pixels;
+
+  auto port =
+      hal::digitalChannelHandles->Get(led->pwm_handle, hal::HAL_HandleEnum::PWM);
+
+  if (!port) {
+    *status = HAL_LED_CHANNEL_ERROR;
+    return HAL_kInvalidHandle;
   }
 
-#if 0
-  std::memcpy(led->ledBuffer, data, length * sizeof(HAL_AddressableLEDData));
+  LEDArrayBufferHandle buffer_handle = led->buffer_handle;
 
-  asm("dmb");
-
-  led->led->strobeLoad(status);
-#endif
-  std::printf("HAL_WriteAddressableLEDData - TODO - Implementation goes Here.");
-
+  int requested_num_leds_to_write = length / sizeof(HAL_AddressableLEDData);
+  int num_leds_to_write = (requested_num_leds_to_write > num_pixels) ? num_pixels : requested_num_leds_to_write;
+  for (int i = 0; i < num_leds_to_write; i++) {
+    if (!mau::vmxIO->LEDArrayBuffer_SetRBGValue(buffer_handle, i, data[i].r, data[i].g, data[i].b, status)) {
+      return;
+    }
+  }
 }
 
 void HAL_SetAddressableLEDBitTiming(HAL_AddressableLEDHandle handle,
@@ -204,61 +257,91 @@ void HAL_SetAddressableLEDBitTiming(HAL_AddressableLEDHandle handle,
                                     int32_t highTime1NanoSeconds,
                                     int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
 
-#if 0
-  led->led->writeLowBitTickTiming(1, highTime0NanoSeconds / 25, status);
-  led->led->writeLowBitTickTiming(0, lowTime0NanoSeconds / 25, status);
-  led->led->writeHighBitTickTiming(1, highTime1NanoSeconds / 25, status);
-  led->led->writeHighBitTickTiming(0, lowTime1NanoSeconds / 25, status);
-#endif
-  std::printf("HAL_SetAddressableLEDBitTiming - TODO - Implementation goes Here.");
+  auto port =
+      hal::digitalChannelHandles->Get(led->pwm_handle, hal::HAL_HandleEnum::PWM);
 
+  if (!port) {
+    *status = HAL_LED_CHANNEL_ERROR;
+    return HAL_kInvalidHandle;
+  }
+
+  VMXResourceHandle vmxResource = port->vmx_res_handle;
+  port->ledarray_config.SetOneSymbolHighTimeNanoseconds(highTime1NanoSeconds);
+  port->ledarray_config.SetZeroSymbolHighTimeNanoseconds(highTime0NanoSeconds);
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+    std::printf("LEDArray_Configure Error:  %s\n", HAL_GetErrorMessage(*status));
+    return;
+  }
 }
 
 void HAL_SetAddressableLEDSyncTime(HAL_AddressableLEDHandle handle,
                                    int32_t syncTimeMicroSeconds,
                                    int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
 
-#if 0
-  led->led->writeSyncTiming(syncTimeMicroSeconds, status);
-#endif
-  std::printf("HAL_SetAddressableLEDSyncTime - TODO - Implementation goes Here.");
+  auto port =
+      hal::digitalChannelHandles->Get(led->pwm_handle, hal::HAL_HandleEnum::PWM);
+
+  if (!port) {
+    *status = HAL_LED_CHANNEL_ERROR;
+    return HAL_kInvalidHandle;
+  }
+
+  VMXResourceHandle vmxResource = port->vmx_res_handle;
+  port->ledarray_config.SetResetWaitTimeMicroseconds(syncTimeMicroSeconds);
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+    std::printf("LEDArray_Configure Error:  %s\n", HAL_GetErrorMessage(*status));
+    return;
+  }
 }
 
 void HAL_StartAddressableLEDOutput(HAL_AddressableLEDHandle handle,
-                                   int32_t* status) {
+                                  int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
 
-#if 0
-  led->led->strobeStart(status);
-#endif
-  std::printf("HAL_StartAddressableLEDOutput - TODO - Implementation goes Here.");
+  if (!led->update_thread_running) {
+    if (!pthread_create(&led->update_thread, NULL, ledarray_update_thread_func, led)) {
+      led->update_thread_running = true;
+    } else {
+      *status = HAL_HANDLE_ERROR;
+      return HAL_kInvalidHandle;
+    }
+  }
 }
 
 void HAL_StopAddressableLEDOutput(HAL_AddressableLEDHandle handle,
                                   int32_t* status) {
   auto led = addressableLEDHandles->Get(handle);
+
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return;
+    return HAL_kInvalidHandle;
   }
 
-#if 0
-  led->led->strobeAbort(status);
-#endif
-  std::printf("HAL_StopAddressableLEDOutput - TODO - Implementation goes Here.");
+  if (led->update_thread_running) {
+    led->stop_update_thread = true;
+    pthread_join(led->update_thread,NULL);
+    led->update_thread_running = false;
+  } else {
+    *status = HAL_HANDLE_ERROR;
+    return HAL_kInvalidHandle;
+  }
 }
+
 }  // extern "C"

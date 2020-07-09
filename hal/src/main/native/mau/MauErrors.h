@@ -56,6 +56,9 @@
 #define MAU_ANALOG_OUTPUTS_UNSUPPORTED_MESSAGE			"VMX-pi does not currently support Analog Outputs"
 #define MAU_ANALOG_OUTPUTS_UNSUPPORTED					-21015
 
+#define MAU_PWM_CHANNEL_LEDARRAY_INCOMPATIBILITY_MESSAGE	"The specified PWM Channel cannot be used with a VMX-pi LEDArray channel"
+#define MAU_PWM_CHANNEL_LEDARRAY_INCOMPATIBILITY			-21016
+
 // Mau error codes are negative values <= MAU_ERRNO_CODE_BASE
 #define MAU_ERRNO_CODE_BASE	MAU_CHANNEL_MAP_ERROR
 

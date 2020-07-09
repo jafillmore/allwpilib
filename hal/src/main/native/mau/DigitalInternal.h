@@ -82,6 +82,7 @@ struct DigitalPort {
   InputCaptureConfig inputcap_config;
   PWMCaptureConfig pwmcap_config;
   EncoderConfig encoder_config;
+  LEDArray_OneWireConfig ledarray_config;
 };
 
 constexpr HAL_DigitalHandle kMaxValidDigitalHandleIndex = kNumDigitalChannels-1;
