@@ -95,7 +95,7 @@ int32_t HAL_TransactionSPI(HAL_SPIPort port, const uint8_t* dataToSend, uint8_t*
 			const_cast<uint8_t *>(dataToSend),
 			dataReceived,
 			static_cast<uint16_t>(size), &status)) {
-		return 0;
+		return size;
 	}
 	return -1;
 }
@@ -108,7 +108,7 @@ int32_t HAL_WriteSPI(HAL_SPIPort port, const uint8_t* dataToSend, int32_t sendSi
 	if (mau::vmxIO->SPI_Write(vmx_res_handle,
 			const_cast<uint8_t *>(dataToSend),
 			static_cast<uint16_t>(sendSize), &status)) {
-		return 0;
+		return sendSize;
 	}
 	return -1;
 }
@@ -121,7 +121,7 @@ int32_t HAL_ReadSPI(HAL_SPIPort port, uint8_t* buffer, int32_t count) {
 	if (mau::vmxIO->SPI_Read(vmx_res_handle,
 			const_cast<uint8_t *>(buffer),
 			static_cast<uint16_t>(count), &status)) {
-		return 0;
+		return count;
 	}
 	return -1;
 }

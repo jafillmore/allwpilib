@@ -182,6 +182,7 @@ extern "C" {
     	   			messages[currCANStreamMessageIndex].messageID = vmxMessages[i].messageID;
     	   			std::memcpy(messages[currCANStreamMessageIndex].data, vmxMessages[i].data,
     	   					(vmxMessages[i].dataSize > sizeof(vmxMessages[i].data)) ? sizeof(vmxMessages[i].data) : vmxMessages[i].dataSize);
+				messages[currCANStreamMessageIndex].dataSize = vmxMessages[i].dataSize;
     	   			messages[currCANStreamMessageIndex].timeStamp = vmxMessages[i].sysTimeStampUS / 1000;
     	   			currCANStreamMessageIndex++;
     	   		}

@@ -22,8 +22,8 @@ do
 		sudo rm -r wpilib_build_${BUILD_DIR}
 		mkdir wpilib_build_${BUILD_DIR}/
 		cd wpilib_build_${BUILD_DIR}
-		export JAVA_HOME=/usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt
-		cmake -D WITHOUT_ALLWPILIB=OFF -D WITHOUT_JAVA=${BUILD_CPP_ONLY} -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DBUILD_SHARED_LIBS=${SHARED_LIBS} -D OpenCV_DIR=/home/pi/opencv-3.3.1/build ~/allwpilib
+		export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-armhf
+		cmake -D WITHOUT_ALLWPILIB=OFF -D WITHOUT_JAVA=${BUILD_CPP_ONLY} -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DBUILD_SHARED_LIBS=${SHARED_LIBS} -D OpenCV_DIR=/home/pi/opencv-3.4.7/build ~/allwpilib
 		make -j5
 		sudo make install
 		cd hal
@@ -38,6 +38,17 @@ do
 done
 
 # Once all the builds are complete, publish the final results to MavenCentral
-cd wpilib_build_${BUILD_DIR}
-cd hal
-#gradle --rerun-tasks publish
+cd ~
+cd ~/.m2/repository/com/kauailabs/vmx/first/hal/hal-cpp
+latest_subdir=$(ls -td -- */ | head -n 1)
+cd $latest_subdir
+ls *
+jar -cvf bundle.jar *.pom *.asc *.zip
+ls *
+
+publish_bundle_dir=$(pwd)
+echo "******************************************************"
+echo
+echo "Upload the bundle file ($publish_bundle_dir/bundle.jar) as an Artifact Bundle on the Staging Upload page at the Sonatype OSS site (oss.sonatype.org)"
+echo
+echo "******************************************************"

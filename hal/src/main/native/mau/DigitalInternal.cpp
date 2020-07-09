@@ -30,9 +30,9 @@ void InitializeDigitalInternal() {
 
 /* returns a contiguous, 0-based index for the (digital) VMXChannelIndex */
 HAL_DigitalHandle getDigitalHandleForVMXChannelIndex(VMXChannelIndex index, HAL_HandleEnum handleType) {
-	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels) - 1;
-	constexpr int32_t kFirstCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs) - 1;
-	constexpr int32_t kLastCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs + kNumCommDIOChannels) - 1;
+	constexpr int32_t kFirstAnalogInChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels);
+	constexpr int32_t kFirstCommDIOChannelIndex = (kNumFlexDIOChannels + kNumHiCurrDIOChannels + kNumAnalogInputs);
+	constexpr int32_t kLastCommDIOChannelIndex = (kFirstCommDIOChannelIndex + kNumCommDIOChannels) - 1;
 	if (index < kFirstAnalogInChannelIndex) {
 		return createHandle(index, handleType, HANDLE_VERSION);
 	} else if ((index >= kFirstCommDIOChannelIndex) && (index <= kLastCommDIOChannelIndex)) {
