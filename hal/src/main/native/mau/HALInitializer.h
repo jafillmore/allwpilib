@@ -21,6 +21,7 @@ namespace hal {
         }
 
         extern void InitializeAccelerometer();
+        extern void InitializeAddressableLED();
         extern void InitializeAnalogAccumulator();
         extern void InitializeAnalogGyro();
         extern void InitializeAnalogInput();

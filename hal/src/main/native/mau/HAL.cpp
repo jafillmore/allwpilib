@@ -189,6 +189,7 @@ namespace hal {
 	    }
 
             InitializeAccelerometer();
+	    InitializeAddressableLED();
             InitializeAnalogAccumulator();
             InitializeAnalogGyro();
             InitializeAnalogInput();

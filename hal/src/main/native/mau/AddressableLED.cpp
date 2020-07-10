@@ -50,7 +50,7 @@ void InitializeAddressableLED() {
 
 void *ledarray_update_thread_func(void *arg) {
     AddressableLED *p_ledinfo = (AddressableLED *)arg;
-    if (p_ledinfo) {        
+    if (p_ledinfo) {
 	if (p_ledinfo->pwm_handle != HAL_kInvalidHandle) {
   		auto port =
 		      hal::digitalChannelHandles->Get(p_ledinfo->pwm_handle, hal::HAL_HandleEnum::PWM);
@@ -88,10 +88,12 @@ HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
   VMXChannelInfo vmx_chan_info = port->vmx_chan_info;
 
   // Verify the channel has LEDArray_OneWire capability
-  if ((vmx_chan_info.capabilities & VMXChannelCapability::LEDArray_OneWire) == 0) {
+  if (!mau::vmxIO->ChannelSupportsCapability(vmx_chan_info.index, VMXChannelCapability::LEDArray_OneWire)) {
     *status = MAU_PWM_CHANNEL_LEDARRAY_INCOMPATIBILITY;
     return HAL_kInvalidHandle;
   }
+
+  vmx_chan_info.capabilities = VMXChannelCapability::LEDArray_OneWire;
 
   auto handle = addressableLEDHandles->Allocate();
 
@@ -116,16 +118,24 @@ HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
     return HAL_kInvalidHandle;
   }
 
+  // Reallocate the PWM handle
+  HAL_DigitalHandle pwmHandle;
+  auto new_port = allocateDigitalHandleAndInitializedPort(HAL_HandleEnum::PWM, wpi_digital_input_channel, pwmHandle, status);
+  if (new_port == nullptr) {
+      return HAL_kInvalidHandle;
+  }
+
   /* Set Configuration to defaults, including WPI-library compliant PWM Frequency and DutyCycle */
-  port->ledarray_config = LEDArray_OneWireConfig();
-  if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &port->ledarray_config, port->vmx_res_handle, status)) {
+  new_port->ledarray_config = LEDArray_OneWireConfig();
+  if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &new_port->ledarray_config, new_port->vmx_res_handle, status)) {
       int32_t temp_status;
+      digitalChannelHandles->Free(pwmHandle, HAL_HandleEnum::PWM);
       HAL_InitializePWMPort(HAL_GetPort(wpi_digital_input_channel), &temp_status);
       addressableLEDHandles->Free(handle);
       return HAL_kInvalidHandle;
   } else {
-    led->pwm_handle = outputPort;
-    port->configSet = true;
+    led->pwm_handle = pwmHandle;
+    new_port->configSet = true;
     led->wpi_digital_input_channel = wpi_digital_input_channel;
   }
 
@@ -166,10 +176,10 @@ void HAL_FreeAddressableLED(HAL_AddressableLEDHandle handle) {
 	mau::vmxIO->DeallocateResource(vmxResource, &status);
         port->vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
 	port->configSet = false;
-  }  
+  }
 
   HAL_InitializePWMPort(HAL_GetPort(led->wpi_digital_input_channel), &status);
-  
+
   addressableLEDHandles->Free(handle);
 }
 
@@ -214,6 +224,9 @@ void HAL_SetAddressableLEDLength(HAL_AddressableLEDHandle handle,
     if (!mau::vmxIO->LEDArrayBuffer_Create(length, led->buffer_handle, status)) {
       std::printf("Error creating VMXIO LEDArray Buffer:  %s\n", HAL_GetErrorMessage(*status));
     }
+    if (!mau::vmxIO->LEDArray_SetBuffer(vmxResource, led->buffer_handle, status)) {
+      std::printf("Error setting LEDArrayBuffer to LEDArray Driver:  %s\n", HAL_GetErrorMessage(*status));
+    }
   }
 }
 
@@ -242,8 +255,7 @@ void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
 
   LEDArrayBufferHandle buffer_handle = led->buffer_handle;
 
-  int requested_num_leds_to_write = length / sizeof(HAL_AddressableLEDData);
-  int num_leds_to_write = (requested_num_leds_to_write > num_pixels) ? num_pixels : requested_num_leds_to_write;
+  int num_leds_to_write = (length > num_pixels) ? num_pixels : length;
   for (int i = 0; i < num_leds_to_write; i++) {
     if (!mau::vmxIO->LEDArrayBuffer_SetRGBValue(buffer_handle, i, data[i].r, data[i].g, data[i].b, status)) {
       return;
@@ -317,7 +329,8 @@ void HAL_StartAddressableLEDOutput(HAL_AddressableLEDHandle handle,
   }
 
   if (!led->update_thread_running) {
-    if (!pthread_create(&led->update_thread, NULL, ledarray_update_thread_func, (void *)&led)) {
+    led->stop_update_thread = false;
+    if (!pthread_create(&led->update_thread, NULL, ledarray_update_thread_func, led.get())) {
       led->update_thread_running = true;
     } else {
       *status = HAL_HANDLE_ERROR;
