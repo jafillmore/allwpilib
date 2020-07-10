@@ -5,7 +5,9 @@
 /* the project.                                                               */
 /*----------------------------------------------------------------------------*/
 
+#include "hal/PWM.h"
 #include "hal/AddressableLED.h"
+#include "hal/HALBase.h"
 
 #include <cstring>
 
@@ -49,11 +51,11 @@ void InitializeAddressableLED() {
 void *ledarray_update_thread_func(void *arg) {
     AddressableLED *p_ledinfo = (AddressableLED *)arg;
     if (p_ledinfo) {        
-	if (p_led_info->pwm_handle != HAL_kInvalidHandle) {
+	if (p_ledinfo->pwm_handle != HAL_kInvalidHandle) {
   		auto port =
-		      hal::digitalChannelHandles->Get(lp_led_info->pwm_handle, hal::HAL_HandleEnum::PWM);
+		      hal::digitalChannelHandles->Get(p_ledinfo->pwm_handle, hal::HAL_HandleEnum::PWM);
 		if (port) {
-			while(!p_led_info->stop_update_thread) {
+			while(!p_ledinfo->stop_update_thread) {
 				int32_t status;
 				mau::vmxIO->LEDArray_Render(port->vmx_res_handle, &status);
 				std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -61,6 +63,7 @@ void *ledarray_update_thread_func(void *arg) {
 		}
         }
     }
+    return 0;
 }
 
 extern "C" {
@@ -107,7 +110,7 @@ HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
 
   // The passed-in PWM Handle is already allocated.  It must be deallocated before rellocation
   // as a LEDArray_OneWire channel
-  HAL_FreePWMPort(outputPort, &status);
+  HAL_FreePWMPort(outputPort, status);
   if (*status != 0) {
     addressableLEDHandles->Free(handle);
     return HAL_kInvalidHandle;
@@ -117,7 +120,7 @@ HAL_AddressableLEDHandle HAL_InitializeAddressableLED(
   port->ledarray_config = LEDArray_OneWireConfig();
   if (!mau::vmxIO->ActivateSinglechannelResource(vmx_chan_info, &port->ledarray_config, port->vmx_res_handle, status)) {
       int32_t temp_status;
-      HAL_InitializePWMPort(HAL_GetPort(wpi_digital_input_channel), temp_status);
+      HAL_InitializePWMPort(HAL_GetPort(wpi_digital_input_channel), &temp_status);
       addressableLEDHandles->Free(handle);
       return HAL_kInvalidHandle;
   } else {
@@ -150,7 +153,7 @@ void HAL_FreeAddressableLED(HAL_AddressableLEDHandle handle) {
 
   // Now that the thread is stopped, free the LEDArray Buffer
   if (led->buffer_handle) {
-    mau::vmxIO->LEDArrayBuffer_Delete(led->buffer_handle);
+    mau::vmxIO->LEDArrayBuffer_Delete(led->buffer_handle, &status);
     led->buffer_handle = 0;
   }
 
@@ -158,16 +161,14 @@ void HAL_FreeAddressableLED(HAL_AddressableLEDHandle handle) {
   VMXResourceHandle vmxResource = port->vmx_res_handle;
   bool allocated = false;
   bool isShared = false;
-  int32_t status;
-  mau::vmxIO->IsResourceAllocated(vmxResource, allocated, isShared, status);
+  mau::vmxIO->IsResourceAllocated(vmxResource, allocated, isShared, &status);
   if (allocated) {
-	mau::vmxIO->DeallocateResource(vmxResource, status);
+	mau::vmxIO->DeallocateResource(vmxResource, &status);
         port->vmx_res_handle = CREATE_VMX_RESOURCE_HANDLE(VMXResourceType::Undefined,INVALID_VMX_RESOURCE_INDEX);
 	port->configSet = false;
   }  
 
-  int32_t temp_status;
-  HAL_InitializePWMPort(HAL_GetPort(led->wpi_digital_input_channel), temp_status);
+  HAL_InitializePWMPort(HAL_GetPort(led->wpi_digital_input_channel), &status);
   
   addressableLEDHandles->Free(handle);
 }
@@ -186,7 +187,7 @@ void HAL_SetAddressableLEDLength(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   auto port =
@@ -194,12 +195,12 @@ void HAL_SetAddressableLEDLength(HAL_AddressableLEDHandle handle,
 
   if (!port) {
     *status = HAL_LED_CHANNEL_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   VMXResourceHandle vmxResource = port->vmx_res_handle;
   port->ledarray_config.SetNumPixels(length);
-  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status)) {
     std::printf("HAL_SetAddressableLEDLength Error:  %s\n", HAL_GetErrorMessage(*status));
     return;
   } else {
@@ -216,7 +217,7 @@ void HAL_SetAddressableLEDLength(HAL_AddressableLEDHandle handle,
   }
 }
 
-static_assert(sizeof(AddressableLED::LEDData) == sizeof(HAL_AddressableLEDData),
+static_assert(4 == sizeof(HAL_AddressableLEDData),
               "LED Structs MUST be the same size");
 
 void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
@@ -226,7 +227,7 @@ void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   int num_pixels = led->buffer_num_pixels;
@@ -236,7 +237,7 @@ void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
 
   if (!port) {
     *status = HAL_LED_CHANNEL_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   LEDArrayBufferHandle buffer_handle = led->buffer_handle;
@@ -244,7 +245,7 @@ void HAL_WriteAddressableLEDData(HAL_AddressableLEDHandle handle,
   int requested_num_leds_to_write = length / sizeof(HAL_AddressableLEDData);
   int num_leds_to_write = (requested_num_leds_to_write > num_pixels) ? num_pixels : requested_num_leds_to_write;
   for (int i = 0; i < num_leds_to_write; i++) {
-    if (!mau::vmxIO->LEDArrayBuffer_SetRBGValue(buffer_handle, i, data[i].r, data[i].g, data[i].b, status)) {
+    if (!mau::vmxIO->LEDArrayBuffer_SetRGBValue(buffer_handle, i, data[i].r, data[i].g, data[i].b, status)) {
       return;
     }
   }
@@ -260,7 +261,7 @@ void HAL_SetAddressableLEDBitTiming(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   auto port =
@@ -268,13 +269,13 @@ void HAL_SetAddressableLEDBitTiming(HAL_AddressableLEDHandle handle,
 
   if (!port) {
     *status = HAL_LED_CHANNEL_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   VMXResourceHandle vmxResource = port->vmx_res_handle;
   port->ledarray_config.SetOneSymbolHighTimeNanoseconds(highTime1NanoSeconds);
   port->ledarray_config.SetZeroSymbolHighTimeNanoseconds(highTime0NanoSeconds);
-  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status)) {
     std::printf("LEDArray_Configure Error:  %s\n", HAL_GetErrorMessage(*status));
     return;
   }
@@ -287,7 +288,7 @@ void HAL_SetAddressableLEDSyncTime(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   auto port =
@@ -295,12 +296,12 @@ void HAL_SetAddressableLEDSyncTime(HAL_AddressableLEDHandle handle,
 
   if (!port) {
     *status = HAL_LED_CHANNEL_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   VMXResourceHandle vmxResource = port->vmx_res_handle;
   port->ledarray_config.SetResetWaitTimeMicroseconds(syncTimeMicroSeconds);
-  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status) {
+  if (!mau::vmxIO->LEDArray_Configure(vmxResource, port->ledarray_config, status)) {
     std::printf("LEDArray_Configure Error:  %s\n", HAL_GetErrorMessage(*status));
     return;
   }
@@ -312,15 +313,15 @@ void HAL_StartAddressableLEDOutput(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   if (!led->update_thread_running) {
-    if (!pthread_create(&led->update_thread, NULL, ledarray_update_thread_func, led)) {
+    if (!pthread_create(&led->update_thread, NULL, ledarray_update_thread_func, (void *)&led)) {
       led->update_thread_running = true;
     } else {
       *status = HAL_HANDLE_ERROR;
-      return HAL_kInvalidHandle;
+      return;
     }
   }
 }
@@ -331,7 +332,7 @@ void HAL_StopAddressableLEDOutput(HAL_AddressableLEDHandle handle,
 
   if (!led) {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 
   if (led->update_thread_running) {
@@ -340,7 +341,7 @@ void HAL_StopAddressableLEDOutput(HAL_AddressableLEDHandle handle,
     led->update_thread_running = false;
   } else {
     *status = HAL_HANDLE_ERROR;
-    return HAL_kInvalidHandle;
+    return;
   }
 }
 
