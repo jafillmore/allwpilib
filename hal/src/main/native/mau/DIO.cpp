@@ -425,7 +425,7 @@ extern "C" {
 
     	/* We assume here that all pulses are "active high", since interestingly */
     	/* the active state is not provided in the parameters to this function. */
-    	uint32_t num_microseconds = static_cast<uint32_t>(pulseLength / 1.0e6);
+    	uint32_t num_microseconds = static_cast<uint32_t>(pulseLength / 1.0e-6);
     	if (!mau::vmxIO->DIO_Pulse(port->vmx_res_handle, true /*high*/, num_microseconds, status)) {
     		return;
         }
