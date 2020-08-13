@@ -775,7 +775,7 @@ double HAL_GetCounterPeriod(HAL_CounterHandle counterHandle, int32_t* status) {
 
 	// Convert tick count (in microseconds) to seconds.
 
-	return tick_count * 1e+6;
+	return tick_count * 1e-6;
 }
 
 /* This is invoked in the case of Ultrasonic sensor after the counter
