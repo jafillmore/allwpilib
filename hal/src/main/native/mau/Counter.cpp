@@ -223,35 +223,55 @@ static bool ConfigureInputCapture(InputCaptureConfig& config,
 
 	} else if (mode == HAL_Counter_kSemiperiod) {
 
-		// SemiPeriod Mode: configure input capture w/internal clock, gated on the up source input
-		// When the trigger occurs, the counter value increments based on the internal clock
-		// The gate opens when the up source rising edge occurs, and closes when the up source falling edge occurs
+		// SemiPeriod Mode: configure input capture w/internal clock, measuring the duration of
+		// a pulse occuring a single timer input pin measured using a Timer Channel Counter.
+		// The "Slave Mode Reset" timer mode is used.  When a rising edge occurs, the counter 
+		// is reset to 0.  Then, when the falling edge occurs, the counter value is captured
+		// into the timer's second channel counter.
 
 		// The usage model for this mode is defined within the WPI Library Ultrasonic class:
 		//   (a) SetSemiPeriodMode()
 		//   (b) Reset() [resets the counter]
 		//   (c) Get() [retrieves the value of the counter]
 
-		/**** CLOCK CONFIGURATION ***/
+		/**** CLOCK CONFIGURATION ***/	
 		config.SetCounterClockSource(InputCaptureConfig::CounterClockSource::INTERNAL);
 
-		/**** SOURCE CONFIGURATION ***/
-		// NOTE:  CaptureChannelSource is Dynamic, meaning it is dynamically selected during Resource Activation.  */
-		config.SetCaptureChannelSource(input_channel, InputCaptureConfig::CaptureChannelSource::CAPTURE_SIGNAL_DYNAMIC);
-		// Select Rising Edge to match whether this is the up or down source
-		config.SetCaptureChannelActiveEdge(input_channel, active_edge);
-		// Set Prescaler to 1
-		config.SetCaptureChannelPrescaler(input_channel, InputCaptureConfig::CaptureChannelPrescaler::x1);
-
 		/**** SLAVE MODE CONFIGURATION ***/
-		// Note CounterDirection is only used in Encoder mode.
-		// Use dynamic trigger source (first-routed port)
-		config.SetSlaveMode(InputCaptureConfig::SlaveMode::SLAVEMODE_GATED);
+		// The source of the Rising Edge Input is used as the Trigger Source, and because
+		// it's dynamic, when Resource Activation occurs later, the source is set to the
+		// VMXChannel routed to the timer.
+		config.SetSlaveMode(InputCaptureConfig::SlaveMode::SLAVEMODE_RESET);
 		config.SetSlaveModeTriggerSource(InputCaptureConfig::SlaveModeTriggerSource::TRIGGER_DYNAMIC);
 
-		/**** CAPTURE FILTER CONFIGURATION ***/
+		// The dynamically-selected VMXChannel will also be routed to each of the timer channel counters
+		config.SetCaptureChannelSource(InputCaptureConfig::CH1, InputCaptureConfig::CaptureChannelSource::CAPTURE_SIGNAL_DYNAMIC);
+		config.SetCaptureChannelSource(InputCaptureConfig::CH2, InputCaptureConfig::CaptureChannelSource::CAPTURE_SIGNAL_DYNAMIC);
+
+		// Due to the STM32 Timer Trigger routing limitations, which Timer Capture Channel
+		// is asigned the Rising edge is dependent upon which physical input pin is fed to
+		// the timer.
+		if (input_channel == InputCaptureConfig::CaptureChannel::CH2) {
+			// Second timer input:  Second Timer Channel must handle the rising edge
+			config.SetCaptureChannelActiveEdge(InputCaptureConfig::CH1, InputCaptureConfig::ACTIVE_FALLING);
+			config.SetCaptureChannelActiveEdge(InputCaptureConfig::CH2, InputCaptureConfig::ACTIVE_RISING);
+		} else {
+			// First timer input:  First Timer Channel must handle the rising edge
+			config.SetCaptureChannelActiveEdge(InputCaptureConfig::CH1, InputCaptureConfig::ACTIVE_RISING);
+			config.SetCaptureChannelActiveEdge(InputCaptureConfig::CH2, InputCaptureConfig::ACTIVE_FALLING);
+		}
+
+		// Set Prescaler to 1, so that capture occurs on each and every input signal edge transition
+		config.SetCaptureChannelPrescaler(InputCaptureConfig::CH1, InputCaptureConfig::CaptureChannelPrescaler::x1);
+		config.SetCaptureChannelPrescaler(InputCaptureConfig::CH2, InputCaptureConfig::CaptureChannelPrescaler::x1);
+
+		/**** CAPTURE FILTER CONFIGURATION ***/	
 		uint8_t filterNumber = config.GetClosestCaptureCaptureFilterNumSamples(samplesToAverage);
-		config.SetCaptureChannelFilter(input_channel, filterNumber);
+		config.SetCaptureChannelFilter(InputCaptureConfig::CH1, filterNumber);
+		config.SetCaptureChannelFilter(InputCaptureConfig::CH2, filterNumber);
+
+		// If input is no longer present, do not automatically clear the Capture Channel Count
+		config.SetStallAction(InputCaptureConfig::ACTION_NONE);
 
 		return true;
 	}
@@ -367,7 +387,7 @@ extern "C" {
  *       In this case, the VMX-pi resource is not activated until either the
  *       up or down source is set.
  *
- *       HAL_Counter_kPulseLength:  In this case, only one source (up or down) is supported.
+ *       HAL_Counter_kSemiPeriod:  In this case, only one source (up or down) is supported.
  *       In this case, the VMX-pi resource is not activated until either the
  *       up or down source is set.
  *
@@ -741,7 +761,16 @@ int32_t HAL_GetCounter(HAL_CounterHandle counterHandle, int32_t* status) {
 	int32_t counter_value = 0;
 
 	if (!INVALID_VMX_RESOURCE_HANDLE(counter->vmx_res_handle)) {
-		mau::vmxIO->InputCapture_GetCount(counter->vmx_res_handle, counter_value, status);
+		if (counter->hal_counter_mode == HAL_Counter_kSemiperiod) {
+			/* In semiperiod mode, Timer Channel 2 Count register has period count. */
+			uint32_t ch1_count;
+			uint32_t ch2_count;
+			mau::vmxIO->InputCapture_GetChannelCounts(counter->vmx_res_handle,
+				ch1_count, ch2_count, status);
+			counter_value = ch2_count;
+		} else {
+			mau::vmxIO->InputCapture_GetCount(counter->vmx_res_handle, counter_value, status);
+		}
 		if (counter->hal_counter_mode == HAL_Counter_Mode::HAL_Counter_kSemiperiod) {
 			if (counter->update_when_empty) {
 				if (HAL_GetCounterStopped(counterHandle,status)) {
